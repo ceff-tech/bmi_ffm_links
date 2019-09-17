@@ -114,9 +114,24 @@ sample_distinct <- bugs_filt %>%
 
 # make a station list for a map
 bug_stations <- bugs_filt %>%  # get distinct stations and locations
-  distinct(StationCode, longitude, latitude, collectionmethodcode, sampledate, county) %>% 
+  distinct(StationCode, longitude, latitude, collectionmethodcode) %>% 
   st_as_sf(coords=c("longitude", "latitude"), crs=4326) # make spatial
 
+# Save Data ---------------------------------------------------------------
+
+# save raw data
+bmi_clean <- bugs_filt
+bmi_stations <- bug_stations
+bmi_distinct_samps <- sample_distinct
+
+# save filtered/cleaned data
+save(bmi_clean, file ="data_output/bmi_cleaned_all.rda")
+
+# save distinct stations by XY and methods
+save(bmi_stations, file="data_output/bmi_stations_distinct_xy_methods.rda")
+
+# save distinct stations by XY, methods, date, and replicate
+save(bmi_distinct_samps, file="data_output/bmi_stations_distinct_samples.rda")
 
 # Make Maps ---------------------------------------------------------------
 
@@ -134,25 +149,33 @@ map_ca <- tm_shape(ca) + tm_polygons() +
   tm_compass(type = "arrow", position = c("right", "top"), size = 1.5) +
   tm_scale_bar(position = c("left", "bottom"), breaks = c(0, 100, 200), text.size = 0.4) +
   tm_layout(frame=FALSE) #+
-map_ca  
+#map_ca  
 
 # then add bug stations by collection method
-map_ca + tm_shape(bug_stations) +
+(tm_ca_bmi_sites <- map_ca + tm_shape(bug_stations) +
   tm_symbols(col="collectionmethodcode", border.col = "gray30", size=0.4) +
   tm_facets(by = "collectionmethodcode", nrow = 2,free.coords = FALSE) + 
   tm_layout(legend.show = F, legend.outside = TRUE, 
             #legend.outside.position = c(0.5, 0.2), 
+            legend.outside.size = 0.4))
+
+#tmap_save(filename = "figs/sampling_location_by_collectionmethod.png", width = 11, height = 8, dpi = 300, units = "in")
+
+# leaflet map:
+tm_ca_bmi_sites <- map_ca + tm_shape(bug_stations) +
+  tm_symbols(col="collectionmethodcode", border.col = "gray30", size=0.4) +
+  tm_layout(legend.show = F, legend.outside = TRUE, 
             legend.outside.size = 0.4)
 
-
+tmap_leaflet(tm_ca_bmi_sites)
 
 # Generate Metrics --------------------------------------------------------
 
 # generate test dataset of subset
-bug_rwm <- filter(bugs_filt, collectionmethodcode=="BMI_RWM_MCM") %>% as.data.frame()
+bug_trc <- filter(bugs_filt, collectionmethodcode=="BMI_TRC") %>% as.data.frame()
 
   # using CSCI package, coerce data into a “BMI” data object for generating metrics
-bugdata <- BMI(bug_rwm)
+bugdata <- BMI(bug_trc)
 
 # #Subsample to 500 individuals and aggregate
 bugdata_samp <- sample(bugdata)
@@ -161,3 +184,21 @@ bugdata_agg <- aggregate(bugdata_samp)
 
 # Calculate metrics at SAFIT Level 1
 bug_metrics <- BMIall(bugdata_agg, effort=1)
+
+bmi_trc <- bug_metrics
+save(bmi_trc, file = "data_output/bmi_trc_metrics_safit1.rda")
+
+
+# Generate SAFIT with purrr -----------------------------------------------
+
+library(purrr)
+
+bugs_split <- bugs_filt %>% 
+  split(.$collectionmethodcode) %>% 
+  map(~BMI(.x)) # make into BMI object
+
+bugs_samp <- bugs_split %>% 
+  map(~sample(.x)) # subsample to 500 individuals and aggregate
+
+bugs_agg <- bugs_samp %>% 
+  map(~aggregate(.x))
