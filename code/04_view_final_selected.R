@@ -13,6 +13,7 @@ library(tidyverse)
 load("data_output/sel_bmi_and_gages.rda")
 load("data_output/gages_nhd_flowlines_mainstems.rda")
 load("data_output/selected_h12_contain_bmi_gage.rda")
+load("data_output/bmi_cleaned_all.rda") # all data
 
 # load mapview bases
 # set background basemaps:
