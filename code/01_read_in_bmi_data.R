@@ -202,3 +202,6 @@ bugs_samp <- bugs_split %>%
 
 bugs_agg <- bugs_samp %>% 
   map(~aggregate(.x))
+
+# Calculate metrics at SAFIT Level 1
+bug_metrics <- BMIall(bugdata_agg, effort=1)
