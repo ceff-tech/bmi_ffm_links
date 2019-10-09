@@ -1,4 +1,11 @@
 # 02 Read Hydroclassification/Flows DB
+## R. Peek
+## Creates dataset of USGS reference stations
+
+## DATA OUT:
+### - gages_final (all distinct usgs gages from TNC/CEFF, n=250)
+### "02_gages_final.rda"
+
 
 # Libraries ---------------------------------------------------------------
 
@@ -58,46 +65,46 @@ mapview(gages_final)
 
 # Save out Gages ----------------------------------------------------------
 
-save(gages_final, file = "data_output/gages_final_250.rda")
+save(gages_final, file = "data_output/02_gages_final_250.rda")
 
 # Look at CEFF DB ----------------------------------------------------------
 
-# need to be connected via vpn to the CWS server:
-mdblink <- "/Volumes/projects/environmental_flows/DATA/hydrogeomorph_classification/California_Hydro_Geomorphic_Classification.mdb"
-
-# see table names:
-mdb.get(mdblink, tables=TRUE)
-
-# get single table
-ref_gages <- mdb.get(mdblink, tables="UCD_Ref_Gages_CA_Hydrologic_Classification") %>% 
-  # clean names w janitor
-  clean_names() %>% 
-  dplyr::select(-shape) # drop shape field
-
-# try with sf
-ref_gages_sf <- st_as_sf(ref_gages, coords = c("longdd","latdd"), 
-                         remove = F, crs=4326)
-names(ref_gages_sf)
-
-mapview(ref_gages_sf)
+# # need to be connected via vpn to the CWS server:
+# mdblink <- "/Volumes/projects/environmental_flows/DATA/hydrogeomorph_classification/California_Hydro_Geomorphic_Classification.mdb"
+# 
+# # see table names:
+# mdb.get(mdblink, tables=TRUE)
+# 
+# # get single table
+# ref_gages <- mdb.get(mdblink, tables="UCD_Ref_Gages_CA_Hydrologic_Classification") %>% 
+#   # clean names w janitor
+#   clean_names() %>% 
+#   dplyr::select(-shape) # drop shape field
+# 
+# # try with sf
+# ref_gages_sf <- st_as_sf(ref_gages, coords = c("longdd","latdd"), 
+#                          remove = F, crs=4326)
+# names(ref_gages_sf)
+# 
+# mapview(ref_gages_sf)
 
 # Connect to Geopackage ---------------------------------------------------
 
-dbcon <- src_sqlite("data_output/eflows_bmi.gpkg", create = F)
-src_tbls(dbcon) # see tables in DB
-
-# check layers
-dsn_link <- paste0(here::here(),"/data_output/eflows_bmi.gpkg")
-st_layers(dsn_link)
-
-# read 93 Ref gages
-ref_gages <- st_read(dsn = dbcon, "gages_ref_20190315", as_tibble=TRUE) #%>% 
-# select(-geometry) %>%  
-# st_as_sf(coords=c("point_x", "point_y"), crs=4326)
-
-gages <- tbl(dbcon, "gages_final_ref_20180703")  %>% 
-  collect() %>% 
-  filter(!is.na(LATITUDE)) %>% 
-  st_as_sf(coords = c("LONGITUDE","LATITUDE"), remove = F, crs=4326)
+# dbcon <- src_sqlite("data_output/eflows_bmi.gpkg", create = F)
+# src_tbls(dbcon) # see tables in DB
+# 
+# # check layers
+# dsn_link <- paste0(here::here(),"/data_output/eflows_bmi.gpkg")
+# st_layers(dsn_link)
+# 
+# # read 93 Ref gages
+# ref_gages <- st_read(dsn = dbcon, "gages_ref_20190315", as_tibble=TRUE) #%>% 
+# # select(-geometry) %>%  
+# # st_as_sf(coords=c("point_x", "point_y"), crs=4326)
+# 
+# gages <- tbl(dbcon, "gages_final_ref_20180703")  %>% 
+#   collect() %>% 
+#   filter(!is.na(LATITUDE)) %>% 
+#   st_as_sf(coords = c("LONGITUDE","LATITUDE"), remove = F, crs=4326)
 
 

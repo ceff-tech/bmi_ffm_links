@@ -82,6 +82,24 @@ bmi_coms_dat %>% as.data.frame() %>% group_by(SampleID) %>% distinct(SampleID) %
 bmi_coms_dat %>% as.data.frame() %>% group_by(StationCode) %>% distinct(StationCode) %>% tally
 
 
+# Get BMI comids ----------------------------------------------------------
+
+# all stations us of gage:
+bmi_us_coms <- sel_bmi_gages %>% filter(comid %in% mainstems_us$nhdplus_comid)
+
+# all stations 15km downstream on mainstem
+bmi_ds_coms <- sel_bmi_gages %>% filter(comid %in% mainstems_ds$nhdplus_comid)
+
+# combine US and DS
+bmi_coms <- rbind(bmi_ds_coms, bmi_us_coms)
+
+# potential sites:
+#bmi_coms %>% View()
+
+# rm old layer:
+rm(bmi_ds_coms, bmi_us_coms)
+
+
 # Check against CSCI Scores -----------------------------------------------
 
 # see what data exist against CSCI scores currently avail (from Raffi)

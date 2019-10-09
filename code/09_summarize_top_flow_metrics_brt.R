@@ -11,18 +11,44 @@ library(mapview)
 # Data --------------------------------------------------------------------
 
 # get data from BRT outputs
-load("data_output/gbm_bmi_metrics_RI_combined.rda")
+load("data_output/gbm_bmi_metrics_RI_combined_noSC.rda")
 load("data_output/selected_bmi_stations_w_comids.rda")
-load("data_output/maintems_us_ds_selected_gages.rda")
+load("data_output/mainstems_bmi_selected_gages.rda")
 
 
 # Plot/Summarize ----------------------------------------------------------
 
-# most common variable?
+# most common hydrometric by flowdata type?
 bmi_RI_combined %>% group_by(flowdat, var) %>% 
   summarize(meanRI = mean(rel.inf)) %>% 
   top_n(3) %>% 
   arrange(flowdat, desc(meanRI))
+
+# most common hydrometric by response?
+bmi_RI_combined %>% group_by(Ymetric, var) %>% 
+  summarize(meanRI = mean(rel.inf),
+            medianRI = median(rel.inf),
+            maxRI = max(rel.inf),
+            SD = sd(rel.inf)) %>% 
+  top_n(3) %>% 
+  arrange(Ymetric, desc(meanRI))
+
+# most common hydrometric across top vars in all response types and all flowdat?
+# so best hydrometric across Ymetrics?
+bmi_RI_combined %>% group_by(Ymetric, var) %>% 
+  summarize(meanRI = mean(rel.inf),
+            medianRI = median(rel.inf),
+            maxRI = max(rel.inf),
+            SD = sd(rel.inf)) %>% 
+  top_n(5) %>% group_by(var) %>% tally() %>% arrange(desc(n))
+
+# so best hydrometric across flowdat?
+bmi_RI_combined %>% group_by(flowdat, var) %>% 
+  summarize(meanRI = mean(rel.inf),
+            medianRI = median(rel.inf),
+            maxRI = max(rel.inf),
+            SD = sd(rel.inf)) %>% 
+  top_n(5) %>% group_by(var) %>% tally() %>% arrange(desc(n))
 
 
 # LEAFLET -------------------------------------------------------------------

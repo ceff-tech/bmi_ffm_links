@@ -14,13 +14,13 @@ library(lubridate)
 
 
 load("data_output/selected_bmi_stations_w_comids.rda")
-load("data_output/maintems_us_ds_selected_gages.rda")
+load("data_output/mainstems_us_ds_selected_gages.rda")
 load("data_output/selected_bmi_stations_w_csci_flow_por.rda")
 load("data_output/selected_bmi_stations_w_csci_flow_annual.rda")
 load("data_output/selected_bmi_stations_w_data.rda")
 load("data_output/selected_usgs_flow_metrics_POR.rda")
 load("data_output/selected_flow_by_years_of_bmi.rda")
-load("selected_bmi_metrics_at_gage_sites.rda")
+load("data_output/selected_bmi_metrics_at_gage_sites.rda")
 
 # make non-sf: 
 bmi_csci_flow_yrs <- bmi_csci_flow_yrs %>% st_drop_geometry() %>% as.data.frame
@@ -114,7 +114,7 @@ bmi_csci_flow <- bmi_csci_flow %>%
   mutate(SampleID=paste0(StationCode, "_", year(sampledate), sprintf("%02d", month(sampledate)), sprintf("%02d", day(sampledate)), "_", collectionmethodcode, "_", fieldreplicate)) %>% st_drop_geometry()
 
 # make a distinct SampleID list of csci
-csci_only <- bmi_csci_flow %>% select(SampleID, csci, csci_percentile) %>% 
+csci_only <- bmi_csci_flow %>% select(SampleID, csci, csci_percentile, mmi, mmi_percentile) %>% 
   distinct(SampleID, .keep_all = T)
 
 # now join
