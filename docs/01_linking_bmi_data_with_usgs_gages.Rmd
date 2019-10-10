@@ -83,6 +83,8 @@ suppressPackageStartupMessages({
 })
 
 load(file = paste0(here::here(), "/data_output/gages_final_250.rda")) # all gages
+load(file = paste0(here::here(), "/data_output/bmi_stations_distinct_samples.rda"))
+load(file = paste0(here::here(), "/data_output/bmi_stations_distinct_ref_nonref.rda"))
 load(file = paste0(here::here(), "/data_output/bmi_stations_distinct_xy_methods.rda"))
 load(file = paste0(here::here(), "/data_output/bmi_stations_distinct_samples.rda"))
 load(file= paste0(here::here(), "/data_output/huc12_sf.rda"))
