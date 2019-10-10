@@ -1,4 +1,14 @@
-# 05_merge_sites_by_year
+# 05 Merge BMI Data with Flow Data by year
+## R. Peek
+## Link the BMI data by flow data with a lag, annual, and POR
+
+## DATA OUT:
+### bmi_coms, file="data_output/05_selected_bmi_stations_w_comids.rda" (the comids for selected BMI stations n=224)
+### bmi_csci_flow_por, file="data_output/05_selected_bmi_stations_w_csci_flow_por.rda" (period of record flow associated with available CSCI data, n=194)
+### bmi_csci_flow_yrs, file="data_output/05_selected_bmi_stations_w_csci_flow_years.rda" (flow data with avail csci scores, 1,2yr lags n=432)
+### bmi_dat, file="data_output/05_selected_bmi_cleaned_w_data.rda" (cleaned data w site status, n=27567)
+### flow_por_wide, flow_por, file="data_output/05_selected_usgs_flow_metrics_POR.rda" (ref gage data for period of record, n=223)
+### mainstems, file="data_output/05_mainstems_us_ds_selected_gages.rda" (mainstem NHD flowlines, us and ds, n=1581)
 
 # Libraries ---------------------------------------------------------------
 
@@ -10,10 +20,11 @@ library(tidyverse)
 
 # Load Data ---------------------------------------------------------------
 
-load("data_output/sel_bmi_and_gages.rda")
-load("data_output/selected_h12_contain_bmi_gage.rda")
-load("data_output/gages_nhd_flowlines_mainstems.rda")
-load("data_output/bmi_cleaned_all.rda") # all data
+load("data_output/03_selected_bmi_and_gages.rda")
+load("data_output/03_selected_h12_contain_bmi_gage.rda")
+load("data_output/03_selected_nhd_flowlines_mainstems.rda")
+load("data_output/00_bmi_cleaned_all.rda") # all data
+load("data_output/01_bmi_cleaned_stations_w_site_status.rda")
 
 # load mapview bases
 # set background basemaps:
@@ -33,11 +44,11 @@ bmi_ds_coms <- sel_bmi_gages %>% filter(comid %in% mainstems_ds$nhdplus_comid)
 # combine US and DS
 bmi_coms <- rbind(bmi_ds_coms, bmi_us_coms)
 
-# potential sites:
-#bmi_coms %>% View()
-
 # rm old layer:
 rm(bmi_ds_coms, bmi_us_coms)
+
+# join with status:
+bmi_coms <- bmi_coms %>% left_join(bmi_clean_stations_ss[, c(1:2)], by="StationCode")
 
 # Combine Mainstem NHDlines -----------------------------------------------
 
@@ -55,14 +66,14 @@ rm(mainstems_ds, mainstems_us)
 
 # pull BMI sites and get list of data, first join with orig full dataset:
 bmi_dat <- inner_join(bmi_coms, bmi_clean, by="StationCode") %>% 
-  select(-c(Eco_III_2010, benthiccollectioncomments, percentsamplecounted:gridsvolumeanalyzed, discardedorganismcount,
+  select(-c(benthiccollectioncomments, percentsamplecounted:gridsvolumeanalyzed, discardedorganismcount,
             benthiclabeffortcomments, resqualcode:personnelcode_labeffort, samplecomments, effortqacode))
   # inner join drops NAs (72 sites: is.na(bmi_coms_dat$SampleID)
 
-# now look at how many unique samples are avail: n=261 unique samples
+# now look at how many unique samples are avail: n=266 unique samples
 bmi_dat %>% as.data.frame() %>% group_by(SampleID) %>% distinct(SampleID) %>% tally
 
-# now look at how many unique stations: n=139 stations
+# now look at how many unique stations: n=142 stations
 bmi_dat %>% as.data.frame() %>% group_by(StationCode) %>% distinct(StationCode) %>% tally
 
 # Merge with Flow Dat -----------------------------------------------------
@@ -84,7 +95,6 @@ rm(dat_long)
 # set ID vars for flow metrics
 flow_idvars <- flow_long %>% group_by(ID, stat) %>% distinct(ID, stat, maxYr, minYr)
 
-
 # now avg for PERIOD OF RECORD for CSCI comparison
 flow_por <- flow_long %>% select(-YrRange, -gage, -year, -stream_class) %>% group_by(ID, stat) %>% 
   summarize_at(vars(data), mean, na.rm=T) %>% 
@@ -95,14 +105,13 @@ flow_por <- flow_long %>% select(-YrRange, -gage, -year, -stream_class) %>% grou
 length(unique(flow_por$stat))
 
 # make wide for join
-flow_wide <- flow_por %>% 
+flow_por_wide <- flow_por %>% 
   pivot_wider(names_from=stat, values_from=data)
 #values_fill=list(data=0))
 # can fill missing values with zero if preferred: values_fill=list(data=0)
 
 # check number unique gages:
-flow_wide %>% distinct(ID) %>% dim # should be 223
-
+flow_por_wide %>% distinct(ID) %>% dim # should be 223
 
 # Get Flow Record only in Same Year/lag as BMI Sites ----------------------
 
@@ -110,8 +119,8 @@ flow_wide %>% distinct(ID) %>% dim # should be 223
 
 # make vector of years and BMI_ids
 bmi_yrs <- bmi_dat %>% group_by(SampleID) %>% pull(YYYY) %>% unique()
-(bmi_yrs_2 <- bmi_yrs - 2)
-(bmi_yrs_1 <- bmi_yrs - 1)
+(bmi_yrs_2 <- bmi_yrs - 2) # set lag 2
+(bmi_yrs_1 <- bmi_yrs - 1) # set lag 1
 
 # now combine and order:
 bmi_years <- combine(bmi_yrs, bmi_yrs_1, bmi_yrs_2) %>% sort() %>% unique() # 25 total years to match with flow record
@@ -131,20 +140,22 @@ flow_by_years_bmi_wide <- flow_by_years_bmi %>%
 flow_by_years_bmi_wide %>% distinct(ID) %>% dim # should be 106 gages match same years
 
 # save flow data out for annual match
-save(flow_by_years_bmi, flow_by_years_bmi_wide, file="data_output/selected_flow_by_years_of_bmi.rda")
-
+save(flow_by_years_bmi, flow_by_years_bmi_wide, file="data_output/05_selected_flow_by_years_of_bmi.rda")
 
 # Get CSCI Data -----------------------------------------------------------
 
 # see what data exist against CSCI scores currently avail (from Raffi)
-csci <- read_csv("data/csci_core.csv")
+csci <- read_csv("data/csci_core.csv") 
+csci %>% 
+  distinct(sampleid) %>% tally()
 
 # match against existing sites:
-bmi_csci <- inner_join(bmi_coms, csci, by=c("StationCode"="stationcode"))
+bmi_csci <- inner_join(bmi_coms, csci, by=c("StationCode"="stationcode")) %>% 
+  distinct(globalid, .keep_all = T)
 
 # how many unique matches?
 length(unique(bmi_csci$StationCode))
-table(bmi_csci$SiteStatus)
+bmi_csci %>% st_drop_geometry() %>% group_by(SiteStatus) %>% tally()
 
 # look at CSCI
 hist(bmi_csci$csci_percentile)
@@ -179,35 +190,36 @@ ggplot(data=bmi_csci, aes(x=SiteStatus, y=csci_percentile)) +
 
 # Join with Flow POR ------------------------------------------------------
 
-bmi_csci_flow <- left_join(bmi_csci, flow_wide, by="ID")
+bmi_csci_flow_por <- left_join(bmi_csci, flow_por_wide, by="ID")
 
-# filter to sites that have data in the flow time range?
-bmi_csci_flow_yr_overlap <- bmi_csci_flow %>% 
+# filter to sites that have data in the flow time range? # doesn't matter for POR?
+bmi_csci_flow_por_overlap <- bmi_csci_flow_por %>%
   filter(sampleyear > minYr, sampleyear< maxYr)
 
-length(unique(bmi_csci_flow_yr_overlap$StationCode))
-length(unique(bmi_csci_flow_yr_overlap$ID))
-class(bmi_csci_flow_yr_overlap)
-#mapview(bmi_csci_flow_yr_overlap)
-
+length(unique(bmi_csci_flow_por_overlap$StationCode)) # 76 stations
+length(unique(bmi_csci_flow_por_overlap$ID)) # 36 gages
 
 # Join with Flow by Years that Match/lag BMI -------------------------------
 
 bmi_csci_flow_yrs <- left_join(bmi_csci, flow_by_years_bmi_wide, by=c("ID")) %>% 
   # filter to same year as BMI + 2 yr lag
-  filter(sampleyear == year | sampleyear == year-1 | sampleyear==year-2)
+  filter(sampleyear == year | sampleyear == year+1 | sampleyear==year+2)
+
+# double check
+# bmi_csci_flow_yrs %>% select(StationCode, sampleid, sampleyear, year) %>% View()
 
 # filter to sites that have data in the flow time range?
 bmi_csci_flow_yrs %>% as.data.frame() %>% distinct(StationCode) %>% tally()
+bmi_csci_flow_yrs %>% as.data.frame() %>% distinct(sampleid, year) %>% tally()
 bmi_csci_flow_yrs %>% as.data.frame() %>% distinct(ID) %>% tally()
 
 # Export Cleaned Data -----------------------------------------------------
 
-save(bmi_coms, file="data_output/selected_bmi_stations_w_comids.rda")
-save(bmi_csci_flow, file="data_output/selected_bmi_stations_w_csci_flow_por.rda")
-save(bmi_csci_flow_yrs, file="data_output/selected_bmi_stations_w_csci_flow_annual.rda")
-save(bmi_dat, file="data_output/selected_bmi_stations_w_data.rda")
-flow_por_wide <- flow_wide; rm(flow_wide)
-save(flow_por_wide, flow_por, file="data_output/selected_usgs_flow_metrics_POR.rda")
-save(mainstems, file="data_output/maintems_us_ds_selected_gages.rda")
+save(bmi_coms, file="data_output/05_selected_bmi_stations_w_comids.rda")
+
+save(bmi_csci_flow_por, file="data_output/05_selected_bmi_stations_w_csci_flow_por.rda")
+save(bmi_csci_flow_yrs, file="data_output/05_selected_bmi_stations_w_csci_flow_years.rda")
+save(bmi_dat, file="data_output/05_selected_bmi_cleaned_w_data.rda")
+save(flow_por_wide, flow_por, file="data_output/05_selected_usgs_flow_metrics_POR.rda")
+save(mainstems, file="data_output/05_mainstems_us_ds_selected_gages.rda")
 

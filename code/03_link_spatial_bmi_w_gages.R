@@ -1,11 +1,20 @@
 # 03 Spatially Linking BMI with GAGES
 ## R. Peek
 ## Spatially link the BMI station data with the USGS gage data using multiple spatial filters
+
 ## DATA OUT:
 ### - sel_h12_bmi (all huc12s with gage/bmi sites inside them, n=53)
-### "data_output/03_selected_h12_contain_bmi_gage.rda"
+    ### "data_output/03_selected_h12_contain_bmi_gage.rda"
 ### - sel_bmi_gages, sel_gages_bmi (selected bmi sites and gages that are in same H12, n=244 and n=59)
-### "data_output/03_sel_bmi_and_gages.rda"
+    ### "data_output/03_selected_bmi_and_gages.rda"
+### - bmi_comids_rev (all bmi station COMIDs, generated w nhdtools, n=3873)
+    ### "data_output/03_bmi_all_stations_comids.rda"
+### - sel_gages_sf_3310 (same data but in crs=3310)
+    ### "data_output/03_selected_gages_bmi_sf_3310.rda"
+### - mainstems_us, mainstems_ds (generated w nhdtools, using 15km ds)
+    ### "data_output/03_selected_nhd_flowlines_mainstems.rda"
+### - flowlines (generated w nhdtools, full upstream flowlines from gages)
+    ### "data_output/03_selected_nhd_flowlines_upstream.rda"
 
 
 # Load Libraries ----------------------------------------------------------
@@ -88,7 +97,7 @@ length(unique(factor(sel_bmi_gages$HUC_12))) # 53 unique h12
 length(unique(sel_bmi_gages$ID)) # 59 unique gages
 length(unique(sel_bmi_gages$StationCode)) # 210 unique BMI Stations
 
-# how many gages?
+# how many gages? # 59, but only 55 have bmi dat
 sel_gages_bmi <- gages_final2 %>% filter(ID %in% sel_bmi_gages$ID)
 
 # select H12s that have points inside:
@@ -198,26 +207,28 @@ bmi_segs_df <-bmi_missing_coms %>% flatten_dfc() %>% t() %>% as.data.frame() %>%
 # rejoin
 bmi_comids_rev <- bind_rows(bmi_segs_df, bmi_comids)
 
+# save back out:
+save(bmi_comids_rev, file="data_output/03_bmi_all_stations_comids.rda")
+
 # rejoin to get full comids
 sel_bmi_gages <- sel_bmi_gages %>% left_join(., bmi_comids_rev, by="StationCode") %>% 
   # remove old col and rename:
   select(-comid.x) %>% rename(comid=comid.y)
 summary(sel_bmi_gages)
 
-save(sel_bmi_gages, sel_gages_bmi, file="data_output/03_selected_bmi_and_gages.rda")
+#save(sel_bmi_gages, sel_gages_bmi, file="data_output/03_selected_bmi_and_gages.rda")
 
 
 # GET UPSTREAM FLOWLINES --------------------------------------------------
 
-
 ## TRANSFORM TO SAME DATUM
-# sel_bmi_sf <- st_transform(sel_bmi_gages, crs=3310) # use CA Teal albs metric
-# sel_gages_sf <- st_transform(sel_gages_bmi, crs=3310)
-# save(sel_gages_sf, sel_bmi_sf, file = "data_output/sel_gages_bmi_sf_3310.rda")
+sel_bmi_sf <- st_transform(sel_bmi_gages, crs=3310) # use CA Teal albs metric
+sel_gages_sf <- st_transform(sel_gages_bmi, crs=3310)
 
+save(sel_gages_sf, sel_bmi_sf, file = "data_output/03_selected_gages_bmi_sf_3310.rda")
 
-# usgs_segs <- sel_gages_bmi %>% split(.$ID) %>%
-#   map(~discover_nhdplus_id(.x$geometry))
+usgs_segs <- sel_gages_bmi %>% split(.$ID) %>%
+  map(~discover_nhdplus_id(.x$geometry))
 
 # search by a single comid
 # nldi_feature <- list(featureSource = "comid",
@@ -248,37 +259,54 @@ mainstemsDS <- map(coms_list, ~navigate_nldi(nldi_feature = .x,
                                            data_source = ""))
 
 # IT WORKSSSSSS!!!!!
-# mapview(mainstems, col.regions="blue", col="blue", legend=F) #+ 
+mapview(mainstems, col.regions="blue", col="blue", legend=F, lwd=2.5) +
+  mapview(mainstemsDS, color="skyblue4", lwd=4, legend=F) + 
+  mapview(sel_bmi_sf, col.regions="orange", legend=F) + 
+  mapview(sel_gages_sf, col.regions="dodgerblue", legend=F, cex=5) 
 
 
 # make a single flat layer
-mainstems_flat <- mainstemsDS %>%
+mainstems_flat_ds <- mainstemsDS %>%
   set_names(., sel_gages_sf$ID) %>%
   map2(sel_gages_sf$ID, ~mutate(.x, gageID=.y))
 
 # bind together
-mainstems_flat <- do.call(what = sf:::rbind.sf,
-          args = mainstems_flat)
+mainstems_ds <- do.call(what = sf:::rbind.sf,
+          args = mainstems_flat_ds)
 
-mainstems_us <- mainstems_flat
-mainstems_ds <- mainstems_flat
-rm(mainstems_flat)
+# make a single flat layer
+mainstems_flat_us <- mainstems %>%
+  set_names(., sel_gages_sf$ID) %>%
+  map2(sel_gages_sf$ID, ~mutate(.x, gageID=.y))
 
-save(mainstems_us, mainstems_ds, file = "data_output/gages_nhd_flowlines_mainstems.rda")
+# bind together
+mainstems_us <- do.call(what = sf:::rbind.sf,
+                             args = mainstems_flat_us)
+
+rm(mainstems_flat_ds, mainstems_flat_us)
+
+save(mainstems_us, mainstems_ds, file = "data_output/03_selected_nhd_flowlines_mainstems.rda")
 
 mapview(mainstems_ds) + mapview(mainstems_us, color="purple")
 
-# Load NHD files ----------------------------------------------------------
 
-load("data_output/sel_bmi_and_gages.rda")
-load("data_output/gages_nhd_flowlines_mainstems.rda")
-load("data_output/selected_h12_contain_bmi_gage.rda")
+# RELOAD AND MAP ----------------------------------------------------------
+
+load("data_output/03_selected_bmi_and_gages.rda")
+load("data_output/03_selected_nhd_flowlines_mainstems.rda")
+load("data_output/03_selected_h12_contain_bmi_gage.rda")
 
 mapview(mainstems_ds, color="slateblue", legend=F) +
   mapview(mainstems_us, color="darkblue", legend=F) +
-  mapview(sel_gages_bmi, col.regions="cyan", cex=5) + 
-  mapview(sel_bmi_gages, col.regions="orange", cex=7)
+  mapview(sel_gages_bmi, col.regions="purple", cex=8) + 
+  mapview(sel_bmi_gages, col.regions="orange", cex=6)
 
+
+
+
+# OLD CODE BELOW ----------------------------------------------------------
+
+# everything below here is extra code, doesn't do anything necessary to the rest of the analysis. 
 
 # Look into COMIDs for bmi ------------------------------------------------
 
@@ -288,6 +316,8 @@ bmi_us_coms <- sel_bmi_gages %>% filter(comid %in% mainstems_us$nhdplus_comid)
 # all stations 15km downstream on mainstem
 bmi_ds_coms <- sel_bmi_gages %>% filter(comid %in% mainstems_ds$nhdplus_comid)
 
+
+# Make Another Mapview ----------------------------------------------------
 
 m3 <- mapview(bmi_ds_coms, cex=6, col.regions="orange", layer.name="Selected BMI D/S") +  
   mapview(mainstems_ds, color="darkblue", cex=3, layer.name="NHD D/S Flowline 15km", legend=F)+
@@ -309,8 +339,6 @@ m4 <- mapview(bmi_ds_coms, cex=6, zcol="SiteStatus", layer.name="Selected BMI D/
   mapview(sel_h12_bmi, col.regions="dodgerblue", alpha.region=0.1, color="darkblue", legend=F, layer.name="HUC12")
 
 m4@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
-
-
 
 # Make into Geopackage ----------------------------------------------------
 
