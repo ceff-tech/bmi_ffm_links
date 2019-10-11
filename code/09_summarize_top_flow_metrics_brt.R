@@ -11,9 +11,9 @@ library(mapview)
 # Data --------------------------------------------------------------------
 
 # get data from BRT outputs
-load("data_output/gbm_bmi_metrics_RI_combined_noSC.rda")
-load("data_output/selected_bmi_stations_w_comids.rda")
-load("data_output/mainstems_bmi_selected_gages.rda")
+load("data_output/08_gbm_bmi_metrics_RI_combined_noSC.rda")
+load("data_output/05_selected_bmi_stations_w_comids.rda")
+load("data_output/07_mainstems_bmi_selected_gages.rda")
 
 
 # Plot/Summarize ----------------------------------------------------------
@@ -68,9 +68,8 @@ m <- leaflet() %>% addTiles() %>%
              completedColor = "#7D4479") %>%
   
   
-  # CDEC SNOW STATIONS
+  # CDEC BMI STATIONS
   addCircleMarkers(data=bmi_coms, group="BMI Coms",
-                   lng=~lon, lat=~lat,
                    popup=paste0("<strong>","StationID: ","</strong>", 
                                 bmi_coms$StationCode, 
                                 "<br><strong>", "Lat: ","</strong>", 

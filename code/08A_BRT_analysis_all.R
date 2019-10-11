@@ -8,20 +8,38 @@ library(lubridate)
 library(gbm)
 library(DT)
 library(viridis)
+library(mapview)
 #library(dismo)
 
 # Data --------------------------------------------------------------------
 
-load("data_output/selected_bmi_flow_metrics_w_csci_ANN.rda")
-load("data_output/selected_bmi_flow_metrics_w_csci_POR.rda")
-load("data_output/selected_bmi_flow_metrics_w_csci_LAG1.rda")
-load("data_output/selected_bmi_flow_metrics_w_csci_LAG2.rda")
-load("data_output/selected_bmi_stations_w_comids.rda")
-load("data_output/maintems_us_ds_selected_gages.rda")
+load("data_output/06_selected_bmi_flow_metrics_w_csci_ANN.rda")
+load("data_output/06_selected_bmi_flow_metrics_w_csci_POR.rda")
+load("data_output/06_selected_bmi_flow_metrics_w_csci_LAG1.rda")
+load("data_output/06_selected_bmi_flow_metrics_w_csci_LAG2.rda")
+load("data_output/05_selected_bmi_stations_w_comids.rda")
+load("data_output/05_mainstems_us_ds_selected_gages.rda")
+load("data_output/03_selected_bmi_and_gages.rda")
+load("data_output/07_selected_bmi_nearest_usgs_stations.rda")
+
+# Link Regions ------------------------------------------------------------
+
+# read in fish regions:
+load("data/07_umbrella_sp_regions.rda")
+
+# spatial join gage sites with regions, adds ATTRIBUTES, retains ALL pts if left=TRUE,
+sel_gages_bmi <- st_join(st_transform(sel_gages_bmi, 3310), left = TRUE, ca_sp_regions["huc_region"])
+
+bmi_nearest <- st_join(st_transform(bmi_nearest, 3310), left = TRUE, ca_sp_regions["huc_region"])
+
+mapview(sel_gages_bmi, col.regions="deepskyblue4", cex=7, alpha=0.7) + 
+  mapview(mainstems, color="darkblue", lwd=0.5) +
+  mapview(ca_sp_regions, zcol="huc_region", alpha.regions=0.3) + 
+  mapview(bmi_coms, col.regions="orange", cex=5, alpha=.7)
 
 # Set up Model Vars -------------------------------------------------------
 
-bmi.metrics<-c("Shannon_Diversity", "Simpson_Diversity", "Taxonomic_Richness", "EPT_Percent", "Tolerant_Percent")
+bmi.metrics<-c("Shannon_Diversity", "Simpson_Diversity", "Taxonomic_Richness", "EPT_Percent", "Tolerant_Percent", "Intolerant_Percent", "csci", "csci_percentile", "mmi", "mmi_percentile")
 
 # source functions:
 source("code/functions/My.gbm.step.R")
@@ -33,33 +51,24 @@ source("code/functions/lm_R2_equation_ggplot.R")
 
 # Select Response Var -----------------------------------------------------
 
+#region_sel <- bmi_nearest %>% filter(huc_region=="north_coast" | huc_region=="south_coast")
+
 ## select data and arrange
-data_ann <- dplyr::select(bmi_flow_metrics_ann_csci, 1, 106, 151, 91:93, 153:154, one_of(bmi.metrics), 95, 117:150) %>% 
-  #mutate(stream_class = as.factor(stream_class)) %>% 
+data_ann <- dplyr::select(bmi_flow_metrics_ann_csci, 1, 106, 151:152, 91:93, 96, one_of(bmi.metrics), 117:148) %>% 
+  #filter(StationCode %in% region_sel$StationCode) %>% 
   as.data.frame()
 
-data_lag1 <- dplyr::select(bmi_flow_metrics_lag1_csci, 1, 106, 151, 91:93, 153:154, one_of(bmi.metrics), 95, 117:150) %>% 
+data_lag1 <- dplyr::select(bmi_flow_metrics_lag1_csci, 1, 106, 151:152, 91:93, 96, one_of(bmi.metrics), 117:148) %>% 
+  #filter(StationCode %in% region_sel$StationCode) %>% 
   as.data.frame()
 
-data_lag2 <- dplyr::select(bmi_flow_metrics_lag2_csci, 1, 106, 151, 91:93, 153:154, one_of(bmi.metrics), 95, 117:150) %>% 
+data_lag2 <- dplyr::select(bmi_flow_metrics_lag2_csci, 1, 106, 151:152, 91:93, 96, one_of(bmi.metrics), 117:148) %>% 
+  #filter(StationCode %in% region_sel$StationCode) %>% 
   as.data.frame()
 
-data_por <- dplyr::select(bmi_flow_metrics_por_csci, 1, 106, 151, 91:93, 153:154, one_of(bmi.metrics), 95, 117:150) %>% 
+data_por <- dplyr::select(bmi_flow_metrics_por_csci, 1, 106, 151:152, 91:93, 96, one_of(bmi.metrics), 117:148) %>% 
+  #filter(StationCode %in% region_sel$StationCode) %>% 
   as.data.frame()
-
-
-# # visualize range of data for shannon
-# ggplot() +
-#   geom_point(data=data_ann, aes(x=log(Avg), y=csci_percentile), pch=21, fill="maroon", alpha=0.7) +
-#   geom_smooth(data=data_ann, aes(x=log(Avg), y=csci_percentile), color="maroon", method = "loess") +
-#   geom_point(data=data_por, aes(x=log(Avg), y=csci_percentile), fill="slateblue", pch=21, alpha=0.7) +
-#   geom_smooth(data=data_por, aes(x=log(Avg), y=csci_percentile), color="slateblue", method = "loess") +
-#   geom_point(data=data_lag2, aes(x=log(Avg), y=csci_percentile), fill="forestgreen", pch=21, alpha=0.7) +
-#   geom_smooth(data=data_lag2, aes(x=log(Avg), y=csci_percentile), color="forestgreen", method = "loess") +
-#   theme_bw() + 
-#   ylab("CSCI Percentile")
-#   #scale_fill_viridis_c("CSCI") 
-
 
 # Shannon ANNUAL BRT --------------------------------------------------------
 
@@ -69,7 +78,7 @@ data_por <- dplyr::select(bmi_flow_metrics_por_csci, 1, 106, 151, 91:93, 153:154
 set.seed(33)  # set seed to get repeatable model              
 
 # select cols of interest
-dat_shann <- data_ann[,c(9,15:ncol(data_ann))]
+dat_shann <- data_ann[,c(9,18:ncol(data_ann))]
 
 # model with Shannons'
 gbm1 <- My.gbm.step(data=dat_shann,
@@ -82,6 +91,7 @@ gbm1 <- My.gbm.step(data=dat_shann,
                  n.folds = 5,           # 10 default for function; 5 was used in De'ath 2007, good for low n
                  n.minobsinnode = 3)    # I edited gbm.step code to allow modification of n.minobsinnode
 
+# get the relative % 
 gbm1_RI<-as.data.frame(summary(gbm1, plotit = F)) %>% 
   mutate("Ymetric"="Shannon_Diversity",
          "flowdat" = "annual")
@@ -97,7 +107,7 @@ str(gbm1_RI)
 #               color = styleInterval(c(2,5), c('#440154FF', '#21908CFF', '#FDE725FF')),
 #               backgroundColor = styleInterval(c(2,5), c('gray', 'yellow', 'forestgreen'))) %>% formatRound('Relative Influence', 3)
 
-gbm1_topn <- sum((summary(gbm1, plotit=FALSE)$rel.inf)>=4)
+gbm1_topn <- sum((summary(gbm1, plotit=FALSE)$rel.inf)>=5)
 (gbm1_topvar <- as.character(summary(gbm1, plotit=FALSE)$var[1:gbm1_topn]))
 # make df:
 gbm1_ri_top <- tibble(RI=summary(gbm1, plotit=FALSE)$rel.inf[1:gbm1_topn], varnames=gbm1_topvar) %>% 
@@ -110,17 +120,10 @@ gbm1_ri_top <- tibble(RI=summary(gbm1, plotit=FALSE)$rel.inf[1:gbm1_topn], varna
     coord_flip() + 
     labs(title=paste0("Annual: Top ",gbm1_topn," vars for Shannon Div"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/ann_brt_shannon_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
-
-# par(mar=c(5,12,3,3))
-# barplot(rev(summary(gbm1, plotit=FALSE)$rel.inf[1:gbm1_topn]), 
-#         horiz = TRUE, col = viridis(gbm1_topn), 
-#         names = rev(summary(gbm1, plotit=FALSE)$var[1:gbm1_topn]), 
-#         xlab = "Relative influence",
-#         las=1, 
-#         main=paste0("Relative Influence: \nTop ",gbm1_topn," Vars vs. Shannon Diversity"))
+ggsave(filename = "figs/ann_brt_shannon_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 # Shannon LAG1 BRT --------------------------------------------------------
 
@@ -130,7 +133,7 @@ ggsave(filename = "figs/ann_brt_shannon_top_RI_barplot.png",width = 6, height = 
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_shann1 <- data_lag1[,c(9,15:ncol(data_lag1))]
+dat_shann1 <- data_lag1[,c(9,18:ncol(data_lag1))]
 
 # model with Shannons'
 gbm2 <- My.gbm.step(data=dat_shann1,
@@ -149,7 +152,7 @@ gbm2_RI<-as.data.frame(summary(gbm2, plotit = F)) %>%
 rownames(gbm2_RI) <- NULL
 
 # get top vars
-gbm2_topn <- sum((summary(gbm2, plotit=FALSE)$rel.inf)>=4)
+gbm2_topn <- sum((summary(gbm2, plotit=FALSE)$rel.inf)>=5)
 (gbm2_topvar <- as.character(summary(gbm2, plotit=FALSE)$var[1:gbm2_topn]))
 
 # make df:
@@ -161,10 +164,11 @@ gbm2_ri_top <- tibble(RI=summary(gbm2, plotit=FALSE)$rel.inf[1:gbm2_topn], varna
   geom_col(data=gbm2_ri_top, aes(x=varnames, y=RI), 
            fill="#33638DFF") + coord_flip() + 
   labs(title=paste0("Lag1: Top ", gbm2_topn," vars for Shannon Div"), y="Relative Influence (%)", x="") +
-    ylim(c(0,30)) +
+    ylim(c(0,35)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/lag1_brt_shannon_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/lag1_brt_shannon_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 # Shannon LAG2 BRT --------------------------------------------------------
 
@@ -174,7 +178,7 @@ ggsave(filename = "figs/lag1_brt_shannon_top_RI_barplot.png",width = 6, height =
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_shann2 <- data_lag2[,c(9,15:ncol(data_lag2))]
+dat_shann2 <- data_lag2[,c(9,18:ncol(data_lag2))]
 
 # model with Shannons'
 gbm3 <- My.gbm.step(data=dat_shann2,
@@ -193,7 +197,7 @@ gbm3_RI<-as.data.frame(summary(gbm3, plotit = F)) %>%
 rownames(gbm3_RI) <- NULL
 
 # get top vars
-gbm3_topn <- sum((summary(gbm3, plotit=FALSE)$rel.inf)>=4)
+gbm3_topn <- sum((summary(gbm3, plotit=FALSE)$rel.inf)>=5)
 (gbm3_topvar <- as.character(summary(gbm3, plotit=FALSE)$var[1:gbm3_topn]))
 
 # make df:
@@ -206,10 +210,10 @@ gbm3_ri_top <- tibble(RI=summary(gbm3, plotit=FALSE)$rel.inf[1:gbm3_topn], varna
              fill="#1F968BFF") + coord_flip() + 
     labs(title=paste0("Lag2: Top ", gbm3_topn," vars for Shannon Div"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/lag2_brt_shannon_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
-
+ggsave(filename = "figs/lag2_brt_shannon_top_RI_barplot.png", width = 7, height = 7, units = "in", dpi = 300)
 
 
 # Shannon POR BRT --------------------------------------------------------
@@ -220,7 +224,7 @@ ggsave(filename = "figs/lag2_brt_shannon_top_RI_barplot.png",width = 6, height =
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_shann_por <- data_por[,c(9,15:ncol(data_por))]
+dat_shann_por <- data_por[,c(9,18:ncol(data_por))]
 
 # model with Shannons'
 gbm4 <- My.gbm.step(data=dat_shann_por,
@@ -239,7 +243,7 @@ gbm4_RI<-as.data.frame(summary(gbm4, plotit = F)) %>%
 rownames(gbm4_RI) <- NULL
 
 # get top vars
-gbm4_topn <- sum((summary(gbm4, plotit=FALSE)$rel.inf)>=4)
+gbm4_topn <- sum((summary(gbm4, plotit=FALSE)$rel.inf)>=5)
 (gbm4_topvar <- as.character(summary(gbm4, plotit=FALSE)$var[1:gbm4_topn]))
 
 # make df:
@@ -252,15 +256,17 @@ gbm4_ri_top <- tibble(RI=summary(gbm4, plotit=FALSE)$rel.inf[1:gbm4_topn], varna
              fill="darkblue") + coord_flip() + 
     labs(title=paste0("Period of Record: Top ", gbm4_topn," vars for Shannon Div"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/por_brt_shannon_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/por_brt_shannon_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 
 # Shannon Combine RI Plots and Dataframes-----------------------------------------
 
 library(cowplot)
 (shann_ri_combined <- plot_grid(shann_ri_ann, shann_ri_lag1, shann_ri_lag2, shann_ri_por, nrow = 2))
+
 # save
 save_plot(shann_ri_combined, filename="figs/brt_shannon_top_RI_barplot_combined.png", base_height = 6)
 
@@ -273,7 +279,7 @@ shann_gbm2 <- gbm2
 shann_gbm3 <- gbm3
 shann_gbm4 <- gbm4
 
-save(shann_RI_all, shann_gbm1, shann_gbm2, shann_gbm3, shann_gbm4, file = "data_output/gbm_shannon_RI_all_noSC.rda")
+save(shann_RI_all, shann_gbm1, shann_gbm2, shann_gbm3, shann_gbm4, file = "data_output/08_gbm_shannon_RI_all_noSC.rda")
 
 
 # Taxon. Richness ANNUAL BRT ----------------------------------------------
@@ -284,7 +290,7 @@ save(shann_RI_all, shann_gbm1, shann_gbm2, shann_gbm3, shann_gbm4, file = "data_
 set.seed(33)  # set seed to get repeatable model              
 
 # select cols of interest
-dat_taxon <- data_ann[,c(11,15:ncol(data_ann))]
+dat_taxon <- data_ann[,c(11,18:ncol(data_ann))]
 
 # model with Taxonomic Richness
 gbm1 <- My.gbm.step(data=dat_taxon,
@@ -297,14 +303,13 @@ gbm1 <- My.gbm.step(data=dat_taxon,
                     n.folds = 5,           # 10 default for function; 5 was used in De'ath 2007, good for low n
                     n.minobsinnode = 3)    # I edited gbm.step code to allow modification of n.minobsinnode
 
-
 gbm1_RI<-as.data.frame(summary(gbm1, plotit = F)) %>% 
   mutate("Ymetric"="Taxonomic_Richness",
          "flowdat" = "annual")
 rownames(gbm1_RI) <- NULL
 str(gbm1_RI)
 
-gbm1_topn <- sum((summary(gbm1, plotit=FALSE)$rel.inf)>=4)
+gbm1_topn <- sum((summary(gbm1, plotit=FALSE)$rel.inf)>=5)
 (gbm1_topvar <- as.character(summary(gbm1, plotit=FALSE)$var[1:gbm1_topn]))
 # make df:
 gbm1_ri_top <- tibble(RI=summary(gbm1, plotit=FALSE)$rel.inf[1:gbm1_topn], varnames=gbm1_topvar) %>% 
@@ -317,9 +322,10 @@ gbm1_ri_top <- tibble(RI=summary(gbm1, plotit=FALSE)$rel.inf[1:gbm1_topn], varna
     coord_flip() + 
     labs(title=paste0("Annual: Top ",gbm1_topn," vars for Taxon.Richness"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/ann_brt_taxon_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/ann_brt_taxon_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 # Taxon. Richness LAG1 BRT ------------------------------------------------
 
@@ -329,7 +335,7 @@ ggsave(filename = "figs/ann_brt_taxon_top_RI_barplot.png",width = 6, height = 4,
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_taxon1 <- data_lag1[,c(11,15:ncol(data_lag1))]
+dat_taxon1 <- data_lag1[,c(11,18:ncol(data_lag1))]
 
 # model with taxons'
 gbm2 <- My.gbm.step(data=dat_taxon1,
@@ -348,7 +354,7 @@ gbm2_RI<-as.data.frame(summary(gbm2, plotit = F)) %>%
 rownames(gbm2_RI) <- NULL
 
 # get top vars
-gbm2_topn <- sum((summary(gbm2, plotit=FALSE)$rel.inf)>=4)
+gbm2_topn <- sum((summary(gbm2, plotit=FALSE)$rel.inf)>=5)
 (gbm2_topvar <- as.character(summary(gbm2, plotit=FALSE)$var[1:gbm2_topn]))
 
 # make df:
@@ -361,9 +367,10 @@ gbm2_ri_top <- tibble(RI=summary(gbm2, plotit=FALSE)$rel.inf[1:gbm2_topn], varna
              fill="#33638DFF") + coord_flip() + 
     labs(title=paste0("Lag1: Top ", gbm2_topn," vars for Taxon. Richness"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/lag1_brt_taxon_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/lag1_brt_taxon_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 # Taxon. Richness LAG2 BRT ------------------------------------------------
 
@@ -373,7 +380,7 @@ ggsave(filename = "figs/lag1_brt_taxon_top_RI_barplot.png",width = 6, height = 4
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_taxon2 <- data_lag2[,c(11,15:ncol(data_lag2))]
+dat_taxon2 <- data_lag2[,c(11,18:ncol(data_lag2))]
 
 # model with taxons'
 gbm3 <- My.gbm.step(data=dat_taxon2,
@@ -392,7 +399,7 @@ gbm3_RI<-as.data.frame(summary(gbm3, plotit = F)) %>%
 rownames(gbm3_RI) <- NULL
 
 # get top vars
-gbm3_topn <- sum((summary(gbm3, plotit=FALSE)$rel.inf)>=4)
+gbm3_topn <- sum((summary(gbm3, plotit=FALSE)$rel.inf)>=5)
 (gbm3_topvar <- as.character(summary(gbm3, plotit=FALSE)$var[1:gbm3_topn]))
 
 # make df:
@@ -405,10 +412,10 @@ gbm3_ri_top <- tibble(RI=summary(gbm3, plotit=FALSE)$rel.inf[1:gbm3_topn], varna
              fill="#1F968BFF") + coord_flip() + 
     labs(title=paste0("Lag2: Top ", gbm3_topn," vars for Taxon. Richness"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/lag2_brt_taxon_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
-
+ggsave(filename = "figs/lag2_brt_taxon_top_RI_barplot.png", width = 7, height = 7, units = "in", dpi = 300)
 
 
 # Taxon. Richness POR BRT ------------------------------------------------
@@ -419,7 +426,7 @@ ggsave(filename = "figs/lag2_brt_taxon_top_RI_barplot.png",width = 6, height = 4
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_taxon_por <- data_por[,c(11,15:ncol(data_por))]
+dat_taxon_por <- data_por[,c(11,18:ncol(data_por))]
 
 # model with taxons'
 gbm4 <- My.gbm.step(data=dat_taxon_por,
@@ -438,7 +445,7 @@ gbm4_RI<-as.data.frame(summary(gbm4, plotit = F)) %>%
 rownames(gbm4_RI) <- NULL
 
 # get top vars
-gbm4_topn <- sum((summary(gbm4, plotit=FALSE)$rel.inf)>=4)
+gbm4_topn <- sum((summary(gbm4, plotit=FALSE)$rel.inf)>=5)
 (gbm4_topvar <- as.character(summary(gbm4, plotit=FALSE)$var[1:gbm4_topn]))
 
 # make df:
@@ -450,10 +457,11 @@ gbm4_ri_top <- tibble(RI=summary(gbm4, plotit=FALSE)$rel.inf[1:gbm4_topn], varna
     geom_col(data=gbm4_ri_top, aes(x=varnames, y=RI), 
              fill="darkblue") + coord_flip() + 
     labs(title=paste0("Period of Record: Top ", gbm4_topn," vars for Taxon. Richness"), y="Relative Influence (%)", x="") +
-    ylim(c(0,30)) +
+    ylim(c(0,40)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/por_brt_taxon_top_RI_barplot.png", width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/por_brt_taxon_top_RI_barplot.png", width = 7, height = 7, units = "in", dpi = 300)
 
 
 # Taxon. Richness Combine RI Plots and Dataframes--------------------------
@@ -480,7 +488,7 @@ taxon_gbm3 <- gbm3
 taxon_gbm4 <- gbm4
 
 # save
-save(taxon_RI_all, taxon_gbm1, taxon_gbm2, taxon_gbm3, taxon_gbm4, file = "data_output/gbm_taxonrichness_RI_all.rda")
+save(taxon_RI_all, taxon_gbm1, taxon_gbm2, taxon_gbm3, taxon_gbm4, file = "data_output/08_gbm_taxonrichness_RI_all.rda")
 
 
 # CSCI ANNUAL BRT ----------------------------------------------
@@ -491,8 +499,8 @@ save(taxon_RI_all, taxon_gbm1, taxon_gbm2, taxon_gbm3, taxon_gbm4, file = "data_
 set.seed(33)  # set seed to get repeatable model              
 
 # select cols of interest
-dat_csci <- data_ann[,c(8,15:ncol(data_ann))] %>% 
-  filter(!is.na(csci_percentile)) %>% as.data.frame()
+dat_csci <- data_ann[,c(3,18:ncol(data_ann))] %>% 
+  filter(!is.na(csci)) %>% as.data.frame()
 
 # model with Taxonomic Richness
 gbm1 <- My.gbm.step(data=dat_csci,
@@ -505,13 +513,12 @@ gbm1 <- My.gbm.step(data=dat_csci,
                     n.folds = 5,           # 10 default for function; 5 was used in De'ath 2007, good for low n
                     n.minobsinnode = 3)    # I edited gbm.step code to allow modification of n.minobsinnode
 
-gbm1_RI<-as.data.frame(summary(gbm1, las=2)) %>% 
+gbm1_RI<-as.data.frame(summary(gbm1, plotit = F)) %>% 
   mutate("Ymetric"="CSCI_percentile",
          "flowdat" = "annual")
 rownames(gbm1_RI) <- NULL
-str(gbm1_RI)
 
-gbm1_topn <- sum((summary(gbm1, plotit=FALSE)$rel.inf)>=4)
+gbm1_topn <- sum((summary(gbm1, plotit=FALSE)$rel.inf)>=5)
 (gbm1_topvar <- as.character(summary(gbm1, plotit=FALSE)$var[1:gbm1_topn]))
 # make df:
 gbm1_ri_top <- tibble(RI=summary(gbm1, plotit=FALSE)$rel.inf[1:gbm1_topn], varnames=gbm1_topvar) %>% 
@@ -524,9 +531,10 @@ gbm1_ri_top <- tibble(RI=summary(gbm1, plotit=FALSE)$rel.inf[1:gbm1_topn], varna
     coord_flip() + 
     labs(title=paste0("Annual: Top ",gbm1_topn," vars for CSCI"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/ann_brt_csci_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/ann_brt_csci_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 # CSCI LAG1 BRT ------------------------------------------------
 
@@ -536,8 +544,8 @@ ggsave(filename = "figs/ann_brt_csci_top_RI_barplot.png",width = 6, height = 4, 
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_csci1 <- data_lag1[,c(8,15:ncol(data_lag1))] %>% 
-  filter(!is.na(csci_percentile)) %>% as.data.frame()
+dat_csci1 <- data_lag1[,c(3,18:ncol(data_lag1))] %>% 
+  filter(!is.na(csci)) %>% as.data.frame()
 
 # model with cscis'
 gbm2 <- My.gbm.step(data=dat_csci1,
@@ -556,7 +564,7 @@ gbm2_RI<-as.data.frame(summary(gbm2, plotit = F)) %>%
 rownames(gbm2_RI) <- NULL
 
 # get top vars
-gbm2_topn <- sum((summary(gbm2, plotit=FALSE)$rel.inf)>=4)
+gbm2_topn <- sum((summary(gbm2, plotit=FALSE)$rel.inf)>=5)
 (gbm2_topvar <- as.character(summary(gbm2, plotit=FALSE)$var[1:gbm2_topn]))
 
 # make df:
@@ -569,9 +577,10 @@ gbm2_ri_top <- tibble(RI=summary(gbm2, plotit=FALSE)$rel.inf[1:gbm2_topn], varna
              fill="#33638DFF") + coord_flip() + 
     labs(title=paste0("Lag1: Top ", gbm2_topn," vars for CSCI"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/lag1_brt_csci_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/lag1_brt_csci_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 # CSCI LAG2 BRT ------------------------------------------------
 
@@ -581,8 +590,9 @@ ggsave(filename = "figs/lag1_brt_csci_top_RI_barplot.png",width = 6, height = 4,
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_csci2 <- data_lag2[,c(8,15:ncol(data_lag2))] %>% 
-  filter(!is.na(csci_percentile)) %>% as.data.frame()
+dat_csci2 <- data_lag2[,c(3,18:ncol(data_lag2))] %>% 
+  select(-DS_No_Flow) %>% 
+  filter(!is.na(csci)) %>% as.data.frame()
 
 # model with cscis'
 gbm3 <- My.gbm.step(data=dat_csci2,
@@ -601,7 +611,7 @@ gbm3_RI<-as.data.frame(summary(gbm3, plotit = F)) %>%
 rownames(gbm3_RI) <- NULL
 
 # get top vars
-gbm3_topn <- sum((summary(gbm3, plotit=FALSE)$rel.inf)>=4)
+gbm3_topn <- sum((summary(gbm3, plotit=FALSE)$rel.inf)>=5)
 (gbm3_topvar <- as.character(summary(gbm3, plotit=FALSE)$var[1:gbm3_topn]))
 
 # make df:
@@ -614,9 +624,10 @@ gbm3_ri_top <- tibble(RI=summary(gbm3, plotit=FALSE)$rel.inf[1:gbm3_topn], varna
              fill="#1F968BFF") + coord_flip() + 
     labs(title=paste0("Lag2: Top ", gbm3_topn," vars for CSCI"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/lag2_brt_csci_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/lag2_brt_csci_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 # CSCI POR BRT ------------------------------------------------
 
@@ -626,8 +637,9 @@ ggsave(filename = "figs/lag2_brt_csci_top_RI_barplot.png",width = 6, height = 4,
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_csci_por <- data_por[,c(8,15:ncol(data_por))] %>% 
-  filter(!is.na(csci_percentile)) %>% as.data.frame()
+dat_csci_por <- data_por[,c(3,18:ncol(data_por))] %>% 
+  select(-DS_No_Flow) %>% 
+  filter(!is.na(csci)) %>% as.data.frame()
 
 # model with cscis'
 gbm4 <- My.gbm.step(data=dat_csci_por,
@@ -635,7 +647,7 @@ gbm4 <- My.gbm.step(data=dat_csci_por,
                     gbm.y = 1, 
                     family = "gaussian",   # the 'loss function', Gaussian minimizes mean square error
                     tree.complexity = 3,   # thus only models 3nd-order interactions
-                    learning.rate = 0.005, # the lower the learning rate/shrinking, more likely to over-fit
+                    learning.rate = 0.001, # the lower the learning rate/shrinking, more likely to over-fit
                     bag.fraction = 0.75,   # recommended in Elith and in Brown as top end of reasonable window
                     n.folds = 5,           # 10 default for function; 5 was used in De'ath 2007, good for low n
                     n.minobsinnode = 3)    # I edited gbm.step code to allow modification of n.minobsinnode
@@ -646,7 +658,7 @@ gbm4_RI<-as.data.frame(summary(gbm4, plotit = F)) %>%
 rownames(gbm4_RI) <- NULL
 
 # get top vars
-gbm4_topn <- sum((summary(gbm4, plotit=FALSE)$rel.inf)>=4)
+gbm4_topn <- sum((summary(gbm4, plotit=FALSE)$rel.inf)>=5)
 (gbm4_topvar <- as.character(summary(gbm4, plotit=FALSE)$var[1:gbm4_topn]))
 
 # make df:
@@ -658,14 +670,14 @@ gbm4_ri_top <- tibble(RI=summary(gbm4, plotit=FALSE)$rel.inf[1:gbm4_topn], varna
     geom_col(data=gbm4_ri_top, aes(x=varnames, y=RI), 
              fill="darkblue") + coord_flip() + 
     labs(title=paste0("Period of Record: Top ", gbm3_topn," vars for CSCI"), y="Relative Influence (%)", x="") +
-    ylim(c(0,30)) +
+    ylim(c(0,40)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/por_brt_csci_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/por_brt_csci_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 
 # CSCI Combine RI Plots and Dataframes--------------------------
-
 
 (csci_ri_combined <- plot_grid(csci_ri_ann, csci_ri_lag1, csci_ri_lag2, csci_ri_por, nrow = 2))
 save_plot(csci_ri_combined, filename="figs/brt_csci_top_RI_barplot_combined.png", base_height = 7)
@@ -690,7 +702,7 @@ csci_gbm3 <- gbm3
 csci_gbm4 <- gbm4
 
 # save
-save(csci_RI_all, csci_gbm1, csci_gbm2, csci_gbm3, csci_gbm4, file = "data_output/gbm_csci_RI_all.rda")
+save(csci_RI_all, csci_gbm1, csci_gbm2, csci_gbm3, csci_gbm4, file = "data_output/08_gbm_csci_RI_all.rda")
 
 
 # EPT ANNUAL BRT ----------------------------------------------
@@ -701,7 +713,7 @@ save(csci_RI_all, csci_gbm1, csci_gbm2, csci_gbm3, csci_gbm4, file = "data_outpu
 set.seed(33)  # set seed to get repeatable model              
 
 # select cols of interest
-dat_ept <- data_ann[,c(12,15:ncol(data_ann))] 
+dat_ept <- data_ann[,c(12,18:ncol(data_ann))] 
 
 # model with EPT
 gbm1 <- My.gbm.step(data=dat_ept,
@@ -718,10 +730,10 @@ gbm1_RI<-as.data.frame(summary(gbm1, plotit = F)) %>%
   mutate("Ymetric"="EPT_Percent",
          "flowdat" = "annual")
 rownames(gbm1_RI) <- NULL
-str(gbm1_RI)
 
-gbm1_topn <- sum((summary(gbm1, plotit=FALSE)$rel.inf)>=4)
+gbm1_topn <- sum((summary(gbm1, plotit=FALSE)$rel.inf)>=5)
 (gbm1_topvar <- as.character(summary(gbm1, plotit=FALSE)$var[1:gbm1_topn]))
+
 # make df:
 gbm1_ri_top <- tibble(RI=summary(gbm1, plotit=FALSE)$rel.inf[1:gbm1_topn], varnames=gbm1_topvar) %>% 
   mutate(varnames=fct_reorder(as.factor(varnames), RI))
@@ -733,9 +745,11 @@ gbm1_ri_top <- tibble(RI=summary(gbm1, plotit=FALSE)$rel.inf[1:gbm1_topn], varna
     coord_flip() + 
     labs(title=paste0("Annual: Top ",gbm1_topn," vars for EPT"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2)+
+    #ggdark::dark_theme_classic(base_family = "Roboto Condensed"))
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/ann_brt_ept_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/ann_brt_ept_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 # EPT LAG1 BRT ------------------------------------------------
 
@@ -745,7 +759,7 @@ ggsave(filename = "figs/ann_brt_ept_top_RI_barplot.png",width = 6, height = 4, u
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_ept1 <- data_lag1[,c(12,15:ncol(data_lag1))]
+dat_ept1 <- data_lag1[,c(12,18:ncol(data_lag1))]
 
 # model with EPT
 gbm2 <- My.gbm.step(data=dat_ept1,
@@ -764,7 +778,7 @@ gbm2_RI<-as.data.frame(summary(gbm2, plotit = F)) %>%
 rownames(gbm2_RI) <- NULL
 
 # get top vars
-gbm2_topn <- sum((summary(gbm2, plotit=FALSE)$rel.inf)>=4)
+gbm2_topn <- sum((summary(gbm2, plotit=FALSE)$rel.inf)>=5)
 (gbm2_topvar <- as.character(summary(gbm2, plotit=FALSE)$var[1:gbm2_topn]))
 
 # make df:
@@ -777,9 +791,10 @@ gbm2_ri_top <- tibble(RI=summary(gbm2, plotit=FALSE)$rel.inf[1:gbm2_topn], varna
              fill="#33638DFF") + coord_flip() + 
     labs(title=paste0("Lag1: Top ", gbm2_topn," vars for EPT"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/lag1_brt_ept_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/lag1_brt_ept_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 # EPT LAG2 BRT ------------------------------------------------
 
@@ -789,7 +804,7 @@ ggsave(filename = "figs/lag1_brt_ept_top_RI_barplot.png",width = 6, height = 4, 
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_ept2 <- data_lag2[,c(12,15:ncol(data_lag2))]
+dat_ept2 <- data_lag2[,c(12,18:ncol(data_lag2))]
 
 # model with EPT
 gbm3 <- My.gbm.step(data=dat_ept2,
@@ -808,7 +823,7 @@ gbm3_RI<-as.data.frame(summary(gbm3, plotit = F)) %>%
 rownames(gbm3_RI) <- NULL
 
 # get top vars
-gbm3_topn <- sum((summary(gbm3, plotit=FALSE)$rel.inf)>=4)
+gbm3_topn <- sum((summary(gbm3, plotit=FALSE)$rel.inf)>=5)
 (gbm3_topvar <- as.character(summary(gbm3, plotit=FALSE)$var[1:gbm3_topn]))
 
 # make df:
@@ -821,9 +836,10 @@ gbm3_ri_top <- tibble(RI=summary(gbm3, plotit=FALSE)$rel.inf[1:gbm3_topn], varna
              fill="#1F968BFF") + coord_flip() + 
     labs(title=paste0("Lag2: Top ", gbm3_topn," vars for EPT"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/lag2_brt_ept_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/lag2_brt_ept_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 
 
@@ -835,7 +851,7 @@ ggsave(filename = "figs/lag2_brt_ept_top_RI_barplot.png",width = 6, height = 4, 
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_ept_por <- data_por[,c(12,15:ncol(data_por))]
+dat_ept_por <- data_por[,c(18,15:ncol(data_por))]
 
 # model with EPT
 gbm4 <- My.gbm.step(data=dat_ept_por,
@@ -854,7 +870,7 @@ gbm4_RI<-as.data.frame(summary(gbm4, plotit = F)) %>%
 rownames(gbm4_RI) <- NULL
 
 # get top vars
-gbm4_topn <- sum((summary(gbm4, plotit=FALSE)$rel.inf)>=4)
+gbm4_topn <- sum((summary(gbm4, plotit=FALSE)$rel.inf)>=5)
 (gbm4_topvar <- as.character(summary(gbm4, plotit=FALSE)$var[1:gbm4_topn]))
 
 # make df:
@@ -867,10 +883,10 @@ gbm4_ri_top <- tibble(RI=summary(gbm4, plotit=FALSE)$rel.inf[1:gbm4_topn], varna
              fill="darkblue") + coord_flip() + 
     labs(title=paste0("Period of Record: Top ", gbm3_topn," vars for EPT"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/por_brt_ept_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
-
+ggsave(filename = "figs/por_brt_ept_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 
 # EPT Combine RI Plots and Dataframes--------------------------
@@ -900,7 +916,7 @@ ept_gbm3 <- gbm3
 ept_gbm4 <- gbm4
 
 # save
-save(ept_RI_all, ept_gbm1, ept_gbm2, ept_gbm3, ept_gbm4, file = "data_output/gbm_ept_RI_all.rda")
+save(ept_RI_all, ept_gbm1, ept_gbm2, ept_gbm3, ept_gbm4, file = "data_output/08_gbm_ept_RI_all.rda")
 
 
 # Tolerant ANNUAL BRT ----------------------------------------------
@@ -911,7 +927,7 @@ save(ept_RI_all, ept_gbm1, ept_gbm2, ept_gbm3, ept_gbm4, file = "data_output/gbm
 set.seed(33)  # set seed to get repeatable model              
 
 # select cols of interest
-dat_tol <- data_ann[,c(13,15:ncol(data_ann))] 
+dat_tol <- data_ann[,c(13,18:ncol(data_ann))] 
 
 # model with % Tolerant
 gbm1 <- My.gbm.step(data=dat_tol,
@@ -930,7 +946,7 @@ gbm1_RI<-as.data.frame(summary(gbm1, plotit = F)) %>%
 rownames(gbm1_RI) <- NULL
 str(gbm1_RI)
 
-gbm1_topn <- sum((summary(gbm1, plotit=FALSE)$rel.inf)>=4)
+gbm1_topn <- sum((summary(gbm1, plotit=FALSE)$rel.inf)>=5)
 (gbm1_topvar <- as.character(summary(gbm1, plotit=FALSE)$var[1:gbm1_topn]))
 
 # make df:
@@ -944,9 +960,10 @@ gbm1_ri_top <- tibble(RI=summary(gbm1, plotit=FALSE)$rel.inf[1:gbm1_topn], varna
     coord_flip() + 
     labs(title=paste0("Annual: Top ",gbm1_topn," vars for Tolerant %"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/ann_brt_tol_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/ann_brt_tol_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 # Tolerant LAG1 BRT ------------------------------------------------
 
@@ -956,7 +973,7 @@ ggsave(filename = "figs/ann_brt_tol_top_RI_barplot.png",width = 6, height = 4, u
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_tol1 <- data_lag1[,c(13,15:ncol(data_lag1))]
+dat_tol1 <- data_lag1[,c(13,18:ncol(data_lag1))]
 
 # model with tol
 gbm2 <- My.gbm.step(data=dat_tol1,
@@ -964,7 +981,7 @@ gbm2 <- My.gbm.step(data=dat_tol1,
                     gbm.y = 1, 
                     family = "gaussian",   # the 'loss function', Gaussian minimizes mean square error
                     tree.complexity = 3,   # thus only models 3nd-order interactions
-                    learning.rate = 0.001, # the lower the learning rate/shrinking, more likely to over-fit
+                    learning.rate = 0.005, # the lower the learning rate/shrinking, more likely to over-fit
                     bag.fraction = 0.75,   # recommended in Elith and in Brown as top end of reasonable window
                     n.folds = 5,           # 10 default for function; 5 was used in De'ath 2007, good for low n
                     n.minobsinnode = 3)    # I edited gbm.step code to allow modification of n.minobsinnode
@@ -975,7 +992,7 @@ gbm2_RI<-as.data.frame(summary(gbm2, plotit = F)) %>%
 rownames(gbm2_RI) <- NULL
 
 # get top vars
-gbm2_topn <- sum((summary(gbm2, plotit=FALSE)$rel.inf)>=4)
+gbm2_topn <- sum((summary(gbm2, plotit=FALSE)$rel.inf)>=5)
 (gbm2_topvar <- as.character(summary(gbm2, plotit=FALSE)$var[1:gbm2_topn]))
 
 # make df:
@@ -988,9 +1005,10 @@ gbm2_ri_top <- tibble(RI=summary(gbm2, plotit=FALSE)$rel.inf[1:gbm2_topn], varna
              fill="#33638DFF") + coord_flip() + 
     labs(title=paste0("Lag1: Top ", gbm2_topn," vars for Tolerant %"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/lag1_brt_tol_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/lag1_brt_tol_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 # Tolerant LAG2 BRT ------------------------------------------------
 
@@ -1000,7 +1018,7 @@ ggsave(filename = "figs/lag1_brt_tol_top_RI_barplot.png",width = 6, height = 4, 
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_tol2 <- data_lag2[,c(13,15:ncol(data_lag2))]
+dat_tol2 <- data_lag2[,c(13,18:ncol(data_lag2))]
 
 # model with tol
 gbm3 <- My.gbm.step(data=dat_tol2,
@@ -1019,7 +1037,7 @@ gbm3_RI<-as.data.frame(summary(gbm3, plotit = F)) %>%
 rownames(gbm3_RI) <- NULL
 
 # get top vars
-gbm3_topn <- sum((summary(gbm3, plotit=FALSE)$rel.inf)>=4)
+gbm3_topn <- sum((summary(gbm3, plotit=FALSE)$rel.inf)>=5)
 (gbm3_topvar <- as.character(summary(gbm3, plotit=FALSE)$var[1:gbm3_topn]))
 
 # make df:
@@ -1031,10 +1049,11 @@ gbm3_ri_top <- tibble(RI=summary(gbm3, plotit=FALSE)$rel.inf[1:gbm3_topn], varna
     geom_col(data=gbm3_ri_top, aes(x=varnames, y=RI), 
              fill="#1F968BFF") + coord_flip() + 
     labs(title=paste0("Lag2: Top ", gbm3_topn," vars for Tolerant %"), y="Relative Influence (%)", x="") +
-    #ylim(c(0,35)) +
+    ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/lag2_brt_tol_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/lag2_brt_tol_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 
 
@@ -1046,7 +1065,7 @@ ggsave(filename = "figs/lag2_brt_tol_top_RI_barplot.png",width = 6, height = 4, 
 set.seed(33)  # set seed to get repeatable model              
 
 # select dat
-dat_tol_por <- data_por[,c(13,15:ncol(data_por))]
+dat_tol_por <- data_por[,c(13,18:ncol(data_por))]
 
 # model with tol
 gbm4 <- My.gbm.step(data=dat_tol_por,
@@ -1054,7 +1073,7 @@ gbm4 <- My.gbm.step(data=dat_tol_por,
                     gbm.y = 1, 
                     family = "gaussian",   # the 'loss function', Gaussian minimizes mean square error
                     tree.complexity = 3,   # thus only models 3nd-order interactions
-                    learning.rate = 0.002, # the lower the learning rate/shrinking, more likely to over-fit
+                    learning.rate = 0.005, # the lower the learning rate/shrinking, more likely to over-fit
                     bag.fraction = 0.75,   # recommended in Elith and in Brown as top end of reasonable window
                     n.folds = 5,           # 10 default for function; 5 was used in De'ath 2007, good for low n
                     n.minobsinnode = 3)    # I edited gbm.step code to allow modification of n.minobsinnode
@@ -1065,7 +1084,7 @@ gbm4_RI<-as.data.frame(summary(gbm4, plotit = F)) %>%
 rownames(gbm4_RI) <- NULL
 
 # get top vars
-gbm4_topn <- sum((summary(gbm4, plotit=FALSE)$rel.inf)>=4)
+gbm4_topn <- sum((summary(gbm4, plotit=FALSE)$rel.inf)>=5)
 (gbm4_topvar <- as.character(summary(gbm4, plotit=FALSE)$var[1:gbm4_topn]))
 
 # make df:
@@ -1078,9 +1097,10 @@ gbm4_ri_top <- tibble(RI=summary(gbm4, plotit=FALSE)$rel.inf[1:gbm4_topn], varna
              fill="darkblue") + coord_flip() + 
     labs(title=paste0("Period of Record: Top ", gbm3_topn," vars for Tolerant %"), y="Relative Influence (%)", x="") +
     ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     theme_classic(base_family = "Roboto Condensed"))
 
-ggsave(filename = "figs/por_brt_tol_top_RI_barplot.png",width = 6, height = 4, units = "in", dpi = 200)
+ggsave(filename = "figs/por_brt_tol_top_RI_barplot.png",width = 7, height = 7, units = "in", dpi = 300)
 
 
 # Tolerant Combine RI Plots and Dataframes--------------------------
@@ -1110,19 +1130,23 @@ tol_gbm3 <- gbm3
 tol_gbm4 <- gbm4
 
 # save
-save(tol_RI_all, tol_gbm1, tol_gbm2, tol_gbm3, tol_gbm4, file = "data_output/gbm_tol_RI_all.rda")
+save(tol_RI_all, tol_gbm1, tol_gbm2, tol_gbm3, tol_gbm4, file = "data_output/08_gbm_tol_RI_all.rda")
 
 
 # COMBINE ALL RIs ---------------------------------------------------------
 
 bmi_RI_combined <- bind_rows(csci_RI_all, shann_RI_all, taxon_RI_all, ept_RI_all, tol_RI_all)
 
-save(bmi_RI_combined, file = "data_output/gbm_bmi_metrics_RI_combined_noSC.rda")
+save(bmi_RI_combined, file = "data_output/08_gbm_bmi_metrics_RI_combined_noSC.rda")
 
 
 # STATS ------------------------------------------------------------------
 
-# get CV dev from various models:
+# get MSE and computer RMSE
+sqrt(min(gbm1$cv.error))
+gbm1$cv.statistics$deviance.mean
+
+
 
 # GBM1 (ANN = same year)
 paste0("mean estimated deviance from CV: ",round(gbm1$cv.statistics$deviance.mean,3))
@@ -1134,3 +1158,205 @@ paste0("mean estimated deviance from CV: ",round(gbm2$cv.statistics$deviance.mea
 paste0("mean estimated deviance from CV: ",round(gbm3$cv.statistics$deviance.mean,3))
 
 
+
+# TUNING MODELS -----------------------------------------------------------------
+
+# see here:
+# http://uc-r.github.io/gbm_regression#gbm
+library(rsample)
+set.seed(123)
+data_ann_split <- initial_split(data_ann, prop = .7)
+data_ann_train <- training(data_ann_split)
+data_ann_test  <- testing(data_ann_split)
+
+# select cols of interest
+data_csci <- data_ann_train[,c(3,18:ncol(data_ann_train))] %>% 
+  filter(!is.na(csci)) %>% as.data.frame()
+
+# train GBM model
+gbm.fit2 <- gbm(
+  formula = csci ~ .,
+  distribution = "gaussian",
+  data = data_csci,
+  n.trees = 5000, # trees
+  interaction.depth = 3, # tree complexity
+  shrinkage = 0.005, # learning rate
+  cv.folds = 5, # cv folds
+  n.cores = NULL, # will use all cores by default
+  verbose = FALSE
+)  
+
+# find index for n trees with minimum CV error
+min_MSE <- which.min(gbm.fit2$cv.error)
+
+# get MSE
+gbm.fit2$cv.error[min_MSE]
+
+# compute RMSE
+sqrt(gbm.fit2$cv.error[min_MSE])
+
+# plot loss function as a result of n trees added to the ensemble
+gbm.perf(gbm.fit2, method = "cv")
+
+# create hyperparameter grid
+hyper_grid <- expand.grid(
+  shrinkage = c(.005, .01, .1),
+  interaction.depth = c(2, 3, 4),
+  n.minobsinnode = c(3, 5, 7),
+  bag.fraction = c(.65, .75, .85), 
+  optimal_trees = 0,               # a place to dump results
+  min_RMSE = 0                     # a place to dump results
+)
+
+# total number of combinations
+nrow(hyper_grid)
+
+
+# randomize data
+random_index <- sample(1:nrow(data_csci), nrow(data_csci))
+random_dat_csci_train <- data_csci[random_index, ]
+
+# grid search 
+for(i in 1:nrow(hyper_grid)) {
+  
+  # reproducibility
+  set.seed(123)
+  
+  # train model
+  gbm.tune <- gbm(
+    formula = csci ~ .,
+    distribution = "gaussian",
+    data = random_dat_csci_train,
+    n.trees = 5000,
+    interaction.depth = hyper_grid$interaction.depth[i],
+    shrinkage = hyper_grid$shrinkage[i],
+    n.minobsinnode = hyper_grid$n.minobsinnode[i],
+    bag.fraction = hyper_grid$bag.fraction[i],
+    train.fraction = .75,
+    n.cores = NULL, # will use all cores by default
+    verbose = FALSE
+  )
+  
+  # add min training error and trees to grid
+  hyper_grid$optimal_trees[i] <- which.min(gbm.tune$valid.error)
+  hyper_grid$min_RMSE[i] <- sqrt(min(gbm.tune$valid.error))
+}
+
+hyper_grid %>% 
+  dplyr::arrange(min_RMSE) %>%
+  head(10)
+
+
+# pick best model and train:
+# for reproducibility
+set.seed(123)
+
+# train GBM model
+gbm.fit.final <- gbm(
+  formula = csci ~ .,
+  distribution = "gaussian",
+  data = random_dat_csci_train,
+  n.trees = 2802,
+  interaction.depth = 2,
+  shrinkage = 0.1,
+  n.minobsinnode = 3,
+  bag.fraction = .85, 
+  train.fraction = 1, # use all the training data
+  n.cores = NULL, # will use all cores by default
+  verbose = FALSE
+)  
+
+
+## RI: improvement by MSE (split criterion), vars with largest avg decrease in MSE are important
+
+gbm_fin_RI<-as.data.frame(summary(gbm.fit.final, plotit = F, method=relative.influence)) %>% 
+  mutate("Ymetric"="csci",
+         "flowdat" = "ann")
+rownames(gbm_fin_RI) <- NULL
+
+# get top vars
+gbm_fin_topn <- sum((summary(gbm.fit.final, plotit=FALSE)$rel.inf)>=2)
+(gbm_fin_topvar <- as.character(summary(gbm.fit.final, plotit=FALSE)$var[1:gbm_fin_topn]))
+
+# make df:
+gbm_fin_ri_top <- tibble(RI=summary(gbm.fit.final, plotit=FALSE)$rel.inf[1:gbm_fin_topn], varnames=gbm_fin_topvar) %>% 
+  mutate(varnames=fct_reorder(as.factor(varnames), RI))
+
+# barplot
+(fin_ri_ann <- ggplot() + 
+    geom_col(data=gbm_fin_ri_top, aes(x=varnames, y=RI), 
+             fill="darkblue") + coord_flip() + 
+    labs(title=paste0("Ann: Top ", gbm_fin_topn," vars for CSCI"), y="Relative Influence (%)", x="") +
+    ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
+    theme_classic(base_family = "Roboto Condensed"))
+
+
+
+## PT: permutation test, decrease in accuracy is averaged and vars with largest avg decrease in accuracy are import
+
+gbm_fin_PT<-as.data.frame(summary(gbm.fit.final, plotit = F, method=permutation.test.gbm)) %>% 
+  mutate("Ymetric"="csci",
+         "flowdat" = "ann")
+rownames(gbm_fin_PT) <- NULL
+
+# get top vars
+gbm_fin_topn_pt <- sum((summary(gbm.fit.final, method=permutation.test.gbm, plotit=FALSE)$rel.inf)>=2)
+(gbm_fin_topvar_pt <- as.character(summary(gbm.fit.final, 
+                                           method=permutation.test.gbm, plotit=FALSE)$var[1:gbm_fin_topn_pt]))
+
+# make df:
+gbm_fin_pt_top <- tibble(PT=summary(gbm.fit.final, method=permutation.test.gbm, plotit=FALSE)$rel.inf[1:gbm_fin_topn_pt], varnames=gbm_fin_topvar_pt) %>% 
+  mutate(varnames=fct_reorder(as.factor(varnames), PT))
+
+# barplot
+(fin_pt_ann <- ggplot() + 
+    geom_col(data=gbm_fin_pt_top, aes(x=varnames, y=PT), 
+             fill="darkblue") + coord_flip() + 
+    labs(title=paste0("Ann: Top ", gbm_fin_topn_pt," vars for CSCI"), y="Relative Influence (%)", x="") +
+    ylim(c(0,30)) +
+    geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
+    theme_classic(base_family = "Roboto Condensed"))
+
+
+# devtools::install_github("koalaverse/vip")
+#install.packages("vip")
+vip::vip(gbm.fit.final)
+
+library(pdp)
+
+# displays avg change in predicted csci as we vary Wet_Tim while holding everything else constant
+gbm.fit.final %>%
+  partial(pred.var = "Wet_Tim", n.trees = gbm.fit.final$n.trees, grid.resolution = 100) %>%
+  autoplot(rug = TRUE, train = data_csci) +
+  ggdark::dark_theme_classic(base_family = "Roboto Condensed") + 
+  labs(subtitle = "Partial Dependence Plot for Wet Timing", y="Predicted CSCI score")
+  #scale_y_continuous(labels = scales::percent)
+
+
+# ICE plots: rather than plot the average marginal effect on the response variable, we plot the change in the predicted response variable for each observation as we vary each predictor variable
+# When the curves have a wide range of intercepts and are consequently “stacked” on each other, heterogeneity in the response variable values due to marginal changes in the predictor variable of interest can be difficult to discern. 
+
+ice1 <- gbm.fit.final %>%
+  partial(
+    pred.var = "Wet_Tim", 
+    n.trees = gbm.fit.final$n.trees, 
+    grid.resolution = 100,
+    ice = TRUE
+  ) %>%
+  autoplot(rug = TRUE, train = data_csci, alpha = .1) +
+  ggtitle("Non-centered") +
+  ggdark::dark_theme_classic(base_family = "Roboto Condensed")
+
+ice2 <- gbm.fit.final %>%
+  partial(
+    pred.var = "Wet_Tim", 
+    n.trees = gbm.fit.final$n.trees, 
+    grid.resolution = 100,
+    ice = TRUE
+  ) %>%
+  autoplot(rug = TRUE, train = data_csci, alpha = .1, center = TRUE) +
+  ggtitle("Centered") +
+  ggdark::dark_theme_classic(base_family = "Roboto Condensed")
+
+gridExtra::grid.arrange(ice1, ice2, nrow = 1)
