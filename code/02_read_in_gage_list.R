@@ -30,9 +30,17 @@ gage_223 <- read_csv("data/gages_ref_223_period_record.csv") %>%
 gages2 <- read_xlsx("data/gages_II_March2013_Info.xlsx") %>% 
   filter(STATE=="CA")
 
+# make quick map of ALL gages
+gages2_sf <- gages2 %>% select(STAID, ID, LAT_GAGE, LNG_GAGE, STATE, COUNTYNAME_SITE, CLASS, AGGECOREGION, HYDRO_DISTURB_INDX) %>% 
+  st_as_sf(coords = c("LNG_GAGE","LAT_GAGE"), 
+           remove = F, crs=4326)
+# save(gages2_sf, file = "data_output/gages2_sf.rda")
+# mapview(gages2_sf, zcol="HYDRO_DISTURB_INDX")
+# mapview(gages2_sf, zcol="AGGECOREGION")
+# mapview(gages2_sf, zcol="CLASS")
+
 # usgs list based on gagesII
 gages_usgs <- read_xlsx("data/gages_ca_USGS_reference_screen_Aug2016_ref_only.xlsx") %>% filter(!is.na(FINAL_REFERENCE))
-
 
 # Merge Datasets ----------------------------------------------------------
 
