@@ -2,7 +2,7 @@
 # R. Peek
 
 # Libraries ---------------------------------------------------------------
-
+ 
 library(tidyverse)
 library(sf)
 library(leaflet)
@@ -13,12 +13,12 @@ library(dismo)
 library(pdp)
 library(rlang)
 
-
 # Data --------------------------------------------------------------------
 
 ## VARIABLES:
-hydroDat <- "Lag2" # can be Annual, Lag1, Lag2, POR
-bmiVar <- quote(Shannon_Diversity) # select response var
+hydroDat <- "Annual" # can be Annual, Lag1, Lag2, POR
+bmiVar <- quote(mmi_percentile) # select response var
+# Shannon_Diversity, csci_percentile, Intolerant_Percent, mmi_percentile
 
 # get data from GBM outputs:
 (brt <- list.files(path="data_output/gbms", pattern = paste0("^10_gbm_final_", tolower(bmiVar), ".*",tolower(hydroDat),"\\.rds$")))
@@ -33,8 +33,8 @@ class(gbm_final)
 load(paste0("data_output/gbms/10_gbm_final_", tolower(bmiVar),"_hydrodata.rda"))
 
 # rename datasets for plotting:
-gbm_out_tr <- data_lag2_tr
-gbm_out_te <- data_lag2_te
+gbm_out_tr <- data_ann_tr # NEED TO CHANGE THESE
+gbm_out_te <- data_ann_te
 
 #load("data_output/08_gbm_bmi_metrics_RI_combined_noSC.rda")
 load("data_output/05_selected_bmi_stations_w_comids.rda")
@@ -69,7 +69,7 @@ gbm_fin_ri_top <- tibble(RI=summary(gbm_final, plotit=FALSE)$rel.inf[1:gbm_fin_t
     labs(title=paste0(hydroDat, ": Top ", gbm_fin_topn," vars: ", as_label(bmiVar)), 
          y="Relative Influence (%)", x="",
          subtitle = "MSE Criterion") +
-    ylim(c(0,30)) +
+    #ylim(c(0,30)) +
     ggdark::dark_theme_classic(base_family = "Roboto Condensed")+
     geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2)) 
 
@@ -130,7 +130,7 @@ pdf(file=paste0("figs/10_gbm_marginal_effects_",
                 
 gbm.plot(gbm_final, rug = T, n.plots = 8, show.contrib = T, 
          smooth=T, write.title = F, common.scale = T,
-         y.label = "CSCI", plot.layout = c(2,4))
+         y.label = as_name(bmiVar), plot.layout = c(2,4))
 title(main=paste0("Flow Data: ", hydroDat), outer = T, line = -1.5)
 
 dev.off()

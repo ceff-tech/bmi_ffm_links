@@ -4,7 +4,6 @@
 # Generates models to select "final" model based on tuning criteria
 # then makes final model, saved in data_output/gbms
 
-
 # Libraries ---------------------------------------------------------------
 
 library(purrr) # for working with lists/loops
@@ -59,7 +58,7 @@ bmi.metrics<-c("Shannon_Diversity", "Simpson_Diversity", "Taxonomic_Richness", "
 
 # PICK RESPONSE VAR FOR MODEL
 hydroDat <- "POR" # can be Annual, Lag1, Lag2, POR
-bmiVar <- quote(Shannon_Diversity) # select response var from list above
+bmiVar <- quote(Intolerant_Percent) # select response var from list above
 
 # ANNUAL DATA -------------------------------------------------------------
 
