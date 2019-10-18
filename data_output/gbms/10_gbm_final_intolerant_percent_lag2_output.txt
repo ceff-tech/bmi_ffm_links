@@ -1,0 +1,64 @@
+
+ 
+ GBM STEP - version 2.9 
+ 
+Performing cross-validation optimisation of a boosted regression tree model 
+for Intolerant_Percent and using a family of gaussian 
+Using 311 observations and 34 predictors 
+creating 10 initial models of 100 trees 
+
+ folds are unstratified 
+total mean deviance =  0.0322 
+tolerance is fixed at  0 
+ntrees resid. dev. 
+100    0.0262 
+now adding trees... 
+200   0.023 
+300   0.0211 
+400   0.0201 
+500   0.0193 
+600   0.0188 
+700   0.0184 
+800   0.0182 
+900   0.0179 
+1000   0.0178 
+1100   0.0177 
+1200   0.0175 
+1300   0.0174 
+1400   0.0173 
+1500   0.0172 
+1600   0.0172 
+1700   0.0171 
+1800   0.0171 
+1900   0.0171 
+2000   0.0171 
+2100   0.0171 
+2200   0.0171 
+2300   0.0171 
+2400   0.0171 
+2500   0.0171 
+2600   0.0171 
+2700   0.017 
+2800   0.017 
+2900   0.017 
+3000   0.0171 
+3100   0.0171 
+3200   0.0171 
+3300   0.0171 
+3400   0.0171 
+3500   0.0171 
+
+mean total deviance = 0.032 
+mean residual deviance = 0.008 
+ 
+estimated cv deviance = 0.017 ; se = 0.002 
+ 
+training data correlation = 0.876 
+cv correlation =  0.702 ; se = 0.047 
+ 
+elapsed time -  0.39 minutes 
+
+Best parameters for GBM.STEP:
+
+shrinkage	interaction.depth	n.minobsinnode	bag.fraction	dev_explained
+0.005	4	10	0.8	0.47125427939336745

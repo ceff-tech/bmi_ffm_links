@@ -1,0 +1,56 @@
+
+ 
+ GBM STEP - version 2.9 
+ 
+Performing cross-validation optimisation of a boosted regression tree model 
+for Shannon_Diversity and using a family of gaussian 
+Using 311 observations and 34 predictors 
+creating 10 initial models of 100 trees 
+
+ folds are unstratified 
+total mean deviance =  0.3363 
+tolerance is fixed at  3e-04 
+ntrees resid. dev. 
+100    0.2341 
+now adding trees... 
+200   0.197 
+300   0.1794 
+400   0.1695 
+500   0.1628 
+600   0.1581 
+700   0.1545 
+800   0.1517 
+900   0.1498 
+1000   0.1484 
+1100   0.1479 
+1200   0.1476 
+1300   0.1471 
+1400   0.1468 
+1500   0.147 
+1600   0.1468 
+1700   0.147 
+1800   0.1471 
+1900   0.1473 
+2000   0.148 
+2100   0.1484 
+2200   0.1486 
+2300   0.1488 
+2400   0.1489 
+2500   0.149 
+2600   0.1489 
+2700   0.149 
+
+mean total deviance = 0.336 
+mean residual deviance = 0.049 
+ 
+estimated cv deviance = 0.147 ; se = 0.019 
+ 
+training data correlation = 0.925 
+cv correlation =  0.74 ; se = 0.044 
+ 
+elapsed time -  0.28 minutes 
+
+Best parameters for GBM.STEP:
+
+shrinkage	interaction.depth	n.minobsinnode	bag.fraction	dev_explained
+0.01	4	5	0.8	0.5635233245237425
