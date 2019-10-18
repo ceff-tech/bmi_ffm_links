@@ -30,15 +30,28 @@ suppressPackageStartupMessages({
 ```{r getData}
 
 # get data from BRT outputs
-load(paste0(here(), "/data_output/gbm_bmi_metrics_RI_combined_noSC.rda"))
-load(paste0(here(), "/data_output/selected_bmi_stations_w_comids.rda"))
-load(paste0(here(), "/data_output/mainstems_us_ds_selected_gages.rda"))
-load(paste0(here(),"/data_output/selected_bmi_flow_metrics_w_csci_ANN.rda"))
-load(paste0(here(),"/data_output/selected_bmi_flow_metrics_w_csci_POR.rda"))
-load(paste0(here(),"/data_output/selected_bmi_flow_metrics_w_csci_LAG1.rda"))
-load(paste0(here(),"/data_output/selected_bmi_flow_metrics_w_csci_LAG2.rda"))
-load(paste0(here(),"/data_output/sel_bmi_and_gages.rda"))
-load(paste0(here(),"/data_output/selected_h12_contain_bmi_gage.rda"))
+bmi_RI_combined <- readRDS(paste0(here(), "/data_output/gbms/11_gbm_RI_all_vars.rds"))
+load(paste0(here(), "/data_output/07_selected_bmi_stations_w_comids.rda"))
+load(paste0(here(), "/data_output/05_mainstems_us_ds_selected_gages.rda"))
+load(paste0(here(),"/data_output/06_selected_bmi_flow_metrics_w_csci_ANN.rda"))
+load(paste0(here(),"/data_output/06_selected_bmi_flow_metrics_w_csci_POR.rda"))
+load(paste0(here(),"/data_output/06_selected_bmi_flow_metrics_w_csci_LAG1.rda"))
+load(paste0(here(),"/data_output/06_selected_bmi_flow_metrics_w_csci_LAG2.rda"))
+load(paste0(here(),"/data_output/03_selected_bmi_and_gages.rda"))
+load(paste0(here(),"/data_output/03_selected_h12_contain_bmi_gage.rda"))
+
+# make component variable
+bmi_RI_combined <- bmi_RI_combined %>% 
+  mutate(flow_component = case_when(
+    grepl("DS_", var) ~ "Dry-season baseflow", #Mag90, Mag10, Tim, Dur_WS, Dur_WSI
+    grepl("SP_", var) ~ "Spring recession flow",
+    grepl("Peak_", var) ~ "Peak flow",
+    grepl("Wet_Tim|Wet_BFL_Mag|Wet_BFL_Dur", var) ~ "Wet-season baseflow",
+    grepl("WSI_Dur|WSI_Mag|WSI_Tim", var) ~ "Fall pulse flow"
+  ))
+  
+
+
 
 ```
 
@@ -54,9 +67,48 @@ This part is most germane to the dataset we currently have (reference flow gages
 
 This second part (reference and non-reference) will need to wait until we have non-reference data generated from non-reference gages across the state.
 
+## Data Generation: Pairing Flow and BMI
+
+We used BMI data across the state, over 300,000 samples were available at over 3,000 locations (`Stations`). For flow metric data, we selected *reference* gages from USGS `Sites`.
+
+To pair USGS flow data from a given site with BMI data from a given station, we followed these filtering criteria:
+
+ - Stations and Sites had to exist in the same HUC12
+ - Stations and Sites had to be on the same mainstem streamline within the same HUC12.
+ - Station and Sites had to have overlapping temporal data (data from the same year, or 1-2 years prior).
+
+### Maps of Data
+
+> Data input: 
+
+```{r bmisites, eval=T, echo=F, out.width="50%"}
+knitr::include_graphics(path=paste0(here::here(),"/figs/map_of_bmi_sites.jpg"))
+
+```
+
+```{r usgssites, eval=T, echo=F, out.width="50%"}
+knitr::include_graphics(path=paste0(here::here(),"/figs/map_of_usgs_referenceonly_w_rivers.jpg"))
+
+```
+
+> Potential Site Pairs
+
+```{r potentialsites, eval=T, echo=F, out.width="50%"}
+knitr::include_graphics(path=paste0(here::here(),"/figs/map_of_selected_sites.jpg"))
+
+```
+
+
 ## Flow Metrics
 
-The flow metrics calculated for each reference gage (pulled from [eflows](https://eflows.ucdavis.edu/)).
+The flow metrics calculated for each reference gage (pulled from [eflows](https://eflows.ucdavis.edu/)), and were composed of flow components:
+
+
+```{r flowcomps, eval=T, echo=F, out.width="50%"}
+knitr::include_graphics(path=paste0(here::here(),"/docs/fig2A_ff_components.png"))
+
+```
+
 
 <script>
 function myFunction() {
@@ -79,29 +131,34 @@ function myFunction() {
   > - Coefficient of variation (`CV`)
   > - Standard deviation (`Std`)
 
-**Spring Recession**
+**Component: Spring Recession Flow**
 
   > - Duration (`SP_Dur`)
   > - Magnitude (`SP_Mag`)
   > - Rate of change (`SP_ROC`)
   > - Timing (`SP_Tim`)
 
-**Dry Season Low Flow**
+**Component: Dry-Season Base Flow**
 
  > - Duration (`DS_Dur_WS`)
+ > - Timing start of lowflow (`DS_Tim`)
  > - Magnitude10 percentile (`DS_Mag_10`)
  > - Magnitude50 percentile (`DS_Mag_50`)
- > - No flow days (`DS_No_Flow`)
  > - Timing (`DS_No_Flow`)
-
-**Fall Flush Flow**
+ 
+**Component: Fall Pulse Flow**
 
  > - Duration (`WSI_Dur`)
  > - Magnitude (`WSI_Mag`)
- > - First fall flush event  (`WSI_Tim`)
- > - Timing of start of wet season [linked to Wet_BFL] (`Wet_Tim`)
+ > - Timing-First fall flush event  (`WSI_Tim`)
+
+**Component: Wet-Season Base Flow**
+
+ > - Timing of start of wet season (`Wet_Tim`)
+ > - Magnitude (`Wet_BFL_Mag`)
+ > - Duration (*Wet_BFL_Dur*)
  
-**Peak Magnitude High Flows (5 exceedance rates) **
+**Component: Peak Flow**
 
  > - Peak Mag 2 (`Peak_Mag_2`)
  > - Peak Mag 5 (`Peak_Mag_5`)
@@ -119,7 +176,7 @@ function myFunction() {
  > - Peak Timing 5 (`Peak_Tim_5`)
  > - Peak Timing 10 (`Peak_Tim_10`)
  > - Peak Timing 20 (`Peak_Tim_20`)
- > - **Wet Baseflow Magnitude (`Wet_BFL_Mag`)** (could be 5th component)
+ 
  
 </div>
  
@@ -147,6 +204,7 @@ The 9-stream classes were as follows:
  - 7=FER (Flashy & Ephemeral)
  - 8=RGW (Rain seasonal GW)
  - 9=HLP (High Elev Low Precip)
+
 
 When assessing CSCI scores across the stream classes listed above, there was a wide range of CSCI scores. Furthermore, not all stream classes are represented by the selected BMI/Flow sites. Below are boxplots of **`Stream Class vs. CSCI Percentile`**. The mean CSCI score across all sites is `r mean(bmi_flow_metrics_ann_csci$csci, na.rm = T)`, and the mean CSCI percentile across all sites is `r mean(bmi_flow_metrics_ann_csci$csci_percentile, na.rm = T)`.
 
@@ -241,87 +299,131 @@ Boosted regression trees (BRTs) generate a *"Relative Importance"* metric which 
 BRTs were run for each flow data set (`annual`, `lag1`, `lag2`, `POR`) which each contained 34 flow metrics, using one of the following BMI metrics (generated via the CSCI package or already existed in datasets) as a response variable:
 
  - **CSCI Percentile**
- - **EPT_Percentile**
  - **Shannon_Diversity**
- - **Taxonomic_Richness**
- - **Tolerant_Percent**
+ - **MMI Percentile**
+ - **Intolerant_Percent**
 
-A total of 20 separate BRTs were run, and the relative influence for each flow metric was calculated, and then summed below.
+A total of 16 separate BRT modelsets were trained using 24 different model parameters, and the best model was selected. Then relative influence for each flow metric was calculated, and then summarized (see below).
 
 ### Relative Influence of Flow Metrics across BMI Metric
 
-```{r plots, echo=F, eval=T}
+```{r ann, echo=F, eval=T, fig.width=7}
 
-# most common variable?
-bmi_RI_combined %>% group_by(Ymetric, flowdat, var) %>% 
-  summarize(meanRI = mean(rel.inf)) %>% 
+# Annual: most common variable?
+bmi_RI_combined %>% group_by(Ymetric, flowdat, var, flow_component) %>% 
+  summarize(meanRI = mean(rel.inf, na.rm = T)) %>% 
   top_n(3) %>% 
   arrange(Ymetric, desc(meanRI)) %>% 
-  filter(flowdat=="annual") %>% 
+  filter(flowdat=="Annual", !is.na(flow_component), meanRI>2) %>% 
+  #mutate(vars = fct_reorder2(var, flow_component, var)) %>% 
   ggplot(.) +
-  geom_col(aes(x=forcats::fct_reorder(var, meanRI), y=meanRI, fill=Ymetric)) + 
+  #geom_col(aes(x=forcats::fct_reorder(var, meanRI), y=meanRI, fill=Ymetric)) +
+  geom_col(aes(x=forcats::fct_reorder2(var, flow_component, var), y=meanRI, fill=Ymetric))+
            #position="dodge", width = .5) +
   coord_flip() +
-  scale_fill_viridis_d()+
-  xlab("") + ylab("Mean Relative Inf (%)") +
-  theme_classic(base_family = "Roboto Condensed") +
-  facet_grid(flowdat~.)
+  scale_fill_viridis_d("BMI Metric") +
+  labs(x="",y="Mean Relative Inf (%)", title = "Annual") +
+  ggdark::dark_theme_bw(base_family = "Roboto Condensed") #+
+  #theme_bw(base_family = "Roboto Condensed") #+
+  #facet_grid(.~flow_component) #scales = "free_y"
 
-#ggsave(filename = "figs/stacked_barplot_RI_by_metric_noSC_annual.png", width = 6, height = 6, units = "in", dpi = 200)
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_annual.png", width = 7, height = 6, units = "in", dpi = 200)
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_annual_dark.png", width = 7, height = 6, units = "in", dpi = 200)
+```
 
-
-# most common variable?
-bmi_RI_combined %>% group_by(Ymetric, flowdat, var) %>% 
-  summarize(meanRI = mean(rel.inf)) %>% 
+```{r ann_facet, echo=F, eval=T, fig.width=8}
+# Annual: most common variable?
+bmi_RI_combined %>% group_by(Ymetric, flowdat, var, flow_component) %>% 
+  summarize(meanRI = mean(rel.inf, na.rm = T)) %>% 
   top_n(3) %>% 
   arrange(Ymetric, desc(meanRI)) %>% 
-  filter(flowdat=="lag1") %>% 
+  filter(flowdat=="Annual", !is.na(flow_component), meanRI>2) %>% 
+  #mutate(vars = fct_reorder2(var, flow_component, var)) %>% 
   ggplot(.) +
-  geom_col(aes(x=forcats::fct_reorder(var, meanRI), y=meanRI, fill=Ymetric)) + 
+  #geom_col(aes(x=forcats::fct_reorder(var, meanRI), y=meanRI, fill=Ymetric)) +
+  geom_col(aes(x=forcats::fct_reorder2(var, flow_component, var), y=meanRI, fill=Ymetric))+
            #position="dodge", width = .5) +
   coord_flip() +
-  scale_fill_viridis_d()+
-  xlab("") + ylab("Mean Relative Inf (%)") +
-  theme_classic(base_family = "Roboto Condensed") +
-  facet_grid(flowdat~.)
+  scale_fill_viridis_d("BMI Metric") +
+  labs(x="",y="Mean Relative Inf (%)", title = "Annual") +
+  ggdark::dark_theme_bw(base_family = "Roboto Condensed") +
+  #theme_bw(base_family = "Roboto Condensed") +
+  facet_grid(.~flow_component) #scales = "free_y"
+  
 
-#ggsave(filename = "figs/stacked_barplot_RI_by_metric_noSC_lag1.png", width = 6, height = 6, units = "in", dpi = 200)
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_annual_facet_flowcomp_dark.png", width = 9, height = 6, units = "in", dpi = 200)
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_annual_facet_flowcomp.png", width = 9, height = 6, units = "in", dpi = 200)
 
+```
 
-# most common variable?
-bmi_RI_combined %>% group_by(Ymetric, flowdat, var) %>% 
-  summarize(meanRI = mean(rel.inf)) %>% 
+```{r lag1_facet, echo=F, eval=T, fig.width=8}
+# Lag1: most common variable?
+bmi_RI_combined %>% group_by(Ymetric, flowdat, var, flow_component) %>% 
+  summarize(meanRI = mean(rel.inf, na.rm = T)) %>% 
   top_n(3) %>% 
   arrange(Ymetric, desc(meanRI)) %>% 
-  filter(flowdat=="lag2") %>% 
+  filter(flowdat=="Lag1", !is.na(flow_component), meanRI>2) %>% 
   ggplot(.) +
-  geom_col(aes(x=forcats::fct_reorder(var, meanRI), y=meanRI, fill=Ymetric)) + 
-           #position="dodge", width = .5) +
+  geom_col(aes(x=forcats::fct_reorder2(var, flow_component, var), y=meanRI, fill=Ymetric))+
   coord_flip() +
-  scale_fill_viridis_d()+
-  xlab("") + ylab("Mean Relative Inf (%)") +
-  theme_classic(base_family = "Roboto Condensed") +
-  facet_grid(flowdat~.)
+  scale_fill_viridis_d("BMI Metric") +
+  labs(x="",y="Mean Relative Inf (%)", title = "Lag1") +
+  ggdark::dark_theme_bw(base_family = "Roboto Condensed") +
+  #theme_bw(base_family = "Roboto Condensed") +
+  facet_grid(.~flow_component) #scales = "free_y"
 
-#ggsave(filename = "figs/stacked_barplot_RI_by_metric_noSC_lag2.png", width = 6, height = 6, units = "in", dpi = 200)
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_lag1.png", width = 7, height = 6, units = "in", dpi = 200)
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_lag1_facet_flowcomp.png", width = 9, height = 6, units = "in", dpi = 200)
+# 
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_lag1_dark.png", width = 7, height = 6, units = "in", dpi = 200)
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_lag1_facet_flowcomp_dark.png", width = 9, height = 6, units = "in", dpi = 200)
 
+```
 
-# most common variable?
-bmi_RI_combined %>% group_by(Ymetric, flowdat, var) %>% 
-  summarize(meanRI = mean(rel.inf)) %>% 
+```{r lag2_facet, echo=F, eval=T, fig.width=8}
+# Lag2: most common variable?
+bmi_RI_combined %>% group_by(Ymetric, flowdat, var, flow_component) %>% 
+  summarize(meanRI = mean(rel.inf, na.rm = T)) %>% 
   top_n(3) %>% 
   arrange(Ymetric, desc(meanRI)) %>% 
-  filter(flowdat=="POR") %>% 
+  filter(flowdat=="Lag2", !is.na(flow_component), meanRI>2) %>% 
   ggplot(.) +
-  geom_col(aes(x=forcats::fct_reorder(var, meanRI), y=meanRI, fill=Ymetric)) + 
-           #position="dodge", width = .5) +
+  geom_col(aes(x=forcats::fct_reorder2(var, flow_component, var), y=meanRI, fill=Ymetric))+
   coord_flip() +
-  scale_fill_viridis_d()+
-  xlab("") + ylab("Mean Relative Inf (%)") +
-  theme_classic(base_family = "Roboto Condensed") +
-  facet_grid(flowdat~.)
+  scale_fill_viridis_d("BMI Metric") +
+  labs(x="",y="Mean Relative Inf (%)", title = "Lag2") +
+  ggdark::dark_theme_bw(base_family = "Roboto Condensed") +
+  #theme_bw(base_family = "Roboto Condensed") +
+  facet_grid(.~flow_component) #scales = "free_y"
 
-#ggsave(filename = "figs/stacked_barplot_RI_by_metric_noSC_POR.png", width = 6, height = 6, units = "in", dpi = 200)
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_lag2.png", width = 7, height = 6, units = "in", dpi = 200)
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_lag2_facet_flowcomp.png", width = 9, height = 6, units = "in", dpi = 200)
+# 
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_lag2_dark.png", width = 7, height = 6, units = "in", dpi = 200)
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_lag2_facet_flowcomp_dark.png", width = 9, height = 6, units = "in", dpi = 200)
+```
+
+```{r por_facet, echo=F, eval=T, fig.width=8}
+# POR most common variable?
+bmi_RI_combined %>% group_by(Ymetric, flowdat, var, flow_component) %>% 
+  summarize(meanRI = mean(rel.inf, na.rm = T)) %>% 
+  top_n(3) %>% 
+  arrange(Ymetric, desc(meanRI)) %>% 
+  filter(flowdat=="POR", !is.na(flow_component), meanRI>2) %>% 
+  ggplot(.) +
+  geom_col(aes(x=forcats::fct_reorder2(var, flow_component, var), y=meanRI, fill=Ymetric))+
+  coord_flip() +
+  scale_fill_viridis_d("BMI Metric") +
+  labs(x="",y="Mean Relative Inf (%)", title = "POR") +
+  ggdark::dark_theme_bw(base_family = "Roboto Condensed") +
+  #theme_bw(base_family = "Roboto Condensed") #+
+  facet_grid(.~flow_component) #scales = "free_y"
+
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_por.png", width = 7, height = 6, units = "in", dpi = 200)
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_por_facet_flowcomp.png", width = 9, height = 6, units = "in", dpi = 200)
+# 
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_por_dark.png", width = 7, height = 6, units = "in", dpi = 200)
+# ggsave(filename = "figs/stacked_barplot_RI_by_metric_por_facet_flowcomp_dark.png", width = 9, height = 6, units = "in", dpi = 200)
 
 ```
 
@@ -334,10 +436,11 @@ library(stringr)
 # see here: https://walkerke.github.io/
 library(bsselectR)
 
-bar_plots <- paste0(list.files(path = paste0(here(),"/figs"), pattern = "stacked_barplot_RI_by_metric_noSC",  full.names = TRUE))
+bar_plots <- paste0(list.files(path = paste0(here::here(),"/figs"), pattern = "stacked_barplot_RI_by_metric_combined.*_dark.png",  full.names = TRUE))
 names(bar_plots) <- c("Annual", "Lag1", "Lag2", "POR")
-#bar_plots
+# select only the combined ones
 
+#bar_plots
 bsselect(vector = bar_plots, type = "img", selected = "Annual", 
          live_search = TRUE, show_tick = TRUE, frame_height = "600",
          frame_width = "600", 
@@ -345,52 +448,106 @@ bsselect(vector = bar_plots, type = "img", selected = "Annual",
 
 ```
 
-### Top Variables by Flow Datasets
+### Flow Metrics by Flow Dataset and Flow Component
 
-The top 5 flow variables were selected across all possible BMI response metrics (i.e., CSCI, EPT, etc.), and the mean Relative Influence was calculated based on the the various Flow Datasets.
+The top 5 flow variables were selected across all possible BMI response metrics (i.e., CSCI, EPT, etc.), and the mean Relative Influence was calculated based on the the various Flow Datasets, and then faceted by flow components.
 
 ```{r topFlowVarsFLow}
 
 # most common variable?
-bmi_RI_combined %>% group_by(flowdat, var) %>% 
+bmi_RI_combined %>% group_by(flowdat, var, flow_component) %>% 
   summarize(meanRI = mean(rel.inf)) %>% 
   top_n(5) %>% 
   arrange(desc(meanRI)) %>% 
-  #filter(flowdat=="annual") %>% 
+  filter(!is.na(flow_component)) %>% 
   ggplot(.) +
-  geom_col(aes(x=forcats::fct_reorder(var, meanRI), y=meanRI, fill=flowdat), color="gray20", lwd=.1) +
+  geom_col(aes(x=forcats::fct_reorder2(var, flow_component, var),
+               y=meanRI, fill=flow_component), color="gray20", lwd=.1,
+           position="dodge") +
   coord_flip() +
   scale_fill_viridis_d("Flow Data")+
   labs(x="", y="Mean Relative Inf (%)", subtitle="Top Flow Variables across All BMI Response metrics") +
-  theme_classic(base_family = "Roboto Condensed")
-
+  theme_classic(base_family = "Roboto Condensed") +
+  facet_grid(.~flowdat)
 
 ```
 
-The mean Relative Influence (`meanRI`) for each flow dataset is shown below:
+Interestingly there were shifts between flow components across different datasets, however in all four flow datasets all flow components were represented.
 
-```{r topVars, message=F, warning=F}
+### Top Flow Metrics by Flow Dataset and Component
+
+> The top 5 mean Relative Influence (`meanRI`) metrics for each flow dataset.
+
+```{r topFFMflow, message=F, warning=F}
 
 # most common variable?
 bmi_RI_combined %>% group_by(flowdat, var) %>% 
   summarize(meanRI = mean(rel.inf)) %>% 
   top_n(5) %>% 
   arrange(flowdat, desc(meanRI)) %>% knitr::kable()
+
 ```
 
-Here's a list of the top 10 most common flow metrics identified across all the flow datasets and bmi stations.
+> The top 5 mean Relative Influence (`meanRI`) metrics for each flow component.
 
-```{r}
+```{r topFFMcomponent}
 
+# most common variable?
+bmi_RI_combined %>% group_by(flow_component, var) %>% 
+  summarize(meanRI = mean(rel.inf)) %>% 
+  top_n(5) %>% 
+  arrange(flow_component, desc(meanRI)) %>% knitr::kable()
+
+```
+
+### Partial Dependence Plots
+
+Based on these results, we can look at the relationship between a given flow metric and BMI response metric. Here's an example for the `MMI_Percentile` data, showing the top 8 variables in the model for the `Annual` and `Lag1` Datasets.
+
+```{r pdpAnnual, eval=T, echo=F, out.width="70%"}
+
+knitr::include_graphics(path=paste0(here(), "/figs/10_gbm_marginal_effects_intolerant_percent_annual.pdf"))
+
+```
+
+
+
+```{r pdpLag1, eval=T, echo=F, out.width="70%"}
+
+knitr::include_graphics(path=paste0(here(), "/figs/10_gbm_marginal_effects_intolerant_percent_lag1.pdf"))
+
+```
+
+And then a **ICE** plot (Individual conditonal expectation) plot (Goldstein et al. 2017). Instead of plotting the average marginal effect on the response variable, ICE plots changes in the predicted response variable for each observation as we vary each predictor variable. An ICE plot visualizes the dependence of the prediction on a feature for each instance separately, resulting in one line per instance, compared to one line overall in partial dependence plots. When the curves have a wide range of intercepts and are consequently “stacked” on each other, heterogeneity in the response variable (from marginal changes in the predictor variable of interest) can be difficult to discern, thus centering can help. These data are centered.
+
+```{r iceAnnual, eval=T, echo=F, out.width="70%"}
+
+knitr::include_graphics(path=paste0(here(), "/figs/pdp_ice_mmi_percentile_Annual_top_var_Wet_Tim.png"))
+
+```
+
+```{r iceLag1, eval=T, echo=F, out.width="70%"}
+
+knitr::include_graphics(path=paste0(here(), "/figs/pdp_ice_mmi_percentile_Lag1_top_var_Peak_Fre_5.png"))
+
+```
+
+
+### Top Flow Metrics across all Data
+
+Here's a list of the top 10 most common flow metrics identified across all the flow datasets, flow components, and bmi response metrics.
+
+```{r top10}
 
 # get just the variable Names for best options:
-bmi_RI_combined %>% group_by(flowdat, var) %>% 
+bmi_RI_combined %>% group_by(var) %>% 
   summarize(meanRI = mean(rel.inf)) %>% 
-  top_n(5) %>% arrange(desc(meanRI)) %>% ungroup() %>% distinct(var) %>% 
+  top_n(10) %>% arrange(desc(meanRI)) %>% ungroup() %>% distinct(var, .keep_all = T) %>% 
   knitr::kable()
 
-
 ```
+
+### Full Relative Influence Table
 
 And here is all the data from the BRT models.
 
@@ -403,7 +560,7 @@ DT::datatable(bmi_RI_combined)
 
 
 <!--
-```{r staticMap, warning=FALSE, message=FALSE}
+```{r staticMap, eval=FALSE, warning=FALSE, message=FALSE}
 
 library(tmap)
 library(USAboundaries)
@@ -427,7 +584,8 @@ tm_shape(bmi_flow_metrics_ann_csci) +
 -->
 
 
-## Leaflet Map
+## Leaflet Map of Sites
+
 ```{r leafletMap}
 
 library(leaflet)
