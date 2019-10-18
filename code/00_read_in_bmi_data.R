@@ -11,6 +11,7 @@
 
 # Libraries ---------------------------------------------------------------
 
+library(vroom) # fast file reading!
 library(tidyverse)
 library(readxl)
 library(sf)
@@ -22,13 +23,24 @@ library(lubridate)
 library(CSCI)
 library(BMIMetrics)
 
+# library
+# library(bench) # benchmark times for stuff
+
 # Read in COMIDs ----------------------------------------------------------
 
 comid <- read_excel("data/BMI_COMIDs_for_Ryan.xlsx")
 
 # Read in BMI data --------------------------------------------------------
 
-bugs <- read_csv(file = "data/Taxonomy_Ryan_SCCWRP.csv.zip") %>% 
+## using VROOM!
+# workout({bugs_v <- vroom::vroom(file = "data/Taxonomy_Ryan_SCCWRP.csv.zip")}, description = "vroom")
+# 
+## using read_csv
+# workout({bugs <- read_csv(file = "data/Taxonomy_Ryan_SCCWRP.csv.zip")},
+#         description = "readr") 
+
+
+bugs <- vroom::vroom(file = "data/Taxonomy_Ryan_SCCWRP.csv.zip") %>% 
   dplyr::rename("StationCode" = stationcode, "SampleID" = sampleid, 
                 "FinalID" = finalid, "BAResult" = baresult, "LifeStageCode" = lifestagecode) %>% 
   mutate("Distinct" = NA) %>% # add for CSCI package

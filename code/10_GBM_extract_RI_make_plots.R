@@ -16,7 +16,7 @@ library(rlang)
 # Data --------------------------------------------------------------------
 
 ## VARIABLES:
-hydroDat <- "Annual" # can be Annual, Lag1, Lag2, POR
+hydroDat <- "Lag1" # can be Annual, Lag1, Lag2, POR
 bmiVar <- quote(mmi_percentile) # select response var
 # Shannon_Diversity, csci_percentile, Intolerant_Percent, mmi_percentile
 
@@ -33,8 +33,8 @@ class(gbm_final)
 load(paste0("data_output/gbms/10_gbm_final_", tolower(bmiVar),"_hydrodata.rda"))
 
 # rename datasets for plotting:
-gbm_out_tr <- data_ann_tr # NEED TO CHANGE THESE
-gbm_out_te <- data_ann_te
+gbm_out_tr <- data_lag1_tr # NEED TO CHANGE THESE
+gbm_out_te <- data_lag1_te
 
 #load("data_output/08_gbm_bmi_metrics_RI_combined_noSC.rda")
 load("data_output/05_selected_bmi_stations_w_comids.rda")
@@ -69,12 +69,12 @@ gbm_fin_ri_top <- tibble(RI=summary(gbm_final, plotit=FALSE)$rel.inf[1:gbm_fin_t
     labs(title=paste0(hydroDat, ": Top ", gbm_fin_topn," vars: ", as_label(bmiVar)), 
          y="Relative Influence (%)", x="",
          subtitle = "MSE Criterion") +
-    #ylim(c(0,30)) +
+    ylim(c(0,30)) +
     ggdark::dark_theme_classic(base_family = "Roboto Condensed")+
     geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2)) 
 
 # save out
-ggsave(filename=tolower(paste0("figs/10_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI", ".png")), width = 8, height = 7, units = "in", dpi = 300)
+#ggsave(filename=tolower(paste0("figs/10_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI", ".png")), width = 8, height = 7, units = "in", dpi = 300)
 
 # MAKE RI PERMUTATION TEST PLOTS ------------------------------------------------
 
@@ -109,7 +109,7 @@ gbm_fin_pt_top <- tibble(PT=summary(gbm_final, method=permutation.test.gbm, plot
     ggdark::dark_theme_classic(base_family = "Roboto Condensed"))
 
 # save
-ggsave(filename=tolower(paste0("figs/10_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_pt", ".png")), width = 8, height = 7, units = "in", dpi = 300)
+#ggsave(filename=tolower(paste0("figs/10_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_pt", ".png")), width = 8, height = 7, units = "in", dpi = 300)
 
 
 # COMBINE RIs AND SAVE -----------------------------------------------------
@@ -198,28 +198,18 @@ gbm_final %>%
 # ice1_pt
 
 (ice2_pt <- gbm_final %>%
-  partial(
-    pred.var = as.character(bestHydro_pt$varnames[varNo]), 
-    n.trees = gbm_final$n.trees, train=gbm_out_tr,
-    grid.resolution = 100,
-    ice = TRUE) %>%
-  autoplot(rug = TRUE, train = gbm_out_tr, alpha = .1, center=TRUE) +
-  labs(subtitle = paste0("ICE Centered (PT): ", bestHydro_pt$varnames[varNo]),
-       y=paste0("Predicted ", as_name(bmiVar))) +
-  ggdark::dark_theme_classic(base_family = "Roboto Condensed"))
+   partial(
+     pred.var = as.character(bestHydro_pt$varnames[varNo]), 
+     n.trees = gbm_final$n.trees, train=gbm_out_tr,
+     grid.resolution = 100,
+     ice = TRUE) %>%
+   autoplot(rug = TRUE, train = gbm_out_tr, alpha = .1, center=TRUE) +
+   labs(subtitle = paste0("ICE Centered (PT): ", 
+                          bestHydro_pt$varnames[varNo], " for ", hydroDat),
+        y=paste0("Predicted ", as_name(bmiVar))) +
+   ggdark::dark_theme_classic(base_family = "Roboto Condensed"))
 
 # RI
-# ice1_ri <- gbm.fit.final %>%
-#   partial(
-#     pred.var = as.character(bestHydro_ri$varnames[varNo]), 
-#     n.trees = gbm.fit.final$n.trees, 
-#     grid.resolution = 100,
-#     ice = TRUE) %>%
-#   autoplot(rug = TRUE, train = gbm_out, alpha = .1) +
-#   labs(subtitle = paste0("ICE (RI): ", bestHydro_ri$varnames[varNo]),
-#        y=paste0("Predicted ", as_name(bmiVar))) +
-#   ggdark::dark_theme_classic(base_family = "Roboto Condensed")
-# ice1_ri
 
 (ice2_ri <- gbm_final %>%
   partial(
@@ -229,9 +219,15 @@ gbm_final %>%
     ice = TRUE
   ) %>%
   autoplot(rug = TRUE, train = gbm_out_tr, alpha = .1, center = TRUE) +
-    labs(subtitle = paste0("ICE Centered (RI): ", bestHydro_pt$varnames[varNo]),
+    labs(subtitle = paste0("ICE Centered (RI): ", bestHydro_ri$varnames[varNo], " for ", hydroDat),
          y=paste0("Predicted ", as_name(bmiVar))) +
   ggdark::dark_theme_classic(base_family = "Roboto Condensed"))
+
+# RI save:
+ggsave(filename=paste0("figs/pdp_ice_",tolower(as_name(bmiVar)), "_",hydroDat,
+                       "_top_var_", as.character(bestHydro_ri$varnames[varNo]),
+                       ".png"), width = 11, height = 7, units = "in", dpi=300)
+
 
 # plot the non-centered
 # gridExtra::grid.arrange(ice1_pt, ice1_ri, nrow = 1)
