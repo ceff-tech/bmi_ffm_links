@@ -85,11 +85,88 @@ bmi_RI_combined <- bmi_RI_combined %>%
     grepl("SP_", var) ~ "Spring recession flow",
     grepl("Peak_", var) ~ "Peak flow",
     grepl("Wet_Tim|Wet_BFL_Mag|Wet_BFL_Dur", var) ~ "Wet-season baseflow",
-    grepl("WSI_Dur|WSI_Mag|WSI_Tim", var) ~ "Fall pulse flow"
-  ))
+    grepl("WSI_Dur|WSI_Mag|WSI_Tim", var) ~ "Fall pulse flow",
+    TRUE ~ "General"
+  ),
+  flow_component = factor(flow_component, levels = c("Fall pulse flow", "Wet-season baseflow", "Peak flow", "Spring recession flow", "Dry-season baseflow", "General")),
+  var = as.factor(var),
+  var = fct_reorder2(var, flow_component, var))
+
   
+levels(bmi_RI_combined$var)
+levels(bmi_RI_combined$flow_component)
+summary(bmi_RI_combined)
 
+# Summary Plot ------------------------------------------------------------
 
+# Faceted by hydrodat and flow metrics:
+bmi_RI_combined %>% group_by(flowdat, var, flow_component) %>% 
+  summarize(meanRI = mean(rel.inf)) %>% 
+  #top_n(5) %>% 
+  arrange(desc(meanRI)) %>% 
+  filter(flow_component!="General") %>% 
+  ggplot(.) +
+  geom_col(aes(x=var,#x=forcats::fct_reorder2(var, flow_component, var),
+               y=meanRI, fill=flow_component), color="gray20", lwd=.1,
+           position="dodge") +
+  coord_flip() +
+  scale_fill_viridis_d("Flow Component")+
+  labs(x="", y="Mean Relative Inf (%)", subtitle="Top Flow Metrics across all BMI Metrics") +
+  theme_classic(base_family = "Roboto Condensed") +
+  facet_grid(.~flowdat)
+
+ggsave(filename = "figs/faceted_RI_by_flowcomp_hydrodat.png", width = 9, height = 6, units = "in", dpi = 300)
+
+# Faceted by BMI metrics and flow components:
+bmi_RI_combined %>% group_by(flowdat, var, Ymetric, flow_component) %>% 
+  summarize(meanRI = mean(rel.inf)) %>% 
+  #top_n(6) %>% 
+  arrange(desc(meanRI)) %>% 
+  filter(flow_component!="General", flowdat=="Annual") %>%  
+  ggplot(.) +
+  geom_col(aes(x=var, y=meanRI, fill=flow_component), color="gray20", lwd=.1, position="dodge") +
+  coord_flip() +
+  scale_fill_viridis_d("Flow Components")+
+  labs(x="", y="Mean Relative Inf (%)", subtitle="ANNUAL: Top Flow Metrics across BMI Metrics") +
+  theme_classic(base_family = "Roboto Condensed") +
+  facet_grid(.~Ymetric)
+
+ggsave(filename = "figs/faceted_RI_by_flowcomp_bmi_ANNUAL.png", width = 9, height = 6, units = "in", dpi = 300)
+  
+# Faceted by BMI metrics and flow components:
+bmi_RI_combined %>% group_by(flowdat, var, Ymetric, flow_component) %>% 
+  summarize(meanRI = mean(rel.inf)) %>% 
+ # top_n(6) %>% 
+  arrange(desc(meanRI)) %>% 
+  filter(flow_component!="General", flowdat=="Lag1") %>%  
+  ggplot(.) +
+  geom_col(aes(x=var, y=meanRI, fill=flow_component), color="gray20", lwd=.1, position="dodge") +
+  coord_flip() +
+  scale_fill_viridis_d("Flow Components")+
+  labs(x="", y="Mean Relative Inf (%)", subtitle="LAG-1: Top Flow Metrics across BMI Metrics") +
+  theme_classic(base_family = "Roboto Condensed") +
+  facet_grid(.~Ymetric)
+
+ggsave(filename = "figs/faceted_RI_by_flowcomp_bmi_LAG1.png", width = 9, height = 6, units = "in", dpi = 300)
+  
+# Faceted by BMI metrics and flow components:
+bmi_RI_combined %>% group_by(flowdat, var, Ymetric, flow_component) %>% 
+  summarize(meanRI = mean(rel.inf)) %>% 
+  # top_n(6) %>% 
+  arrange(desc(meanRI)) %>% 
+  filter(flow_component!="General", flowdat=="Lag2") %>%  
+  ggplot(.) +
+  geom_col(aes(x=var, y=meanRI, fill=flow_component), color="gray20", lwd=.1, position="dodge") +
+  coord_flip() +
+  scale_fill_viridis_d("Flow Components")+
+  labs(x="", y="Mean Relative Inf (%)", subtitle="LAG-2: Top Flow Metrics across BMI Metrics") +
+  theme_classic(base_family = "Roboto Condensed") +
+  facet_grid(.~Ymetric)
+
+ggsave(filename = "figs/faceted_RI_by_flowcomp_bmi_LAG2.png", width = 9, height = 6, units = "in", dpi = 300)
+
+  
+    
 # LEAFLET -------------------------------------------------------------------
 
 library(leaflet)
