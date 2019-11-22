@@ -51,7 +51,13 @@ mapview(bmi_coms_clean2)
 rm(bmi_coms, bmi_coms_clean, bmi_coms_na, bmi_coms_nona, bmi_coms_nona_stat)
 bmi_coms <- bmi_coms_clean2
 rm(bmi_coms_clean2)
- 
+
+# mapview
+mapview(bmi_coms)
+
+# save out as shp
+st_write(bmi_coms, "data_output/07_selected_bmi_stations_w_comid.shp")
+
 ## save 
 save(bmi_coms, file = "data_output/07_selected_bmi_stations_w_comids.rda")
 
@@ -60,6 +66,9 @@ bmi_coms %>% st_drop_geometry %>% distinct(ID) %>% tally()
 
 # drop the other gages from orig set:
 sel_gages_bmi <- sel_gages_bmi %>% filter(ID %in% bmi_coms$ID)
+
+# write out
+st_write(sel_gages_bmi, "data_output/07_selected_usgs_gages.shp")
 save(sel_gages_bmi, file = "data_output/07_selected_usgs_gages.rda")
 
 mainstems <- mainstems %>% filter(gageID %in% bmi_coms$ID) # n=1278

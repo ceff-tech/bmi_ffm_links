@@ -13,6 +13,11 @@ library(dismo)
 library(pdp)
 library(rlang)
 
+# GBM evaluation
+library(DALEX)
+library(ingredients)
+
+
 # Data --------------------------------------------------------------------
 
 ## VARIABLES:
@@ -40,6 +45,30 @@ gbm_out_te <- data_lag1_te
 load("data_output/05_selected_bmi_stations_w_comids.rda")
 load("data_output/07_mainstems_bmi_selected_gages.rda")
 
+
+# USE DALEX ---------------------------------------------------------------
+
+gbm_explain <- explain(gbm_final, data=gbm_out_tr[,-1], y=gbm_out_tr$mmi_percentile, na.rm=TRUE)
+
+# feature importance
+gbm_feat <- feature_importance(gbm_explain)
+plot(gbm_feat, max_vars=12)
+
+# look at explained variance
+library(iBreakDown)
+gbm_cr <- break_down(gbm_explain, new_observation = gbm_out_tr[1,])
+plot(gbm_cr)
+
+# doesn't work with NAs
+
+# partial dependency using ingredients
+gbm_pd <- partial_dependency(gbm_explain, variables="CV")
+plot(gbm_pd)
+
+# ceteris_paribus
+gbm_cp_pg <- ceteris_paribus(gbm_explain, 
+                             new_observation = gbm_out_tr[1,],
+                             variables="CV")
 
 # MAKE RI RELATIVE INFLUENCE PLOTS (MSE) -------------------------------------
 
