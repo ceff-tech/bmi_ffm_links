@@ -7,7 +7,7 @@
 ### - bmi_clean_stations_ss (bmi stations with site status that exist in bmi_clean dataset, n=1349)
 ### "01_bmi_cleaned_stations_w_site_status.rda"
 
-# Libraries ---------------------------------------------------------------
+# 00 Libraries ---------------------------------------------------------------
 
 library(readxl)
 library(tidyverse)
@@ -15,10 +15,8 @@ library(lubridate)
 library(sf)
 library(mapview)
 
-# Look at data: 
-# these were sent by Raffi M. on May 29, 2019
-
-# Reference Sites/Samples -------------------------------------------------
+# Data were sent by Raffi M. on May 29, 2019
+# 01 Import Reference Sites/Samples -------------------------------------------------
 
 # all ref sites
 ref_sites_xl <- read_excel("data/Reference_sites.xlsx") %>% 
@@ -55,7 +53,8 @@ ref_xeric_sites <- ref_xeric_data %>% select(StationCode, StationName) %>%
 ref_xeric_sites %>% filter(StationCode %in% ref_sites$StationCode)
 # 7 sites, but need lat/lon for other 17...
 
-# Non-Reference Sites -----------------------------------------------------
+
+# 02 Import Non-Reference Sites -----------------------------------------------------
 
 # non-ref sites
 nref_samples <- read_csv("data/samples.nonref.csv") %>% # 1677 nonref unique StationCodes
@@ -74,19 +73,17 @@ stations_out <- read_excel("data/stations.out.xlsx") %>%
   select(StationCode, SiteStatus, lat, lon, County, PSARegion, Eco_III_2010, everything()) %>% 
   st_as_sf(coords=c("lon", "lat"), crs=4326, remove=F)
 
-# Map ---------------------------------------------------------------------
-
+# 03 Make Map of Sites --------------------------------------------------
 
 mapview(ref_sites, col.regions="orange", layer.name="Ref sites") +
   mapview(nref_stations, col.regions="black", layer.name="Non-ref sites") +
   mapview(stations_out, zcol="SiteStatus", layer.name="stations_out?")
 
-
 mapview(ref_sites, col.regions="orange", layer.name="Ref sites") +
   mapview(nref_stations, col.regions="black", layer.name="Non-ref sites") +
   mapview(stations_out %>% filter(SiteStatus=="Reference"), zcol="SiteStatus", layer.name="stations_out?")
 
-# Comparing Data ----------------------------------------------------------
+# 04 Clean & Compare Data ----------------------------------------------------
 
 # see if there's any matches?
 nref_sites_df <- nref_stations %>% st_drop_geometry() %>% as.data.frame()
@@ -111,33 +108,37 @@ inner_join(ref_sites_df, sta_out_df, by=c("StationCode")) %>% distinct(StationCo
 
 inner_join(nref_sites_df, sta_out_df, by=c("StationCode")) %>% distinct(StationCode) %>% tally # all nonref sites in stations_out (n=1399)
 
-# Check all Data and Join ----------------------------------------------
+# 05 Check all Data and Join ----------------------------------------------
 
 # join ref/non-ref and look for distinct sites only:
 sites_df <- bind_rows(ref_sites_df, nref_sites_df, sta_out_df) %>% 
   distinct(StationCode, .keep_all = T)
 
+# get site status 
 sites_df %>% group_by(SiteStatus) %>% tally()
 # 781 reference
 # 837 intermediate (nonref)
 # 558 stressed (nonref)
 
-ref_sites_df %>% group_by(SiteStatus) %>% tally()
+ref_sites_df %>% group_by(SiteStatus) %>% tally() # same as above
 nref_sites_df %>% group_by(SiteStatus) %>% tally() # so dropped 4 from this set
 
-# check back:
+# check back, looks good
 anti_join(ref_sites_df, sites_df, by=c("StationCode")) %>% tally # all included
 anti_join(nref_sites_df, sites_df, by=c("StationCode")) %>% tally # all included
 
 # full metadata set is same as sites_df == stations_out
 bmi_stations_metadat <- stations_out
 
-# save out
+# 06 Save Out -------------------------------------------------------------
+
+# save out station metadata for all ref_nonref we have data
 save(bmi_stations_metadat, file = "data_output/01_bmi_stations_ref_nonref_metadata.rda")
 
-# Check with Other data (see script 00) ----------------------------------
+# 07 Sanity Check with Other data (see script 00) ----------------------------------
 
-load("data_output/01_bmi_stations_ref_nonref_metadata.rda")
+# load data
+load("data_output/01_bmi_stations_ref_nonref_metadata.rda") # from script 01
 load("data_output/00_bmi_cleaned_all.rda") # all data from Script 01
 
 # create only spatially distinct stations:
@@ -155,6 +156,9 @@ bmi_clean_stations_ss <- bmi_stations_metadat %>% st_drop_geometry() %>%
   inner_join(., bmi_clean_distinct %>% select(-lat, -lon), by="StationCode") # n=1349 that have data
 
 bmi_clean_stations_ss %>% distinct(StationCode) %>% tally()
+
+
+# 08 Save Final Dataset ---------------------------------------------------
 
 # save out final dataset that is ONLY the StationCode, lat, lon, and SiteStatus for the BMI data that is currently available/in the "bmi_clean" dataset.
 

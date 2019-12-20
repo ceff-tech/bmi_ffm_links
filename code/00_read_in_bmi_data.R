@@ -134,13 +134,6 @@ sample_distinct <- bugs_filt %>%
 
 # Make a Distinct Station List  ---------------------------------------------
 
-# make a station list for a map
-# bmi_stations <- bugs_filt %>%  # get distinct stations and locations
-#   distinct(StationCode, longitude, latitude, collectionmethodcode) %>% 
-#   st_as_sf(coords=c("longitude", "latitude"), crs=4326, remove=F) # make spatial
-# 
-# bmi_stations %>% distinct(StationCode) %>% tally()
-
 bmi_clean_stations <- bugs_filt %>%  # get distinct stations and locations
   distinct(StationCode, longitude, latitude) %>% 
   st_as_sf(coords=c("longitude", "latitude"), crs=4326, remove=F) # make spatial
@@ -151,6 +144,7 @@ bmi_clean_stations %>% distinct(StationCode) %>% tally()
 
 # save raw data
 bmi_clean <- bugs_filt
+
 #bmi_clean_stations 
 bmi_clean_distinct_samps <- sample_distinct
 
@@ -209,28 +203,23 @@ tmap_leaflet(tm_ca_bmi_sites)
 
 # generate test dataset of subset
 # bug_trc <- filter(bugs_filt, collectionmethodcode=="BMI_TRC") %>% as.data.frame()
-# 
-#   # using CSCI package, coerce data into a “BMI” data object for generating metrics
+## using CSCI package, coerce data into a “BMI” data object for generating metrics
 # bugdata <- BMI(bug_trc)
-# 
-# # #Subsample to 500 individuals and aggregate
+## Subsample to 500 individuals and aggregate
 # bugdata_samp <- sample(bugdata)
 # bugdata_agg <- aggregate(bugdata_samp) 
-# 
-# 
 # # Calculate metrics at SAFIT Level 1
 # bug_metrics <- BMIall(bugdata_agg, effort=1)
-# 
 # bmi_trc <- bug_metrics
 # save(bmi_trc, file = "data_output/bmi_trc_metrics_safit1.rda")
 
-
 # Generate SAFIT with purrr -----------------------------------------------
 
+## this takes a little while
+
 # library(purrr)
-# 
 # bugs_split <- bugs_filt %>% 
-#   split(.$collectionmethodcode) %>% 
+#   split(.$collectionmethodcode) %>% # split by collection method
 #   map(~BMI(.x)) # make into BMI object
 # 
 # bugs_samp <- bugs_split %>% 
