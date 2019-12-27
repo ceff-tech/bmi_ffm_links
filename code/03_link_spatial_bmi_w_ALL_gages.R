@@ -52,7 +52,7 @@ st_crs(gages)
 
 # Gages in Same Time As BMI -----------------------------------------------
 
-# so 110 gages meet temporal scale, years must be post 1994
+# so 1192 gages meet temporal scale, years must be post 1994
 gages_final2 <- gages %>% filter(end_yr > 1994)
 
 # plot
@@ -111,45 +111,42 @@ m1@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
 
 # Get BMI COMIDs ----------------------------------------------------------
 
+# join with NHD comids from existing BMI comid list
 bmi_comids <- readxl::read_excel("data/BMI_COMIDs_for_Ryan.xlsx")
 sel_bmi_gages <- sel_bmi_gages %>% left_join(., bmi_comids, by="StationCode")
 
+summary(sel_bmi_gages$comid) # so missing 356 COMIDs
+
 # GET COMIDS FOR BMI POINTS -----------------------------------
 
+# use this package to look up missing comids and add
 library(nhdplusTools)
-
-## TRANSFORM TO SAME DATUM
-sel_bmi_sf <- st_transform(sel_bmi_gages, crs = 3310) # use CA Teal albs metric
-sel_gages_sf <- st_transform(sel_gages_bmi, crs=3310)
-
-# TEST with a Single Value: 
-#start_point <- st_sfc(st_point(c(-121.057, 38.852)), crs = 4269)
-#discover_nhdplus_id(start_point)
-#start_comid <- discover_nhdplus_id(st_sfc(sel_gages_sf$geometry)[1])
 
 # get the comid for the BMI points w no comids using purrr
 bmi_segs <- sel_bmi_gages %>% filter(is.na(comid)) %>% select(StationCode, latitude, longitude, ID, comid)
 
+# convert to data frame and rejoin and reproject
 bmi_missing_coms <- bmi_segs %>% st_drop_geometry() %>% as.data.frame()
 bmi_missing_coms <- bmi_missing_coms %>% rowid_to_column() %>% 
   st_as_sf(coords=c("longitude", "latitude"), crs=4326, remove=F) %>% 
   st_transform(3310) %>% group_split(rowid) %>%  
+  # this function takes a minute or so to run
   map(~discover_nhdplus_id(.x$geometry))
 
-# one by one:
-#discover_nhdplus_id(bmi_segs$geometry[1]) # 17683290
+# now have a list of all the missing COMIDs 
+# just need to flatten from list to df and rejoin
 
 # flatten
 bmi_segs_df <-bmi_missing_coms %>% flatten_dfc() %>% t() %>% as.data.frame() %>% 
   rename("comid"=V1) %>% 
   mutate(StationCode = bmi_segs$StationCode)
-#save(bmi_segs_df, file = "data_output/03_selected_bmi_missing_comids.rda")
+#save(bmi_segs_df, file = "data_output/03_selected_bmi_missing_comids_all.rda")
 
 # rejoin
 bmi_comids_rev <- bind_rows(bmi_segs_df, bmi_comids)
 
 # save back out:
-save(bmi_comids_rev, file="data_output/03_bmi_all_stations_comids.rda")
+saveRDS(bmi_comids_rev, file="data_output/03_bmi_all_stations_comids_all_gages.rds")
 
 # rejoin to get full comids
 sel_bmi_gages <- sel_bmi_gages %>% left_join(., bmi_comids_rev, by="StationCode") %>% 
@@ -157,41 +154,41 @@ sel_bmi_gages <- sel_bmi_gages %>% left_join(., bmi_comids_rev, by="StationCode"
   select(-comid.x) %>% rename(comid=comid.y)
 summary(sel_bmi_gages)
 
-#save(sel_bmi_gages, sel_gages_bmi, file="data_output/03_selected_bmi_and_gages.rda")
+save(sel_bmi_gages, sel_gages_bmi, file="data_output/03_selected_bmi_and_gages_all_gages.rda")
 
 # GET UPSTREAM FLOWLINES --------------------------------------------------
 
-## TRANSFORM TO SAME DATUM
+## TRANSFORM TO UTM datum for flowlines
 sel_bmi_sf <- st_transform(sel_bmi_gages, crs=3310) # use CA Teal albs metric
 sel_gages_sf <- st_transform(sel_gages_bmi, crs=3310)
 
-save(sel_gages_sf, sel_bmi_sf, file = "data_output/03_selected_gages_bmi_sf_3310.rda")
+#save(sel_gages_sf, sel_bmi_sf, file = "data_output/03_selected_bmi_sites_allgages_sf_3310.rda")
 
-usgs_segs <- sel_gages_bmi %>% split(.$ID) %>%
+# get the COMID for each gage in list
+usgs_segs <- sel_gages_bmi %>% split(.$site_id) %>%
   map(~discover_nhdplus_id(.x$geometry))
 
-# search by a single comid
-# nldi_feature <- list(featureSource = "comid",
-#                      featureID = sel_gages_sf$NHDV1_COMID[[1]])
-# discover_nldi_navigation(nldi_feature)
-# 
-# # get all upstream comid segments
-# flowline_usgs <- navigate_nldi(nldi_feature = nldi_feature,
-#                                 mode = "upstreamMain", 
-#                                 data_source = "")
+# fix 326 and 327 which pull two segs
+usgs_segs[[326]] <- 14971709
+usgs_segs[[326]]
+usgs_segs[[327]] <- 14971711
+usgs_segs[[327]]
 
 # use purrr
-coms <- sel_gages_bmi$NHDV2_COMID
-coms_list <- map(coms, ~list(featureSource = "comid", featureID=.x))
-coms_list[[40]] # tst check
+# use the list of comids to make a list to pass to the nhdplusTools function
+coms_list <- map(usgs_segs, ~list(featureSource = "comid", featureID=.x))
+coms_list[[40]] # tst check, should list feature source and featureID
 
-# test against function:
-#feat_check <- map(coms_list, ~discover_nldi_navigation(.x))
-
-# test with mainstem segs
-mainstems <- map(coms_list, ~navigate_nldi(nldi_feature = .x,
+# Get Mainstem Segs, needed to do in chunks
+mainstemsUS_200 <- map(coms_list[1:320], ~navigate_nldi(nldi_feature = .x,
                                           mode="upstreamMain",
                                           data_source = ""))
+
+mainstemsUS_400 <- map(coms_list[320:330], ~navigate_nldi(nldi_feature = .x,
+                                                        mode="upstreamMain",
+                                                        data_source = ""))
+# bind together
+mainstems_US <- rbind(mainstemsUS_100, mainstemsUS_200, mainstemsUS_300)
 
 mainstemsDS <- map(coms_list, ~navigate_nldi(nldi_feature = .x,
                                            mode="downstreamMain",
