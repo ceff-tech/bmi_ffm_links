@@ -4,8 +4,7 @@
 
 ## DATA OUT:
 ### - gages_final (all distinct usgs gages from TNC/CEFF, n=250)
-### "02_gages_final.rda"
-
+### "01_gages_final.rda"
 
 # Libraries ---------------------------------------------------------------
 
@@ -35,6 +34,7 @@ gages2_sf <- gages2 %>% select(STAID, ID, LAT_GAGE, LNG_GAGE, STATE, COUNTYNAME_
   st_as_sf(coords = c("LNG_GAGE","LAT_GAGE"), 
            remove = F, crs=4326)
 # save(gages2_sf, file = "data_output/gages2_sf.rda")
+
 # mapview(gages2_sf, zcol="HYDRO_DISTURB_INDX")
 # mapview(gages2_sf, zcol="AGGECOREGION")
 # mapview(gages2_sf, zcol="CLASS")
@@ -44,11 +44,10 @@ gages_usgs <- read_xlsx("data/gages_ca_USGS_reference_screen_Aug2016_ref_only.xl
 
 # Merge Datasets ----------------------------------------------------------
 
-#gages_ceff_usgs <- left_join(gage_223, gages_usgs, by=c("ID"))
-#gages_ceff_usgs <- inner_join(gage_223, gages_usgs, by=c("ID"))
+# join gage lists
 gages_usgs_ceff <- left_join(gages_usgs, gage_223, by=c("ID"))
 
-# pull it together 
+# now join again
 gages_all <- left_join(gages_usgs_ceff, gages2, by=c("ID"))
 
 # look for non-matching records between datasets
@@ -61,19 +60,20 @@ gages_all <- left_join(gages_usgs_ceff, gages2, by=c("ID"))
 # # gages in CEFF but not in gages2
 # ceff_gages_anti_gage2 <- anti_join(gage_223, gages2, by=c("ID"))
 
-# filter: 
+# filter to columns of interest
 gages_final <-gages_all %>% select(-c(data, DECISION_NOTES:GAGES_II_SCREENING_COMMENTS, STAID, STANAME, HUC02:NAWQA_SUID, PCT_DIFF_NWIS:last_col()))
 
-# map
+# make spatial to make a map
 gages_final <- st_as_sf(gages_final, coords = c("LONGITUDE","LATITUDE"), 
          remove = F, crs=4326)
 
+# make a map
 mapview(gages_final)
 
 
 # Save out Gages ----------------------------------------------------------
 
-save(gages_final, file = "data_output/02_gages_final_250.rda")
+save(gages_final, file = "data_output/01_gages_reference_final_250.rda")
 
 # Look at CEFF DB ----------------------------------------------------------
 

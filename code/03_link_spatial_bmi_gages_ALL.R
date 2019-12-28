@@ -1,4 +1,4 @@
-# 03 Spatially Linking BMI with ALL GAGES
+# 02 Spatially Linking BMI with ALL GAGES
 ## R. Peek 2019
 ## Spatially link the BMI station data with the USGS gage data using multiple spatial filters
 
@@ -89,9 +89,9 @@ sel_gages_bmi <- gages_final2 %>% filter(site_id %in% sel_bmi_gages$ID)
 sel_h12_bmi <- h12[sel_bmi_gages, ]
 
 # save out
-write_rds(sel_h12_bmi, path="data_output/03_selected_allgages_h12_bmi.rds")
-write_rds(sel_gages_bmi, path="data_output/03_selected_allgages_gages_bmi.rds")
-write_rds(sel_bmi_gages, path="data_output/03_selected_allgages_bmi.rds")
+#write_rds(sel_h12_bmi, path="data_output/03_selected_allgages_h12_bmi.rds")
+#write_rds(sel_gages_bmi, path="data_output/03_selected_allgages_gages_bmi.rds")
+#write_rds(sel_bmi_gages, path="data_output/03_selected_allgages_bmi.rds")
 
 # Mapview -----------------------------------------------------------------
 
@@ -177,18 +177,20 @@ usgs_segs[[327]]
 # use purrr
 # use the list of comids to make a list to pass to the nhdplusTools function
 coms_list <- map(usgs_segs, ~list(featureSource = "comid", featureID=.x))
-coms_list[[40]] # tst check, should list feature source and featureID
+coms_list[[326]] # tst check, should list feature source and featureID
 
-# Get Mainstem Segs, needed to do in chunks
-mainstemsUS_200 <- map(coms_list[1:320], ~navigate_nldi(nldi_feature = .x,
+# which gages have multiple comids
+coms_list %>% 
+  purrr::map(~ length(.x$featureID)>1) %>% 
+  unlist() %>% table()
+
+
+
+# Get Mainstem Segs, needed to do in chunks if needed and rbind
+mainstemsUS <- map(coms_list, ~navigate_nldi(nldi_feature = .x,
                                           mode="upstreamMain",
                                           data_source = ""))
 
-mainstemsUS_400 <- map(coms_list[320:330], ~navigate_nldi(nldi_feature = .x,
-                                                        mode="upstreamMain",
-                                                        data_source = ""))
-# bind together
-mainstems_US <- rbind(mainstemsUS_100, mainstemsUS_200, mainstemsUS_300)
 
 mainstemsDS <- map(coms_list, ~navigate_nldi(nldi_feature = .x,
                                            mode="downstreamMain",

@@ -16,12 +16,12 @@ library(lubridate)
 
 # Load Data ---------------------------------------------------------------
 
-load("data_output/01_bmi_cleaned_stations_w_site_status.rda")
-load("data_output/03_selected_bmi_and_gages.rda")
-load("data_output/03_selected_nhd_flowlines_mainstems.rda")
-load("data_output/03_selected_h12_contain_bmi_gage.rda")
 load("data_output/00_bmi_cleaned_all.rda")
-load("data_output/03_bmi_all_stations_comids.rda")
+load("data_output/01_bmi_cleaned_stations_w_site_status.rda")
+load("data_output/02_selected_bmi_and_gages.rda")
+load("data_output/02_selected_nhd_flowlines_mainstems.rda")
+load("data_output/02_selected_h12_contain_bmi_gage.rda")
+load("data_output/02_bmi_all_stations_comids.rda")
 
 # load mapview bases
 # set background basemaps:
@@ -79,11 +79,6 @@ bmi_coms <- do.call(what = sf:::rbind.sf,
                     args = list(bmi_ds_coms, bmi_us_coms))
 class(bmi_coms)
 
-#library(DT)
-
-# list of BMI sites
-# bmi_coms %>% 
-#   DT::datatable()
 
 # pull BMI sites and get list of data, first join with orig full dataset:
 bmi_coms_dat <- left_join(bmi_coms, bmi_clean, by="StationCode") %>% 
