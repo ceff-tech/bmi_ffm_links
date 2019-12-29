@@ -124,10 +124,10 @@ m1@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
 # BMI COMIDs: EXISTING DATA -----------------------------------
 
 # get preloaded list of COMIDs from Raffi
-bmi_comids <- readxl::read_excel("data/BMI_COMIDs_for_Ryan.xlsx")
+#bmi_comids <- readxl::read_excel("data/BMI_COMIDs_for_Ryan.xlsx")
 
 # join with the selected BMI sites in same HUC12 as gage
-sel_bmi_gages <- sel_bmi_gages %>% left_join(., bmi_comids, by="StationCode")
+#sel_bmi_gages <- sel_bmi_gages %>% left_join(., bmi_comids, by="StationCode")
 
 # BMI COMIDS: GET NEW/MISSING COMIDS --------------------------
 
@@ -137,46 +137,44 @@ library(nhdplusTools)
 sel_bmi_gages <- st_transform(sel_bmi_gages, crs = 3310) # use CA Teal albs metric
 sel_gages_bmi <- st_transform(sel_gages_bmi, crs=3310)
 
-# TEST with a Single Value: 
-#start_point <- st_sfc(st_point(c(-121.057, 38.852)), crs = 4269)
-#discover_nhdplus_id(start_point)
-#start_comid <- discover_nhdplus_id(st_sfc(sel_gages_bmi$geometry)[1])
-
-# get the comid for the BMI points w no comids using purrr
-bmi_segs <- sel_bmi_gages %>% filter(is.na(comid)) %>% select(StationCode, latitude, longitude, ID, comid)
+# get COMIDs for everything
+bmi_segs <- st_transform(bmi_clean_stations, crs=3310) %>% 
+  select(StationCode, longitude, latitude) %>% 
+  mutate(comid=NA)
 
 # drop sf geometry first to make mutate and add ID column
 bmi_missing_coms <- bmi_segs %>% st_drop_geometry() %>% as.data.frame()
-bmi_missing_coms <- bmi_missing_coms %>% rowid_to_column() %>% 
+bmi_missing_coms <- bmi_missing_coms %>% 
   st_as_sf(coords=c("longitude", "latitude"), crs=4326, remove=F) %>% 
-  st_transform(3310) %>% group_split(rowid) %>%  
+  st_transform(3310) %>% group_split(StationCode) %>%
+  set_names(., bmi_segs$StationCode) %>%
   map(~discover_nhdplus_id(.x$geometry))
 
-# check one by one:
-#discover_nhdplus_id(bmi_segs$geometry[1]) # 17683290
+# drop sf geometry first to make mutate and add ID column
+# bmi_missing_coms <- bmi_segs %>% st_drop_geometry() %>% as.data.frame()
+# bmi_missing_coms <- bmi_missing_coms %>% rowid_to_column() %>% 
+#   st_as_sf(coords=c("longitude", "latitude"), crs=4326, remove=F) %>% 
+#   st_transform(3310) %>% group_split(rowid) %>%
+#   set_names(., bmi_segs$StationCode) %>%
+#   map(~discover_nhdplus_id(.x$geometry))
 
 # flatten into single dataframe instead of list
-bmi_segs_df <-bmi_missing_coms %>% flatten_dfc() %>% t() %>% as.data.frame() %>% 
-  rename("comid"=V1) %>% 
-  mutate(StationCode = bmi_segs$StationCode)
+bmi_segs_df <-bmi_missing_coms %>% flatten_dfc() %>% t() %>% 
+  as.data.frame() %>% 
+  rename("comid"=V1) %>% rownames_to_column(var = "StationCode")
 
-# don't really need to save this out
-#save(bmi_segs_df, file = "data_output/02_selected_bmi_missing_comids.rda")
-
-# rejoin
-bmi_comids <- bind_rows(bmi_segs_df, bmi_comids)
+# rm COMIDs starting with "V"
+bmi_comids <- bmi_segs_df %>% filter(!grepl("^V", StationCode))
 
 # update the BMI station COMIDs file:
 write_rds(bmi_comids, path="data_output/02_bmi_all_stations_comids.rds")
 
 # rejoin to get full comids
-sel_bmi_gages <- sel_bmi_gages %>% left_join(., bmi_comids, by="StationCode") %>% 
-  # remove old col and rename:
-  select(-comid.x) %>% rename(comid=comid.y)
+sel_bmi_gages <- sel_bmi_gages %>% left_join(., bmi_comids, by="StationCode") 
 summary(sel_bmi_gages)
 
 # find out how many unique BMI stations?
-length(unique(sel_bmi_gages$StationCode)) # some of these have multiple gages associated with them
+length(unique(sel_bmi_gages$StationCode)) # some of these have multiple gages associated with them #210
 # find out how many unique USGS gages?
 length(unique(sel_bmi_gages$ID)) # 59 total gages, should match sel_gages_bmi
 
@@ -266,8 +264,8 @@ bmi_coms_final <- rbind(bmi_coms_ds, bmi_coms_us)
 
 # distinct stations:
 bmi_coms_final %>% st_drop_geometry() %>% 
-  distinct(StationCode, ID) %>% tally() # 161
-bmi_coms_final %>% st_drop_geometry() %>% distinct(comid) %>% tally() # 106
+  distinct(StationCode, ID) %>% tally() # 157
+bmi_coms_final %>% st_drop_geometry() %>% distinct(comid) %>% tally() # 105
 
 # Make a FINAL MAP -------------------------------------------------------
 
@@ -293,10 +291,10 @@ bmi_coms_dat <- left_join(bmi_coms_final, st_drop_geometry(bmi_clean), by="Stati
   # drop NAs (72 sites: is.na(bmi_coms_dat$SampleID)
   filter(!is.na(SampleID))
 
-# now look at how many unique samples are avail: n=266 unique samples
+# now look at how many unique samples are avail: n=267 unique samples
 bmi_coms_dat %>% as.data.frame() %>% group_by(SampleID) %>% distinct(SampleID) %>% tally
 
-# now look at how many unique stations: n=142 stations
+# now look at how many unique stations: n=139 stations
 bmi_coms_dat %>% as.data.frame() %>% group_by(StationCode) %>% distinct(StationCode) %>% tally
 
 # save out

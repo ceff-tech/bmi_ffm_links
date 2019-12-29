@@ -17,8 +17,8 @@ library(nhdplusTools)
 load("data_output/00_bmi_cleaned_all.rda") # all data
 load("data_output/00_bmi_cleaned_stations_distinct_xy.rda") # distinct bmi_clean_stations
 load("data_output/01_bmi_cleaned_stations_w_site_status.rda") # bmi_clean_stations_ss (includes site status)
-load("data/usgs_ca_daily_flow_gages.rda") # all daily flow gages
-#load("data_output/02_gages_final_250.rda") # all gages
+load("data/usgs_ca_all_daily_flow_gages.rda") # all daily flow gages
+bmi_comids <- readRDS("data_output/02_bmi_all_stations_comids.rds")
 load("data_output/huc12_sf.rda") # CA h12s
 
 # add watershed area in sqkm
@@ -57,9 +57,9 @@ st_crs(gages)
 gages_all_filt <- gages %>% filter(end_yr > 1994)
 
 # plot
-mapview(bmi_clean_stations, col.regions="orange", cex=4) + 
+#mapview(bmi_clean_stations, col.regions="orange", cex=4) + 
   #mapview(bmi_clean_stations_ss, zcol="SiteStatus") + 
-  mapview(gages_all_filt, col.regions="skyblue4")
+  #mapview(gages_all_filt, col.regions="skyblue4")
 
 # FILTER 02: Intersect BMI/Gages by H12 -----------------------------------
 
@@ -69,7 +69,6 @@ bmi_h12 <- st_join(bmi_clean_stations, left = TRUE, h12[c("HUC_12","h12_area_sqk
 # Add H12 to all gages
 gages_h12 <- st_join(gages_all_filt, left=TRUE, h12[c("HUC_12")]) %>% 
   select(site_id, HUC_12, lon, lat, elev_m, date_begin, date_end, end_yr) %>% st_drop_geometry()
-#class(gages_h12)
 
 # now join based on H12: how many bmi stations vs HUC12s? n=2188 stations
 sel_bmi_gages <- inner_join(bmi_h12, gages_h12, by="HUC_12") %>% 
@@ -78,7 +77,7 @@ sel_bmi_gages <- inner_join(bmi_h12, gages_h12, by="HUC_12") %>%
   distinct(StationCode, ID, .keep_all = T) # gets 2188 sites!
 
 # view
-mapview(sel_bmi_gages)
+#mapview(sel_bmi_gages)
 
 # number of unique h12s?
 length(unique(factor(sel_bmi_gages$HUC_12))) # unique h12=320
@@ -115,58 +114,14 @@ m1@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
 # GET BMI COMIDs ----------------------------------------------------------
 
 # join with NHD comids from existing BMI comid list
-bmi_comids <- readxl::read_excel("data/BMI_COMIDs_for_Ryan.xlsx")
 sel_bmi_gages <- sel_bmi_gages %>% left_join(., bmi_comids, by="StationCode")
+# should have 2188
 
-summary(sel_bmi_gages$comid) # so missing 356 COMIDs
-
-# GET BMI MISSING COMIDS --------------------------------------------------
-
-# use this package to look up missing comids and add
-library(nhdplusTools)
-
-# get the comid for the BMI points w no comids using purrr
-bmi_segs <- sel_bmi_gages %>% filter(is.na(comid)) %>% select(StationCode, latitude, longitude, ID, comid)
-
-# convert to data frame and rejoin and reproject
-bmi_missing_coms <- bmi_segs %>% st_drop_geometry() %>% as.data.frame()
-bmi_missing_coms <- bmi_missing_coms %>% rowid_to_column() %>% 
-  st_as_sf(coords=c("longitude", "latitude"), crs=4326, remove=F) %>% 
-  st_transform(3310) %>% group_split(rowid) %>%  
-  # this function takes a minute or so to run
-  map(~discover_nhdplus_id(.x$geometry))
-
-# now have a list of all the missing COMIDs, check for dups
-bmi_missing_coms %>% 
-  purrr::map(~ length(.x)>1) %>% 
-  unlist() %>% table()
-# all false which is good
-
-# Now change from list to df and rejoin
-
-# flatten
-bmi_segs_df <-bmi_missing_coms %>% flatten_dfc() %>% 
-  t() %>% as.data.frame() %>% 
-  rename("comid"=V1) %>% 
-  mutate(StationCode = bmi_segs$StationCode)
-
-# rejoin
-bmi_comids_rev <- bind_rows(bmi_segs_df, bmi_comids) %>% 
-  # check/rm duplicates
-  distinct(StationCode, comid, .keep_all = T)
-
-# save back out:
-saveRDS(bmi_comids_rev, file="data_output/03_bmi_all_stations_comids_all_gages.rds")
-
-# rejoin to get full comids of selected sites in H12
-sel_bmi_gages <- sel_bmi_gages %>% left_join(., bmi_comids_rev, by="StationCode") %>% 
-  # remove old col and rename:
-  select(-comid.x) %>% rename(comid=comid.y)
-summary(sel_bmi_gages)
+summary(sel_bmi_gages$comid) # no missing
 
 save(sel_bmi_gages, sel_gages_bmi, file="data_output/03_selected_bmi_and_gages_same_h12_all_gages.rda")
 
-# GET UPSTREAM FLOWLINES --------------------------------------------------
+# GET GAGE COMIDS --------------------------------------------------
 
 ## TRANSFORM TO UTM datum for flowlines
 sel_bmi_sf <- st_transform(sel_bmi_gages, crs=3310) # use CA Teal albs metric
@@ -183,7 +138,7 @@ usgs_segs %>%
   .[.==TRUE] # get values that are TRUE
 
 # view comids
-usgs_segs["11186001"]
+usgs_segs["11186000"]
 
 # fix 326 and 327 which pull two segs
 usgs_segs["11186000"] <- 14971709
@@ -197,6 +152,9 @@ usgs_segs %>%
 # use the list of comids to make a list to pass to the nhdplusTools function
 coms_list <- map(usgs_segs, ~list(featureSource = "comid", featureID=.x))
 coms_list[[326]] # tst check, should list feature source and featureID
+
+
+# GET UPSTREAM FLOWLINES --------------------------------------------------
 
 # Get Mainstem Segs, needed to do in chunks if needed and rbind
 mainstemsUS <- map(coms_list, ~navigate_nldi(nldi_feature = .x,
@@ -261,32 +219,36 @@ save(mainstems_us, mainstems_ds, file = "data_output/03_selected_nhd_flowlines_m
 
 # FILTER TO BMI SITES IN USGS MAINSTEM COMIDS -----------------------------
 
+load("data_output/03_selected_nhd_flowlines_mainstems_all_gages.rda")
+# bind all mainstems
+mainstems_all <- rbind(mainstems_us, mainstems_ds)
+
 # all stations us of gage:
 bmi_coms_us <- sel_bmi_gages %>% 
   dplyr::filter(comid %in% as.integer(mainstems_us$nhdplus_comid)) %>% 
-  mutate(to_gage = "US")
+  mutate(to_gage = "US") # gets 1275 stations
 
 # all stations 15km downstream on mainstem
 bmi_coms_ds <- sel_bmi_gages %>% 
   dplyr::filter(comid %in% as.integer(mainstems_ds$nhdplus_comid)) %>% 
-  mutate(to_gage="DS")
+  mutate(to_gage="DS") # gets 1260 stations
 
 # combine US and DS
 bmi_coms_final <- rbind(bmi_coms_ds, bmi_coms_us)
 
 # distinct stations (could include replicates)
 bmi_coms_final %>% st_drop_geometry() %>% 
-  distinct(StationCode, ID) %>% tally() # 1593
+  distinct(StationCode, ID) %>% tally() # 1627
 
 # distinct COMIDs
-bmi_coms_final %>% st_drop_geometry() %>% distinct(comid) %>% tally() # 552
+bmi_coms_final %>% st_drop_geometry() %>% distinct(comid) %>% tally() # 566
 
 # Make a FINAL MAP -------------------------------------------------------
 
 # create a final map of selected gages and bmi + huc12 + flowlines
 
 # get all BMI not selected...check why not on map
-bmi_not_selected <- sel_bmi_gages %>% filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 595 (2188 total and 1593 selected)
+bmi_not_selected <- sel_bmi_gages %>% filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 561 = (2188 total -  1627 selected)
 
 # this map of all sites selected U/S and D/S
 m3 <- mapview(bmi_coms_ds, cex=6, col.regions="orange", layer.name="Selected BMI D/S") +  
@@ -309,10 +271,10 @@ m3@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
 bmi_coms_dat <- left_join(bmi_coms_final, st_drop_geometry(bmi_clean), by="StationCode") %>% select(-latitude.y, -longitude.y, -lon, -lat) %>% 
   rename(lat = latitude.x, lon = longitude.x)
 
-# now look at how many unique samples are avail: n=1489 unique samples
+# now look at how many unique samples are avail: n=1507 unique samples
 bmi_coms_dat %>% as.data.frame() %>% group_by(SampleID) %>% distinct(SampleID) %>% tally
 
-# now look at how many unique stations: n=783 stations
+# now look at how many unique stations: n=792 stations
 bmi_coms_dat %>% as.data.frame() %>% group_by(StationCode) %>% distinct(StationCode) %>% tally
 
 # save out
