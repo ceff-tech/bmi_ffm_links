@@ -215,6 +215,9 @@ mainstems_flat_us <- mainstemsUS %>%
 mainstems_us <- do.call(what = sf:::rbind.sf,
                         args = mainstems_flat_us)
 
+mainstems_us <- mainstems_us %>% 
+  mutate(from_gage = "US")
+
 # rm temp files
 rm(mainstemsUS, mainstems_flat_us)
 
@@ -235,8 +238,14 @@ mainstems_flat_ds <- mainstemsDS %>%
 mainstems_ds <- do.call(what = sf:::rbind.sf,
                         args = mainstems_flat_ds)
 
+mainstems_ds <- mainstems_ds %>% 
+  mutate(from_gage = "DS")
+
 # rm temp files
 rm(mainstems_flat_ds, mainstemsDS)
+
+# bind all mainstems
+mainstems_all <- rbind(mainstems_us, mainstems_ds)
 
 # save out US and DS
 save(mainstems_us, mainstems_ds, file = "data_output/02_selected_nhd_flowlines_mainstems.rda")

@@ -95,7 +95,7 @@ write_rds(sel_h12_bmi, path="data_output/03_selected_h12_all_gages.rds")
 write_rds(sel_gages_bmi, path="data_output/03_selected_usgs_h12_all_gages.rds")
 write_rds(sel_bmi_gages, path="data_output/03_selected_bmi_h12_all_gages.rds")
 
-# Mapview -----------------------------------------------------------------
+# * Map of Filtered Gages ------------------------------------------------------
 
 # set background basemaps:
 basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap",
@@ -112,6 +112,9 @@ m1 <- mapview(sel_bmi_gages, col.regions="orange", layer.name="Benthos", alpha=0
 m1@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
 
 # GET BMI COMIDs ----------------------------------------------------------
+
+# load previous stuff run from 02 script (section GET BMI COMIDS)
+bmi_comids <- read_rds("data_output/02_bmi_all_stations_comids.rds")
 
 # join with NHD comids from existing BMI comid list
 sel_bmi_gages <- sel_bmi_gages %>% left_join(., bmi_comids, by="StationCode")
@@ -149,10 +152,12 @@ usgs_segs["11404240"] <- 2775510
 usgs_segs %>% 
   purrr::map_lgl(~ length(.x)>1) %>% table() # all FALSE
 
+# save the USGS station COMIDs file:
+write_rds(usgs_segs, path="data_output/03_usgs_sel_gages_comids.rds")
+
 # use the list of comids to make a list to pass to the nhdplusTools function
 coms_list <- map(usgs_segs, ~list(featureSource = "comid", featureID=.x))
 coms_list[[326]] # tst check, should list feature source and featureID
-
 
 # GET UPSTREAM FLOWLINES --------------------------------------------------
 
@@ -206,9 +211,13 @@ rm(mainstems_flat_ds, mainstemsDS)
 # bind all mainstems
 mainstems_all <- rbind(mainstems_us, mainstems_ds)
 
+# * SAVE OUT STREAMLINES FOR GAGES ------------------------------------------
+
 save(mainstems_us, mainstems_ds, file = "data_output/03_selected_nhd_flowlines_mainstems_all_gages.rda")
 
-# PREVIEW MAP ----------------------------------------------------------
+# * PREVIEW MAP ----------------------------------------------------------
+
+load("data_output/03_selected_bmi_and_gages_same_h12_all_gages.rda")
 
 # make a map
 # mapview(mainstems_ds, color="slateblue", legend=F) +
@@ -220,6 +229,7 @@ save(mainstems_us, mainstems_ds, file = "data_output/03_selected_nhd_flowlines_m
 # FILTER TO BMI SITES IN USGS MAINSTEM COMIDS -----------------------------
 
 load("data_output/03_selected_nhd_flowlines_mainstems_all_gages.rda")
+
 # bind all mainstems
 mainstems_all <- rbind(mainstems_us, mainstems_ds)
 
@@ -243,7 +253,7 @@ bmi_coms_final %>% st_drop_geometry() %>%
 # distinct COMIDs
 bmi_coms_final %>% st_drop_geometry() %>% distinct(comid) %>% tally() # 566
 
-# Make a FINAL MAP -------------------------------------------------------
+# * FINAL MAP -------------------------------------------------------
 
 # create a final map of selected gages and bmi + huc12 + flowlines
 
@@ -262,8 +272,6 @@ m3 <- mapview(bmi_coms_ds, cex=6, col.regions="orange", layer.name="Selected BMI
 m3@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
 
 # save this final map out as:"map_of_final_gages_bmi_stations_all_gages"
-
-# some gages have slightly diff NHD comids...need to pull all at once (using nhdtoolsPlus) instead of using predetermined list! Yarg. 
 
 # SAVE OUT ----------------------------------------------------------------
 
