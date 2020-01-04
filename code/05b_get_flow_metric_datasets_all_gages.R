@@ -6,7 +6,7 @@
 ### bmi_coms, file="data_output/05_selected_bmi_stations_w_comids.rda" (the comids for selected BMI stations n=224)
 ### bmi_csci_flow_por, file="data_output/05_selected_bmi_stations_w_csci_flow_por.rda" (period of record flow associated with available CSCI data, n=194)
 ### bmi_csci_flow_yrs, file="data_output/05_selected_bmi_stations_w_csci_flow_years.rda" (flow data with avail csci scores, 1,2yr lags n=432)
-### bmi_dat, file="data_output/05_selected_bmi_cleaned_w_data.rda" (cleaned data w site status, n=27567)
+### bmi_final_dat, file="data_output/05_selected_bmi_cleaned_w_data.rda" (cleaned data w site status, n=27567)
 ### flow_por_wide, flow_por, file="data_output/05_selected_usgs_flow_metrics_POR.rda" (ref gage data for period of record, n=223)
 ### mainstems, file="data_output/05_mainstems_us_ds_selected_gages.rda" (mainstem NHD flowlines, us and ds, n=1581)
 
@@ -20,11 +20,30 @@ library(tidyverse)
 
 # Load Data ---------------------------------------------------------------
 
-load("data_output/03_selected_bmi_and_gages.rda")
-load("data_output/03_selected_h12_contain_bmi_gage.rda")
-load("data_output/03_selected_nhd_flowlines_mainstems.rda")
-load("data_output/00_bmi_cleaned_all.rda") # all data
-load("data_output/01_bmi_cleaned_stations_w_site_status.rda")
+load("data_output/00_bmi_cleaned_all.rda") # bmi_clean
+load("data_output/01_bmi_cleaned_stations_w_site_status.rda") # bmi_clean_stations_ss (site status)
+load("data_output/03_selected_bmi_and_gages_same_h12_all_gages.rda") # sel_bmi_gages, sel_gages_bmi
+load("data_output/03_selected_nhd_flowlines_mainstems_all_gages.rda") # mainstems_us, mainstems_ds
+sel_h12 <- read_rds("data_output/03_selected_h12_all_gages.rds") # all h12s w bmi and gage: sel_h12_bmi
+
+load("data_output/03_final_bmi_stations_dat_all_gages.rda") # bmi_coms_dat (all data for selected), bmi_coms_final (just coms and id)
+bmi_coms <- read_rds("data_output/02_bmi_all_stations_comids.rds") # just bmi_coms, comids for all BMI sites
+
+# re order cols
+bmi_coms_final <- bmi_coms_final %>% select(StationCode, longitude, latitude, HUC_12, h12_area_sqkm, ID:to_gage, geometry)
+
+# make a mainstems all file
+mainstems_all <- rbind(mainstems_us, mainstems_ds) %>% 
+  rename(from_gage=to_gage)
+
+# rm old layers
+rm(mainstems_ds, mainstems_us)
+
+# make a new layer of "unselected" bmi sites
+bmi_not_selected <- sel_bmi_gages %>% filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 561 = (2188 total -  1627 selected)
+
+# join with status:
+bmi_coms_final <- bmi_coms_final %>% left_join(bmi_clean_stations_ss[, c(1:2)], by="StationCode")
 
 # load mapview bases
 # set background basemaps:
@@ -33,51 +52,24 @@ basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap"
                   "CartoDB.Positron", "Stamen.TopOSMFeatures")
 mapviewOptions(basemaps=basemapsList)
 
-# Get BMI comids ----------------------------------------------------------
+# Filter to Selected Data Set --------------------------------------------
 
-# all stations us of gage:
-bmi_us_coms <- sel_bmi_gages %>% filter(comid %in% mainstems_us$nhdplus_comid)
-
-# all stations 15km downstream on mainstem
-bmi_ds_coms <- sel_bmi_gages %>% filter(comid %in% mainstems_ds$nhdplus_comid)
-
-# combine US and DS
-bmi_coms <- rbind(bmi_ds_coms, bmi_us_coms)
-
-# rm old layer:
-rm(bmi_ds_coms, bmi_us_coms)
-
-# join with status:
-bmi_coms <- bmi_coms %>% left_join(bmi_clean_stations_ss[, c(1:2)], by="StationCode")
-
-# Combine Mainstem NHDlines -----------------------------------------------
-
-mainstems_ds <- mainstems_ds %>% 
-  mutate(main_dir = "DS")
-mainstems_us <- mainstems_us %>% 
-  mutate(main_dir = "US")
-
-mainstems <- rbind(mainstems_ds, mainstems_us)
-
-# remove old layers
-rm(mainstems_ds, mainstems_us)
-
-# Join BMI Sites with BMI Data --------------------------------------------
-
-# pull BMI sites and get list of data, first join with orig full dataset:
-bmi_dat <- inner_join(bmi_coms, bmi_clean, by="StationCode") %>% 
+# use selected dataset and drop unnecessary cols
+bmi_final_dat <- bmi_coms_dat %>% 
   select(-c(benthiccollectioncomments, percentsamplecounted:gridsvolumeanalyzed, discardedorganismcount,
             benthiclabeffortcomments, resqualcode:personnelcode_labeffort, samplecomments, effortqacode))
-  # inner join drops NAs (72 sites: is.na(bmi_coms_dat$SampleID)
 
-# now look at how many unique samples are avail: n=266 unique samples
-bmi_dat %>% as.data.frame() %>% group_by(SampleID) %>% distinct(SampleID) %>% tally
+# now look at how many unique samples are avail: n=1507 unique samples
+bmi_final_dat %>% 
+  st_drop_geometry() %>% # need to remove sf class to make dataframe easier to work with
+  distinct(SampleID) %>% tally
 
-# now look at how many unique stations: n=142 stations
-bmi_dat %>% as.data.frame() %>% group_by(StationCode) %>% distinct(StationCode) %>% tally
+# now look at how many unique stations: n=792 stations
+bmi_final_dat %>% st_drop_geometry %>% distinct(StationCode) %>% tally
 
 # Merge with Flow Dat -----------------------------------------------------
 
+# need to get gage data for all gages here:
 load("data/ref_gage_annFlow_stats_long.rda")
 
 # need to add "T" to the gageID
@@ -118,7 +110,7 @@ flow_por_wide %>% distinct(ID) %>% dim # should be 223
 # need to pull 2 years prior, 1 year prior, and same year as BMI site data
 
 # make vector of years and BMI_ids
-bmi_yrs <- bmi_dat %>% group_by(SampleID) %>% pull(YYYY) %>% unique()
+bmi_yrs <- bmi_final_dat %>% group_by(SampleID) %>% pull(YYYY) %>% unique()
 (bmi_yrs_2 <- bmi_yrs - 2) # set lag 2
 (bmi_yrs_1 <- bmi_yrs - 1) # set lag 1
 
@@ -219,7 +211,7 @@ save(bmi_coms, file="data_output/05_selected_bmi_stations_w_comids.rda")
 
 save(bmi_csci_flow_por, file="data_output/05_selected_bmi_stations_w_csci_flow_por.rda")
 save(bmi_csci_flow_yrs, file="data_output/05_selected_bmi_stations_w_csci_flow_years.rda")
-save(bmi_dat, file="data_output/05_selected_bmi_cleaned_w_data.rda")
+save(bmi_final_dat, file="data_output/05_selected_bmi_cleaned_w_data.rda")
 save(flow_por_wide, flow_por, file="data_output/05_selected_usgs_flow_metrics_POR.rda")
 save(mainstems, file="data_output/05_mainstems_us_ds_selected_gages.rda")
 
