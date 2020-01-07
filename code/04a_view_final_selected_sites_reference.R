@@ -87,6 +87,9 @@ bmi_coms %>% distinct(StationCode) %>% tally()
 # see what data exist against CSCI scores currently avail (from Raffi)
 csci <- read_csv("data/csci_core.csv")
 
+# how many sites do we have csci scores for? n=2200
+csci %>% distinct(stationcode) %>% tally()
+
 # match against existing sites:
 bmi_csci <- inner_join(bmi_coms_final, csci, by=c("StationCode"="stationcode"))
 

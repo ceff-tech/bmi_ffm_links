@@ -75,13 +75,14 @@ stations_out <- read_excel("data/stations.out.xlsx") %>%
 
 # 03 Make Map of Sites --------------------------------------------------
 
-mapview(ref_sites, col.regions="orange", layer.name="Ref sites") +
-  mapview(nref_stations, col.regions="black", layer.name="Non-ref sites") +
-  mapview(stations_out, zcol="SiteStatus", layer.name="stations_out?")
+# mapview(ref_sites, col.regions="orange", cex=3, layer.name="Ref sites") +
+#   mapview(nref_stations, col.regions="black", cex=2, layer.name="Non-ref sites") +
+#   mapview(stations_out, zcol="SiteStatus", layer.name="stations_out?")
 
-mapview(ref_sites, col.regions="orange", layer.name="Ref sites") +
-  mapview(nref_stations, col.regions="black", layer.name="Non-ref sites") +
-  mapview(stations_out %>% filter(SiteStatus=="Reference"), zcol="SiteStatus", layer.name="stations_out?")
+# show only ref sites
+# mapview(ref_sites, col.regions="orange", cex=2, layer.name="Ref sites") +
+#   mapview(nref_stations, col.regions="black", layer.name="Non-ref sites") +
+#   mapview(stations_out %>% filter(SiteStatus=="Reference"), zcol="SiteStatus", layer.name="stations_out?")
 
 # 04 Clean & Compare Data ----------------------------------------------------
 
@@ -116,8 +117,9 @@ sites_df <- bind_rows(ref_sites_df, nref_sites_df, sta_out_df) %>%
 
 # get site status 
 sites_df %>% group_by(SiteStatus) %>% tally()
-# 781 reference
+
 # 837 intermediate (nonref)
+# 781 reference
 # 558 stressed (nonref)
 
 ref_sites_df %>% group_by(SiteStatus) %>% tally() # same as above
@@ -127,13 +129,13 @@ nref_sites_df %>% group_by(SiteStatus) %>% tally() # so dropped 4 from this set
 anti_join(ref_sites_df, sites_df, by=c("StationCode")) %>% tally # all included
 anti_join(nref_sites_df, sites_df, by=c("StationCode")) %>% tally # all included
 
-# full metadata set is same as sites_df == stations_out
-bmi_stations_metadat <- stations_out
+# full metadata set for site status is sites_df, but metadata full is stations_out
+bmi_stations_metadat <- sites_df %>% select(StationCode:PSARegion)
 
 # 06 Save Out -------------------------------------------------------------
 
 # save out station metadata for all ref_nonref we have data
-save(bmi_stations_metadat, file = "data_output/01_bmi_stations_ref_nonref_metadata.rda")
+# save(bmi_stations_metadat, file = "data_output/01_bmi_stations_ref_nonref_metadata.rda")
 
 # 07 Sanity Check with Other data (see script 00) ----------------------------------
 
@@ -148,15 +150,20 @@ bmi_clean_distinct <- bmi_clean %>%
 
 # join with full data from other set (sites_df)
 length(unique(bmi_clean_distinct$StationCode)) # n=2935
-length(unique(bmi_stations_metadat$StationCode)) # n= 1985
+length(unique(bmi_stations_metadat$StationCode)) # n= 2176
+
+# which sites do we not have SS for?
+missing_site_status <- anti_join(bmi_clean_distinct, bmi_stations_metadat, by="StationCode") #%>% View("No_match") # 1475 missing
+write_csv(missing_site_status, path = "data_output/bmi_missing_site_status.csv")
+
+inner_join(bmi_clean_distinct, bmi_stations_metadat, by="StationCode") %>% View("Joined") # 1460 with site status
 
 # some duplicated stations w/ diff lats or longs, or very similar
-bmi_clean_stations_ss <- bmi_stations_metadat %>% st_drop_geometry() %>% 
+bmi_clean_stations_ss <- bmi_stations_metadat %>% 
   select(StationCode, SiteStatus, lat, lon) %>% 
-  inner_join(., bmi_clean_distinct %>% select(-lat, -lon), by="StationCode") # n=1349 that have data
+  inner_join(., bmi_clean_distinct %>% select(-lat, -lon), by="StationCode") # n=1460 that have data
 
 bmi_clean_stations_ss %>% distinct(StationCode) %>% tally()
-
 
 # 08 Save Final Dataset ---------------------------------------------------
 

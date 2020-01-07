@@ -45,23 +45,28 @@ mapviewOptions(basemaps=basemapsList)
 # Get BMI comids ----------------------------------------------------------
 
 # join with status:
-bmi_coms_final <- bmi_coms_final %>% left_join(bmi_clean_stations_ss[, c(1:2)], by="StationCode")
+bmi_coms_final <- bmi_coms_final %>% 
+  left_join(bmi_clean_stations_ss[, c(1:2)], by="StationCode") %>% 
+  distinct(StationCode, ID, .keep_all = T) # 157 total
 
 # Join BMI Sites with BMI Data --------------------------------------------
 
 # pull BMI sites and get list of data, first join with orig full dataset:
-bmi_final_dat <- bmi_coms_dat %>% 
-  select(-c(benthiccollectioncomments, percentsamplecounted:gridsvolumeanalyzed, discardedorganismcount,
-            benthiclabeffortcomments, resqualcode:personnelcode_labeffort, samplecomments, effortqacode))
-
+bmi_final_dat <- bmi_coms_dat %>%
+  dplyr::select(-c(benthiccollectioncomments, percentsamplecounted:gridsvolumeanalyzed, 
+                   discardedorganismcount, benthiclabeffortcomments, 
+                   resqualcode:personnelcode_labeffort, samplecomments, effortqacode)) %>% 
+  st_drop_geometry() %>% 
+  dplyr::distinct(SampleID, .keep_all = TRUE) 
+  
 # now look at how many unique samples are avail: n=267 unique samples
-bmi_final_dat %>% st_drop_geometry() %>% distinct(SampleID) %>% tally
+bmi_final_dat %>%  distinct(SampleID, ID) %>% tally
 
 # now look at how many unique stations: n=139 stations
-bmi_final_dat %>% st_drop_geometry() %>% distinct(StationCode) %>% tally
+bmi_final_dat %>% distinct(StationCode) %>% tally
 
-# now look at how many unique USGS gages: n=49 stations
-bmi_final_dat %>% st_drop_geometry() %>% distinct(ID) %>% tally
+# now look at how many unique USGS gages: n=45 stations
+bmi_final_dat %>% distinct(ID) %>% tally
 
 
 # Get/Join with Reference Flow Data --------------------------------------
@@ -145,15 +150,18 @@ save(flow_by_years_bmi, flow_by_years_bmi_wide, file="data_output/05a_selected_r
 
 # see what data exist against CSCI scores currently avail (from Raffi)
 csci <- read_csv("data/csci_core.csv") 
-csci %>% 
-  distinct(sampleid) %>% tally()
+csci %>%  distinct(sampleid) %>% tally()
 
 # match against existing sites:
 bmi_csci <- inner_join(bmi_coms_final, csci, by=c("StationCode"="stationcode")) %>% 
-  distinct(globalid, .keep_all = T)
+  distinct(sampleid, .keep_all = T)
+
+bmi_csci <- anti_join(bmi_coms_final, csci, by=c("StationCode"="stationcode"))
+write_csv(bmi_csci, path = "data/ref_bmi_sites_missing_csci_data.csv")
 
 # how many unique matches?
-length(unique(bmi_csci$StationCode))
+length(unique(bmi_csci$StationCode)) # only 97 matches, 139-97:???
+
 bmi_csci %>% st_drop_geometry() %>% 
   group_by(SiteStatus) %>% tally()
 
@@ -165,7 +173,7 @@ bmi_csci_flow_por <- left_join(bmi_csci, flow_por_wide, by="ID")
 bmi_csci_flow_por_overlap <- bmi_csci_flow_por %>%
   filter(sampleyear > minYr, sampleyear< maxYr)
 
-length(unique(bmi_csci_flow_por_overlap$StationCode)) # 76 stations
+length(unique(bmi_csci_flow_por_overlap$StationCode)) # 74 stations. was 76
 length(unique(bmi_csci_flow_por_overlap$ID)) # 33 gages
 
 # JOIN with Flow by BMI Lag Years ----------------------------------------

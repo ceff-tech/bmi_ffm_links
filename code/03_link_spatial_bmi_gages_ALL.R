@@ -45,6 +45,8 @@ bmi_clean_stations_ss <- bmi_clean_stations_ss %>%
   st_as_sf(coords=c("lon", "lat"), crs=4326, remove=F) %>%
   st_transform(4269)
 
+
+
 # check projs are same
 st_crs(bmi_clean)
 st_crs(bmi_clean_stations)

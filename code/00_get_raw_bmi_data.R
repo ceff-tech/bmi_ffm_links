@@ -109,7 +109,7 @@ table(bugs$collectionmethodcode)
 bugs_filt<-cleanData(bugs, purge = T) # only 8 ID problems, drops about 8 rows
 
 # check problemFinalID col:
-summary(bugs_filt$problemFinalID) # only 8 ID problems
+summary(bugs_filt$problemFinalID) # only 8 ID problems, dropped above
 summary(bugs_filt$fixedLifeStageCode) # merges/sums the lifestage codes
 
 # Filter to Reachwide Methods ---------------------------------------------
@@ -123,10 +123,12 @@ table(bugs_filt$collectionmethodcode)
 
 # see how many distinct sites by date/stationid
 sample_distinct <- bugs_filt %>% 
-  distinct(StationCode, sampledate, collectionmethodcode, replicate) %>% 
-  mutate("YYYY"=year(sampledate),
-         "MM" = month(sampledate),
-         "DD" = day(sampledate))
+  distinct(SampleID, .keep_all = T) %>% 
+  select(StationCode, SampleID, latitude, longitude, YYYY:DD)
+  #distinct(StationCode, sampledate, collectionmethodcode, replicate) %>% 
+  # mutate("YYYY"=year(sampledate),
+  #        "MM" = month(sampledate),
+  #        "DD" = day(sampledate))
 
 # write out and send to RAF
 # write_csv(sample_distinct, path = "data_output/sample_list_for_csci.csv")

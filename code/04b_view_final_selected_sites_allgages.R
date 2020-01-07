@@ -23,6 +23,8 @@ load("data_output/03_selected_nhd_flowlines_mainstems_all_gages.rda") # mainstem
 sel_h12 <- read_rds("data_output/03_selected_h12_all_gages.rds") # all h12s w bmi and gage: sel_h12_bmi
 
 load("data_output/03_final_bmi_stations_dat_all_gages.rda") # bmi_coms_dat (all data for selected), bmi_coms_final (just coms and id)
+
+
 bmi_coms <- read_rds("data_output/02_bmi_all_stations_comids.rds") # just bmi_coms, comids for all BMI sites
 
 # re order cols
@@ -34,6 +36,11 @@ mainstems_all <- rbind(mainstems_us, mainstems_ds) %>%
 
 # make a new layer of "unselected" bmi sites
 bmi_not_selected <- sel_bmi_gages %>% filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 561 = (2188 total -  1627 selected)
+
+# first add site status
+bmi_coms_final <- left_join(bmi_coms_final, bmi_clean_stations_ss[,c(1:2)], by="StationCode")
+# how many missing ss?
+bmi_coms_final %>% st_drop_geometry %>% group_by(SiteStatus) %>% tally
 
 # Set up Mapview Basemap --------------------------------------------------
 
@@ -57,9 +64,6 @@ m3@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
 
 # Make Map of Selected Stations by Site Status  --------------------------
 
-# first add site status
-bmi_coms_final <- left_join(bmi_coms_final, bmi_clean_stations_ss, by="StationCode")
-
 m4 <- mapview(bmi_coms_final, zcol="SiteStatus", cex=6, layer.name="Final BMI Sites") +  
   mapview(mainstems_ds, color="darkblue", cex=3, layer.name="NHD D/S Flowline 15km", legend=F)+
   mapview(mainstems_us, color="slateblue", cex=3, layer.name="NHD U/S Flowline", legend=F)+
@@ -81,6 +85,9 @@ bmi_coms_dat %>% st_drop_geometry %>% distinct(SampleID) %>% tally
 # now look at how many unique stations: n=792 stations
 bmi_coms_dat %>% st_drop_geometry %>% distinct(StationCode) %>% tally
 
+# how many unique USGS gages? n=517
+bmi_coms_dat %>% st_drop_geometry %>% distinct(ID) %>% tally
+
 # total distinct stations 2931
 bmi_coms %>% distinct(StationCode) %>% tally()
 
@@ -93,6 +100,14 @@ csci <- read_csv("data/csci_core.csv")
 bmi_csci <- inner_join(bmi_coms_final, csci, by=c("StationCode"="stationcode"))
 
 bmi_csci <- left_join(bmi_csci, bmi_clean_stations_ss[,c(1:2)], by="StationCode")
+
+
+# map
+mapview(bmi_coms_final, color="orange", col.regions="gray", alpha.regions=0.1,
+        layer.name="Selected BMI Sites") +
+mapview(bmi_csci, col.regions="mediumpurple2", cex=1, layer.name="Selected BMI w CSCI") + 
+  mapview(sel_gages_bmi, col.regions="dodgerblue", cex=2.5, alpha.regions=0.7, 
+          layer.name="USGS gages")
 
 # how many unique matches?
 length(unique(bmi_csci$StationCode))
