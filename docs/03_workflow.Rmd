@@ -33,15 +33,17 @@ This provides an overview of the steps required to assess functional flow metric
 
 ### Steps to Pair BMI/ASCI Sites with Flow Sites
 
- - Clean BMI Data (`00_read_in_bmi_data.R`, `01_make_ref_station_BMI_data.R`)
- - Clean USGS Data (`02_read_in_gage_list.R`)
- - Join Spatially (`03_link_spatial_bmi_w_gages.R`)
-    - Filter to sites within same HUC12
-    - Get mainstem COMIDs for upstream/downstream NHD segments
-    - Select only BMI sites that are on mainstem of USGS gage
-    - Distance filter?
- - Join Temporally
-    - Make sure flow data overlaps with ecological (BMI) data, flow > 1994 (`05_calc_por_flow_match_merge_yrs_bmi.R`)
+ - Get & Clean BMI Data (`00_get_raw_bmi_data.R`, `01_clean_BMI_station_data.R`)
+ - Clean USGS Data (`00_get_all_usgs_gage_metadata.R`, `01_clean_USGS_ref_gage_data.R`)
+ - Join Spatially (`02_link_spatial_bmi_gages_REFERENCE.R`, `03_link_spatial_bmi_gages_ALL.R`)
+    - Filter to sites within same HUC12 as USGS gage
+    - Get mainstem COMIDs for USGS gage upstream/downstream NHD segments
+    - Select only BMI sites that are on same mainstem COMID list as associated USGS gage
+    - Distance filter is currently downstream only, within 15 km
+    - View Maps (`04a_view_final_selected_sites_reference.R`, `04a_view_final_selected_sites_allgages.R`)
+ - Join Temporally with Flow Data
+    - Make sure flow data overlaps with ecological (BMI) data, flow > 1994 (`05a_get_flow_metric_datasets_ref_gages.R`, `05a_get_flow_metric_datasets_all_gages.R`)
+    
     
 
 
@@ -53,28 +55,34 @@ library(DiagrammeR)
 DiagrammeR("graph TB;
   A(<b>CSCI:</b> Collect & Clean <br> BMI Data) 
   B(<b>USGS:</b> Download & Clean <br> Reference Gage Data) 
-  C[Filter Temporally]
+  C[<b>Join Spatially</b>]
   D((Gage / BMI points <br>in same HUC12))
-  E>Identify BMI COMID Points] 
-  F>Select COMIDs in same NHD mainstem streamline]
-  G{<b><i>COMID not in<br> mainstem streamline</b></i>}
-  H(BRT Models of BMI Response vs. FF Metrics)
-  I(Identify metrics <br> that are best predictors of <br> seasonality or indicators of alteration)
+  E>Get NHD Flowline COMIDs for BMI and USGS Points] 
+  F>Filter to BMI COMIDs in same <br> NHD mainstem streamline as USGS gages]
+  G{<b>STOP:</b> <br><br> BMI COMID not on <br>mainstem USGS <br>streamline}
+  H(<b>Calculate BMI Metrics</b>)
+  I(<b>Calculate Functional Flow Metrics <br> for selected Gages</b>)
+  J(BRT Models of BMI Response vs. FF Metrics)
+  K(Identify metrics <br> that are best predictors of <br> seasonality or indicators of alteration)
   
   
   A-.->|<i>QA/QC</i>|C
   B-.->|<i>>10 years of data</i>|C
-  C-- <i>Gage Data/BMI Data Post 1994</i>-->D
+  C -->D
   D -->E
   E -->F
   E -->G
   F -->H
-  subgraph BRT Modeling
-    H-- MODELING -->I
-  end
+  F -- <i>Filter to Flow Data >1994 <br> to match ecological data period </i>-->I
+  H -->J
+  I -->J
+  J -- RESULTS -->K
+  
   style A fill:#ffa500,stroke:#333,stroke-width:4px
   style B fill:#0099ff,stroke:#333,stroke-width:4px
-  style H fill:#0033gg,stroke:#333,stroke-width:4px
+  style H fill:#ffd996,stroke:#f09b00,stroke-width:4px
+  style I fill:##a5a5ff,stroke:#0000a5,stroke-width:4px
+  style G fill:#ffc0cb,stroke:#b40000,stroke-width:4px
   ")
 
 ```
@@ -85,11 +93,17 @@ DiagrammeR("graph TB;
 
  1. Get impaired and unimpaired gages (GAGES2) and pair with all BMI sites (**spatially**)
  2. Get impaired FFC Metrics with BMI metrics
-    - CSCI
-    - % Intolerant
-    - MMI
+    - CSCI (measures of departure from reference, anchored to a single site)
+    - MMI (measures of departure from reference, anchored along a gradient with stressed sites), will be more sensitive to flow alteration
+    - % Intolerant Raw/Predicted
+    - Use the % Intolerant Scored for alteration analysis (translating deviation 0-1 based on ref availability and observed scores at stressed sites), but not for reference
+    - % EPT
     - Shannon's
-    - EPT
+    - Habit: Swimmers/Clingers
+    - Species Traits/Lifespan
+    - Clingers
+    - 
+    
  3. Get regions and bin (use HUC4)
  4. Run statewide analysis
  5. Run regional analysis
