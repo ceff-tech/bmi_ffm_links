@@ -38,9 +38,14 @@ mainstems_all <- rbind(mainstems_us, mainstems_ds) %>%
 bmi_not_selected <- sel_bmi_gages %>% filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 561 = (2188 total -  1627 selected)
 
 # first add site status
-bmi_coms_final <- left_join(bmi_coms_final, bmi_clean_stations_ss[,c(1:2)], by="StationCode")
+bmi_coms_final <- left_join(bmi_coms_final, bmi_clean_stations_ss[,c(1:2)], by="StationCode") %>% 
+  # filter for distinct
+  distinct(sampleid, ID, .keep_all = TRUE)
 # how many missing ss?
 bmi_coms_final %>% st_drop_geometry %>% group_by(SiteStatus) %>% tally
+
+#write_csv(missing_site_status, path = "data_output/bmi_missing_site_status.csv")
+
 
 # Set up Mapview Basemap --------------------------------------------------
 

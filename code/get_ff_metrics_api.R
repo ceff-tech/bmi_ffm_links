@@ -3,10 +3,11 @@
 # 2019-12-10
 
 #devtools::install_github('ceff-tech/ffc_api_client/ffcAPIClient')
-devtools::install_github('ryanpeek/ffc_api_client/ffcAPIClient')
+#devtools::install_github('ryanpeek/ffc_api_client/ffcAPIClient')
 library(ffcAPIClient)
 library(tidyverse)
 library(lubridate)
+library(tictoc)
 options(scipen = 999) # turn of scientific notation
 
 # Set Token ---------------------------------------------------------------
@@ -58,30 +59,40 @@ save(ca_usgs_gages, file = "data/usgs_ca_daily_flow_gages.rda")
 
 # Updated Version ---------------------------------------------------------
 
-gageNo <- 11427000 # NF American
+#gageNo <- 11427000 # NF American
 gageNo <- 11525500 # la grange
-gageNo <- 11447293 # DryCreek/Sac
+#gageNo <- 11447293 # DryCreek/Sac
 
 # get USGS daily flow
 daily_df <- get_usgs_gage_data(gageNo)
 
 # get FF results
-results_ff <- ffcAPIClient::get_ffc_results_for_usgs_gage(gageNo)  
+tic("start")
+results_ff <- ffcAPIClient::get_ffc_results_for_usgs_gage(gageNo)
+# results_ff <- get_ffc_results_for_usgs_gage(gageNo) # slightly slower
+toc("end")
+
 # convert results to df
-results_df <- ffcAPIClient::get_results_as_df(results_ff)
+
+#results_df <- ffcAPIClient::get_results_as_df(results_ff)
+results_df <- suppressWarnings(get_results_as_df(results_ff)) # fastest
+#results_df <- suppressWarnings(ffcAPIClient::get_results_as_df(results_ff))
+#toc("end")
 
 # make reference hydrograph
-drh_data <- ffcAPIClient::get_drh(results_ff) 
-ffcAPIClient::plot_drh(results_ff)
+#drh_data <- ffcAPIClient::get_drh(results_ff) 
+plot_drh(results_ff)
 
 # evaluate
-ffcAPIClient::evaluate_gage_alteration(gage_id = gageNo, token = get_token())
+evaluate_gage_alteration(gage_id = gageNo, token = get_token(),
+                         plot_output_folder = "figs")
 
 # get predicted flow metrics (requires comid)
-gage_comid <- get_comid_for_usgs_gage(gageNo)
+gage_comid <- ffcAPIClient::get_comid_for_usgs_gage(gageNo)
 
-predff <- ffcAPIClient::get_predicted_flow_metrics(com_id = gage_comid)
-
+tic()
+predff <- get_predicted_flow_metrics(com_id = gage_comid)
+toc()
 
 # Get a COMID -------------------------------------------------------------
 

@@ -17,6 +17,7 @@ library(sf)
 library(mapview)
 library(lubridate)
 library(tidyverse)
+library(tidylog)
 
 # Load Data ---------------------------------------------------------------
 
@@ -58,7 +59,7 @@ bmi_final_dat <- bmi_coms_dat %>%
                    resqualcode:personnelcode_labeffort, samplecomments, effortqacode)) %>% 
   st_drop_geometry() %>% 
   dplyr::distinct(SampleID, .keep_all = TRUE) 
-  
+
 # now look at how many unique samples are avail: n=267 unique samples
 bmi_final_dat %>%  distinct(SampleID, ID) %>% tally
 
@@ -154,16 +155,20 @@ csci %>%  distinct(sampleid) %>% tally()
 
 # match against existing sites:
 bmi_csci <- inner_join(bmi_coms_final, csci, by=c("StationCode"="stationcode")) %>% 
-  distinct(sampleid, .keep_all = T)
+  distinct(sampleid, ID, .keep_all = T)
 
-bmi_csci <- anti_join(bmi_coms_final, csci, by=c("StationCode"="stationcode"))
-write_csv(bmi_csci, path = "data/ref_bmi_sites_missing_csci_data.csv")
+# bmi_csci <- anti_join(bmi_coms_final, csci, by=c("StationCode"="stationcode"))
+# write_csv(bmi_csci, path = "data/ref_bmi_sites_missing_csci_data.csv")
 
 # how many unique matches?
 length(unique(bmi_csci$StationCode)) # only 97 matches, 139-97:???
 
+# view Site Status
 bmi_csci %>% st_drop_geometry() %>% 
   group_by(SiteStatus) %>% tally()
+
+# drop site Status of "stressed" as these may skew correlations with flow metrics
+bmi_csci <- bmi_csci %>% filter(SiteStatus %in% c("Intermediate", "Reference", NA))
 
 # JOIN with Flow Period of Record (POR) ---------------------------------
 
@@ -173,8 +178,8 @@ bmi_csci_flow_por <- left_join(bmi_csci, flow_por_wide, by="ID")
 bmi_csci_flow_por_overlap <- bmi_csci_flow_por %>%
   filter(sampleyear > minYr, sampleyear< maxYr)
 
-length(unique(bmi_csci_flow_por_overlap$StationCode)) # 74 stations. was 76
-length(unique(bmi_csci_flow_por_overlap$ID)) # 33 gages
+length(unique(bmi_csci_flow_por_overlap$StationCode)) # 68 stations. was 76
+length(unique(bmi_csci_flow_por_overlap$ID)) # 34 gages
 
 # JOIN with Flow by BMI Lag Years ----------------------------------------
 
@@ -183,12 +188,19 @@ bmi_csci_flow_yrs <- left_join(bmi_csci, flow_by_years_bmi_wide, by=c("ID")) %>%
   filter(sampleyear == year | sampleyear == year+1 | sampleyear==year+2)
 
 # double check
-# bmi_csci_flow_yrs %>% select(StationCode, sampleid, sampleyear, year) %>% View()
+#bmi_csci_flow_yrs %>% select(StationCode, sampleid, sampleyear, year) %>% View()
 
 # filter to sites that have data in the flow time range?
-bmi_csci_flow_yrs %>% st_drop_geometry() %>% distinct(StationCode) %>% tally() # 75 BMI sites
-bmi_csci_flow_yrs %>% st_drop_geometry() %>% distinct(sampleid, year) %>% tally() #426 separate data points
-bmi_csci_flow_yrs %>% st_drop_geometry() %>% distinct(ID) %>% tally() # 33 gages
+bmi_csci_flow_yrs %>% st_drop_geometry() %>% distinct(StationCode) %>% tally() # 69 BMI sites
+bmi_csci_flow_yrs %>% st_drop_geometry() %>% distinct(sampleid, year) %>% tally() # 381 separate data points
+bmi_csci_flow_yrs %>% st_drop_geometry() %>% distinct(ID) %>% tally() # 34 gages
+
+# drop unneeded cols
+bmi_csci_flow_yrs <- bmi_csci_flow_yrs %>% 
+  select(-c(created_user:login_owner, databasecode, login_year, login_project))
+
+# how many NA's across records?
+bmi_csci_flow_yrs %>% drop_na(SP_Tim:Peak_Mag_20) %>% dim() # end up with 113 records, would drop 74% of data
 
 # EXPORT Cleaned/Joined Flow/BMI Data -----------------------------------------------------
 

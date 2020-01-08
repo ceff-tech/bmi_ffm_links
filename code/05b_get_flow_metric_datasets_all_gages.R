@@ -17,6 +17,7 @@ library(sf)
 library(mapview)
 library(lubridate)
 library(tidyverse)
+library(tidylog)
 
 # Load Data ---------------------------------------------------------------
 
@@ -30,7 +31,10 @@ load("data_output/03_final_bmi_stations_dat_all_gages.rda") # bmi_coms_dat (all 
 bmi_coms <- read_rds("data_output/02_bmi_all_stations_comids.rds") # just bmi_coms, comids for all BMI sites
 
 # re order cols
-bmi_coms_final <- bmi_coms_final %>% select(StationCode, longitude, latitude, HUC_12, h12_area_sqkm, ID:to_gage, geometry)
+bmi_coms_final <- bmi_coms_final %>% select(StationCode, longitude, latitude, HUC_12, h12_area_sqkm, ID:to_gage, geometry) %>% 
+# add site status
+  left_join(bmi_clean_stations_ss[, c(1:2)], by="StationCode") %>% 
+  distinct(StationCode, ID, .keep_all = T) # 1627 total
 
 # make a mainstems all file
 mainstems_all <- rbind(mainstems_us, mainstems_ds) %>% 
@@ -42,10 +46,6 @@ rm(mainstems_ds, mainstems_us)
 # make a new layer of "unselected" bmi sites
 bmi_not_selected <- sel_bmi_gages %>% filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 561 = (2188 total -  1627 selected)
 
-# join with status:
-bmi_coms_final <- bmi_coms_final %>% left_join(bmi_clean_stations_ss[, c(1:2)], by="StationCode")
-
-# load mapview bases
 # set background basemaps:
 basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap",
                   "OpenTopoMap", "OpenStreetMap", 
@@ -69,18 +69,39 @@ bmi_final_dat %>% st_drop_geometry %>% distinct(StationCode) %>% tally
 
 # Merge with Flow Dat -----------------------------------------------------
 
-# need to get gage data for all gages here:
-load("data/ref_gage_annFlow_stats_long.rda")
 
-# need to add "T" to the gageID
-flow_long <- dat_long %>% mutate(ID=paste0("T", gage)) %>% 
-  # filter out NA's?
-  filter(!is.na(data)) %>% 
-  ungroup() %>% 
-  select(ID, gage, stream_class, stat:YrRange)
+# get a list of gages from the bmi_coms_final (n=517)
+usgs_list <- bmi_coms_final %>% st_drop_geometry %>% 
+  distinct(ID)
 
-# rm old dataset
-rm(dat_long)
+# get metadata with dataRetrieval
+usgs_list <- dataRetrieval::whatNWISdata(siteNumber=usgs_list$ID, service='dv', parameterCd = '00060', statCd='00003') %>% 
+    select(site_no, station_nm, dec_lat_va, dec_long_va, huc_cd, 
+           data_type_cd, begin_date:count_nu) %>% 
+    rename(interval=data_type_cd, huc8=huc_cd, site_id=site_no,
+           date_begin=begin_date, date_end=end_date) %>% 
+    mutate(yr_begin = year(date_begin),
+           yr_end = year(date_end),
+           yr_total = yr_end-yr_begin) %>% 
+    filter(yr_total > 9) %>% 
+  slice(-5) # overflow channel?
+# 441 left with > 9 yrs of data
+
+
+# devtools::install_github('ceff-tech/ffc_api_client/ffcAPIClient')
+library(ffcAPIClient)
+options(scipen = 999) # turn of scientific notation
+set_token(Sys.getenv("EFLOWS_TOKEN", "")) 
+
+# use flow calculator to pull FFM for each gage
+usgs_ffc_dat <- usgs_list %>% 
+  slice(6) %>%
+  mutate(ffc_data = map(site_id, 
+                        ~ffcAPIClient::get_ffc_results_for_usgs_gage(.x))) %>% 
+  mutate(ffc_df = map(ffc_data, ~suppressWarnings(ffcAPIClient::get_results_as_df(.x)))) %>% 
+  select(-ffc_data) %>% 
+  # convert to dataframe (not listcol)
+  unnest(cols=c(ffc_df))
 
 # Avg Metrics for Period of Record ----------------------------------------
 

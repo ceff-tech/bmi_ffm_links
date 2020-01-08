@@ -88,16 +88,19 @@ bmi_coms %>% distinct(StationCode) %>% tally()
 csci <- read_csv("data/csci_core.csv")
 
 # how many sites do we have csci scores for? n=2200
-csci %>% distinct(stationcode) %>% tally()
+csci %>% distinct(sampleid) %>% tally()
 
 # match against existing sites:
-bmi_csci <- inner_join(bmi_coms_final, csci, by=c("StationCode"="stationcode"))
+bmi_csci <- inner_join(bmi_coms_final, csci, by=c("StationCode"="stationcode")) %>% 
+  # filter for distinct
+  distinct(sampleid, ID, .keep_all = TRUE)
 
-bmi_csci <- left_join(bmi_csci, bmi_clean_stations_ss[,c(1:2)], by="StationCode")
+table(bmi_csci$SiteStatus)
+table(bmi_csci$sampleid)
 
 # how many unique matches?
-length(unique(bmi_csci$StationCode))
-table(bmi_csci$SiteStatus)
+length(unique(bmi_csci$StationCode)) # 97
+length(unique(bmi_csci$sampleid)) # 194 (some hav multiple gages assoc)
 
 # look at CSCI histogram of all scores
 (bmi_csci %>% ggplot() + geom_histogram(aes(csci), bins = 40) +
