@@ -105,7 +105,7 @@ sel_h12_bmi <- h12[sel_bmi_gages, ]
 
 #save(sel_h12_bmi, file="data_output/02_selected_h12_contain_bmi_gage.rda")
 
-# Mapview -----------------------------------------------------------------
+# * Mapview -----------------------------------------------------------------
 
 # set background basemaps:
 basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap",

@@ -69,7 +69,6 @@ bmi_final_dat %>% st_drop_geometry %>% distinct(StationCode) %>% tally
 
 # Merge with Flow Dat -----------------------------------------------------
 
-
 # get a list of gages from the bmi_coms_final (n=517)
 usgs_list <- bmi_coms_final %>% st_drop_geometry %>% 
   distinct(ID)
@@ -83,25 +82,30 @@ usgs_list <- dataRetrieval::whatNWISdata(siteNumber=usgs_list$ID, service='dv', 
     mutate(yr_begin = year(date_begin),
            yr_end = year(date_end),
            yr_total = yr_end-yr_begin) %>% 
-    filter(yr_total > 9) %>% 
-  slice(-5) # overflow channel?
-# 441 left with > 9 yrs of data
+    filter(yr_total > 9) #%>% 
+  # slice(-5) # overflow channel?
+  # 441 left with > 9 yrs of data
 
 
-# devtools::install_github('ceff-tech/ffc_api_client/ffcAPIClient')
+devtools::install_github('ceff-tech/ffc_api_client/ffcAPIClient')
 library(ffcAPIClient)
 options(scipen = 999) # turn of scientific notation
 set_token(Sys.getenv("EFLOWS_TOKEN", "")) 
 
 # use flow calculator to pull FFM for each gage
 usgs_ffc_dat <- usgs_list %>% 
-  slice(6) %>%
+  slice(1:10) %>%
   mutate(ffc_data = map(site_id, 
-                        ~ffcAPIClient::get_ffc_results_for_usgs_gage(.x))) %>% 
-  mutate(ffc_df = map(ffc_data, ~suppressWarnings(ffcAPIClient::get_results_as_df(.x)))) %>% 
+                        ~possibly(ffcAPIClient::get_ffc_results_for_usgs_gage(.x), otherwise = NA))) %>% 
+  mutate(ffc_df = map(ffc_data, ~possibly(suppressWarnings(ffcAPIClient::get_results_as_df(.x)), otherwise=NA))) %>% 
   select(-ffc_data) %>% 
   # convert to dataframe (not listcol)
   unnest(cols=c(ffc_df))
+
+
+# follow up with ones that broke?
+test_ff <- ffcAPIClient::get_ffc_results_for_usgs_gage("10257549")
+test_ff <- suppressWarnings(ffcAPIClient::get_results_as_df(test_ff))
 
 # Avg Metrics for Period of Record ----------------------------------------
 

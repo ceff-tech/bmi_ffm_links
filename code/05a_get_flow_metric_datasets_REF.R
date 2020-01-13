@@ -30,7 +30,10 @@ load("data_output/02_final_bmi_stations_dat_reference.rda") # bmi_coms_dat (all 
 bmi_coms <- read_rds("data_output/02_bmi_all_stations_comids.rds") # just bmi_coms, comids for all BMI sites
 
 # re order cols
-bmi_coms_final <- bmi_coms_final %>% select(StationCode, longitude, latitude, HUC_12, h12_area_sqkm, ID:to_gage, geometry)
+bmi_coms_final <- bmi_coms_final %>% 
+  select(StationCode, longitude, latitude, HUC_12, 
+         h12_area_sqkm, ID:comid, geometry) %>% 
+  distinct(StationCode, ID, .keep_all=TRUE) # n=157
 
 # make a mainstems all file
 mainstems_all <- rbind(mainstems_us, mainstems_ds)
@@ -43,32 +46,31 @@ basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap"
                   "CartoDB.Positron", "Stamen.TopOSMFeatures")
 mapviewOptions(basemaps=basemapsList)
 
-# Get BMI comids ----------------------------------------------------------
+# * Get BMI Site Status by Comid ----------------------------------------
 
 # join with status:
 bmi_coms_final <- bmi_coms_final %>% 
-  left_join(bmi_clean_stations_ss[, c(1:2)], by="StationCode") %>% 
-  distinct(StationCode, ID, .keep_all = T) # 157 total
+  left_join(., bmi_clean_stations_ss[, c(1:2)], by="StationCode")
 
 # Join BMI Sites with BMI Data --------------------------------------------
 
 # pull BMI sites and get list of data, first join with orig full dataset:
 bmi_final_dat <- bmi_coms_dat %>%
-  dplyr::select(-c(benthiccollectioncomments, percentsamplecounted:gridsvolumeanalyzed, 
-                   discardedorganismcount, benthiclabeffortcomments, 
-                   resqualcode:personnelcode_labeffort, samplecomments, effortqacode)) %>% 
-  st_drop_geometry() %>% 
-  dplyr::distinct(SampleID, .keep_all = TRUE) 
+  dplyr::select(-c(benthiccollectioncomments,
+                   percentsamplecounted:gridsvolumeanalyzed,
+                   discardedorganismcount, benthiclabeffortcomments,
+                   resqualcode:personnelcode_labeffort,
+                   samplecomments, effortqacode)) %>%
+  st_drop_geometry() # drop sf class
 
-# now look at how many unique samples are avail: n=267 unique samples
+# now look at how many unique samples are avail: n=299 unique samples
 bmi_final_dat %>%  distinct(SampleID, ID) %>% tally
 
 # now look at how many unique stations: n=139 stations
 bmi_final_dat %>% distinct(StationCode) %>% tally
 
-# now look at how many unique USGS gages: n=45 stations
+# now look at how many unique USGS gages: n=49 stations
 bmi_final_dat %>% distinct(ID) %>% tally
-
 
 # Get/Join with Reference Flow Data --------------------------------------
 
@@ -131,7 +133,6 @@ bmi_years # 1993:2017
 # rm old files
 rm(bmi_yrs, bmi_yrs_1, bmi_yrs_2)
 
-
 # * Filter Reference Flow Data to Years of Interest -----------------------
 
 # now match with flow data (only goes through 2016)
@@ -150,57 +151,73 @@ save(flow_by_years_bmi, flow_by_years_bmi_wide, file="data_output/05a_selected_r
 # Get CSCI Data -----------------------------------------------------------
 
 # see what data exist against CSCI scores currently avail (from Raffi)
-csci <- read_csv("data/csci_core.csv") 
+csci1 <- read_csv("data/csci_core.csv") %>% 
+  mutate(sampledate=as.Date(sampledate)) %>% 
+  select(sampleid, stationcode, sampledate, collectionmethodcode, fieldreplicate, count, csci, csci_percentile)
+csci2 <- read_csv("data/csci_core_v2.csv") %>% 
+  rename(stationcode=StationCode) %>%
+  mutate(sampledate=mdy(sampledate)) %>% 
+  select(sampleid, stationcode, sampledate, collectionmethodcode, fieldreplicate, count, csci, csci_percentile)
+
+# join together
+csci<-bind_rows(csci1, csci2) %>% 
+  mutate(sampleyear=year(sampledate))
+
+# rm old files
+rm(csci1, csci2)
+
+# now have n=4034 unique samples
 csci %>%  distinct(sampleid) %>% tally()
 
-# match against existing sites:
-bmi_csci <- inner_join(bmi_coms_final, csci, by=c("StationCode"="stationcode")) %>% 
+# match against existing sites irrespective of sampleid
+bmi_csci <- inner_join(bmi_coms_final, csci, by=c("StationCode"="stationcode")) %>% # n=296
   distinct(sampleid, ID, .keep_all = T)
 
 # bmi_csci <- anti_join(bmi_coms_final, csci, by=c("StationCode"="stationcode"))
 # write_csv(bmi_csci, path = "data/ref_bmi_sites_missing_csci_data.csv")
 
 # how many unique matches?
-length(unique(bmi_csci$StationCode)) # only 97 matches, 139-97:???
+length(unique(bmi_coms_final$StationCode)) 
+# 139 stations (but some w mult gage matches)
+length(unique(bmi_csci$StationCode)) # only 133 matches, so missing 6
 
 # view Site Status
 bmi_csci %>% st_drop_geometry() %>% 
   group_by(SiteStatus) %>% tally()
 
 # drop site Status of "stressed" as these may skew correlations with flow metrics
-bmi_csci <- bmi_csci %>% filter(SiteStatus %in% c("Intermediate", "Reference", NA))
+bmi_csci <- bmi_csci %>% filter(SiteStatus %in% c("Intermediate", "Reference", NA)) # should be 252
 
 # JOIN with Flow Period of Record (POR) ---------------------------------
 
-bmi_csci_flow_por <- left_join(bmi_csci, flow_por_wide, by="ID")
+bmi_csci_flow_por <- inner_join(bmi_csci, flow_por_wide, by="ID")
+
+# look at distinct
+bmi_csci_flow_por %>% st_drop_geometry() %>% distinct(sampleid, ID) %>% tally()
 
 # filter to BMI sites that have data in the flow time range, but doesn't really matter for POR?
 bmi_csci_flow_por_overlap <- bmi_csci_flow_por %>%
-  filter(sampleyear > minYr, sampleyear< maxYr)
+  filter(sampleyear >= minYr & sampleyear<= maxYr)
 
-length(unique(bmi_csci_flow_por_overlap$StationCode)) # 68 stations. was 76
-length(unique(bmi_csci_flow_por_overlap$ID)) # 34 gages
+length(unique(bmi_csci_flow_por_overlap$StationCode)) # 100 stations
+length(unique(bmi_csci_flow_por_overlap$ID)) # 38 gages
 
 # JOIN with Flow by BMI Lag Years ----------------------------------------
 
-bmi_csci_flow_yrs <- left_join(bmi_csci, flow_by_years_bmi_wide, by=c("ID")) %>% 
+bmi_csci_flow_yrs <- inner_join(bmi_csci, flow_by_years_bmi_wide, by=c("ID")) %>% 
   # filter to same year as BMI + 2 yr lag
   filter(sampleyear == year | sampleyear == year+1 | sampleyear==year+2)
 
-# double check
-#bmi_csci_flow_yrs %>% select(StationCode, sampleid, sampleyear, year) %>% View()
+# double check, should have 3 entries per sampleid
+# bmi_csci_flow_yrs %>% select(StationCode, sampleid, sampleyear, year) %>% View()
 
 # filter to sites that have data in the flow time range?
-bmi_csci_flow_yrs %>% st_drop_geometry() %>% distinct(StationCode) %>% tally() # 69 BMI sites
-bmi_csci_flow_yrs %>% st_drop_geometry() %>% distinct(sampleid, year) %>% tally() # 381 separate data points
-bmi_csci_flow_yrs %>% st_drop_geometry() %>% distinct(ID) %>% tally() # 34 gages
-
-# drop unneeded cols
-bmi_csci_flow_yrs <- bmi_csci_flow_yrs %>% 
-  select(-c(created_user:login_owner, databasecode, login_year, login_project))
+bmi_csci_flow_yrs %>% st_drop_geometry() %>% distinct(StationCode) %>% tally() # 101 BMI sites
+bmi_csci_flow_yrs %>% st_drop_geometry() %>% distinct(sampleid, year) %>% tally() # 522 separate data points
+bmi_csci_flow_yrs %>% st_drop_geometry() %>% distinct(ID) %>% tally() # 38 gages
 
 # how many NA's across records?
-bmi_csci_flow_yrs %>% drop_na(SP_Tim:Peak_Mag_20) %>% dim() # end up with 113 records, would drop 74% of data
+bmi_csci_flow_yrs %>% drop_na(SP_Tim:Peak_Mag_20) %>% dim() # end up with 145 records, would drop 76% of data
 
 # EXPORT Cleaned/Joined Flow/BMI Data -----------------------------------------------------
 

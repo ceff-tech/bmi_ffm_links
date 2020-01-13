@@ -19,6 +19,11 @@ load("data_output/07_selected_bmi_stations_w_comids.rda") # from code below
 load("data_output/07_selected_usgs_gages.rda") # distinct gages
 load("data/07_umbrella_sp_regions.rda")
 
+# ultimately use just: csci, Shannons, EPT, % pred, % coleoptra, % clingers, tax richness, % Intolerant
+metrics_to_use <- c("csci", "Taxonomic_Richness", "Shannon_Diversity", "EPT_Percent", "CFCG_Percent", "Coleoptera_Percent", "Predator_Percent",  "Intolerant_Percent")
+
+
+
 # Filter to Distinct BMI Stations -----------------------------------
 
 bmi_coms_na <- bmi_coms %>% st_drop_geometry() %>%

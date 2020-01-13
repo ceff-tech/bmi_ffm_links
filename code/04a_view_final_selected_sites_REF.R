@@ -31,7 +31,10 @@ bmi_coms_final <- bmi_coms_final %>% select(StationCode, longitude, latitude, HU
 mainstems_all <- rbind(mainstems_us, mainstems_ds)
 
 # make a new layer of "unselected" bmi sites
-bmi_not_selected <- sel_bmi_gages %>% filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # 71 distinct stations = (210 total unique stations selected - 139 unique selected)
+bmi_not_selected <- sel_bmi_gages %>% 
+  filter(!as.character(comid) %in% 
+           mainstems_all$nhdplus_comid) 
+# 71 distinct stations = (210 total unique stations selected - 139 unique selected)
 
 # Set up Mapview Basemap --------------------------------------------------
 
