@@ -13,13 +13,13 @@ library(lubridate)
 # Data --------------------------------------------------------------------
 
 
-load("data_output/05_selected_bmi_stations_w_comids.rda")
-load("data_output/05_mainstems_us_ds_selected_gages.rda")
-load("data_output/05_selected_bmi_stations_w_csci_flow_por.rda")
-load("data_output/05_selected_bmi_stations_w_csci_flow_years.rda")
-load("data_output/05_selected_bmi_cleaned_w_data.rda")
-load("data_output/05_selected_usgs_flow_metrics_POR.rda")
-load("data_output/05_selected_flow_by_years_of_bmi.rda")
+load("data_output/05b_selected_bmi_stations_w_comids.rda")
+load("data_output/05b_mainstems_us_ds_selected_gages.rda")
+load("data_output/05b_selected_bmi_stations_w_csci_flow_por.rda")
+load("data_output/05b_selected_bmi_stations_w_csci_flow_years.rda")
+load("data_output/05b_selected_bmi_cleaned_w_data.rda")
+load("data_output/05b_selected_usgs_flow_metrics_POR.rda")
+load("data_output/05b_selected_flow_by_years_of_bmi.rda")
 
 # see first code chunk to generate this data:
 load("data_output/06_selected_bmi_metrics_at_gage_sites.rda")

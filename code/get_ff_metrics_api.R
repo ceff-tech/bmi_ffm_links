@@ -2,12 +2,12 @@
 
 # 2019-12-10
 
-#devtools::install_github('ceff-tech/ffc_api_client/ffcAPIClient')
+devtools::install_github('ceff-tech/ffc_api_client/ffcAPIClient')
 #devtools::install_github('ryanpeek/ffc_api_client/ffcAPIClient')
 library(ffcAPIClient)
 library(tidyverse)
 library(lubridate)
-library(tictoc)
+#library(tictoc)
 options(scipen = 999) # turn of scientific notation
 
 # Set Token ---------------------------------------------------------------
@@ -59,40 +59,44 @@ save(ca_usgs_gages, file = "data/usgs_ca_daily_flow_gages.rda")
 
 # Updated Version ---------------------------------------------------------
 
-#gageNo <- 11427000 # NF American
-gageNo <- 11525500 # la grange
-#gageNo <- 11447293 # DryCreek/Sac
+# gageNo <- 11427000 # NF American
+# gageNo <- 11525500 # la grange
+# gageNo <- 11447293 # DryCreek/Sac
+gageNo <- 10257549 # weird canal missing data use case
 
 # get USGS daily flow
 daily_df <- get_usgs_gage_data(gageNo)
 
 # get FF results
-tic("start")
+#tic("start")
 results_ff <- ffcAPIClient::get_ffc_results_for_usgs_gage(gageNo)
-# results_ff <- get_ffc_results_for_usgs_gage(gageNo) # slightly slower
-toc("end")
+#toc("end")
 
 # convert results to df
-
-#results_df <- ffcAPIClient::get_results_as_df(results_ff)
-results_df <- suppressWarnings(get_results_as_df(results_ff)) # fastest
-#results_df <- suppressWarnings(ffcAPIClient::get_results_as_df(results_ff))
+results_df <- get_results_as_df(results_ff) # fastest
 #toc("end")
 
 # make reference hydrograph
-#drh_data <- ffcAPIClient::get_drh(results_ff) 
+drh_data <- ffcAPIClient::get_drh(results_ff) 
 plot_drh(results_ff)
 
 # evaluate
-evaluate_gage_alteration(gage_id = gageNo, token = get_token(),
-                         plot_output_folder = "figs")
+evaluate_gage_alteration(gage_id = gageNo, token = get_token())
 
 # get predicted flow metrics (requires comid)
-gage_comid <- ffcAPIClient::get_comid_for_usgs_gage(gageNo)
+(gage_comid <- ffcAPIClient::get_comid_for_usgs_gage(gageNo))
 
-tic()
-predff <- get_predicted_flow_metrics(com_id = gage_comid)
+# time
+tic(msg = "get pred flow")
+pred_ff <- get_predicted_flow_metrics(com_id = gage_comid)
+beepr::beep(4)
 toc()
+
+
+
+# OLD CODE ----------------------------------------------------------------
+
+# ALL CODE BELOW IS OLD AND SANDBOXED
 
 # Get a COMID -------------------------------------------------------------
 
@@ -232,12 +236,11 @@ summary(results$spring)
 # fallWinter
 summary(results$fallWinter)
 
-
 # GET FF FALL METRICS ------------------------------------------------------
 
 # this is slick
 dat_fall <- results$fall %>% 
-  unlist(recursive = FALSE) %>% 
+  unlist(recursive = FALSE) #%>% 
   enframe %>%
   unnest(value, keep_empty=TRUE) %>% # keep null values and add NA
   mutate(wyears = rep(unlist(results$yearRanges),6)) %>% 

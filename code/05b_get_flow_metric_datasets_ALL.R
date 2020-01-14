@@ -2,14 +2,6 @@
 ## R. Peek
 ## Link the BMI data by flow data with a lag, annual, and POR
 
-## DATA OUT:
-### bmi_coms, file="data_output/05_selected_bmi_stations_w_comids.rda" (the comids for selected BMI stations n=224)
-### bmi_csci_flow_por, file="data_output/05_selected_bmi_stations_w_csci_flow_por.rda" (period of record flow associated with available CSCI data, n=194)
-### bmi_csci_flow_yrs, file="data_output/05_selected_bmi_stations_w_csci_flow_years.rda" (flow data with avail csci scores, 1,2yr lags n=432)
-### bmi_final_dat, file="data_output/05_selected_bmi_cleaned_w_data.rda" (cleaned data w site status, n=27567)
-### flow_por_wide, flow_por, file="data_output/05_selected_usgs_flow_metrics_POR.rda" (ref gage data for period of record, n=223)
-### mainstems, file="data_output/05_mainstems_us_ds_selected_gages.rda" (mainstem NHD flowlines, us and ds, n=1581)
-
 # Libraries ---------------------------------------------------------------
 
 library(tidyverse)
@@ -31,7 +23,9 @@ load("data_output/03_final_bmi_stations_dat_all_gages.rda") # bmi_coms_dat (all 
 bmi_coms <- read_rds("data_output/02_bmi_all_stations_comids.rds") # just bmi_coms, comids for all BMI sites
 
 # re order cols
-bmi_coms_final <- bmi_coms_final %>% select(StationCode, longitude, latitude, HUC_12, h12_area_sqkm, ID:to_gage, geometry) %>% 
+bmi_coms_final <- bmi_coms_final %>% 
+  select(StationCode, longitude, latitude, 
+         HUC_12, h12_area_sqkm, ID:comid, geometry) %>% 
 # add site status
   left_join(bmi_clean_stations_ss[, c(1:2)], by="StationCode") %>% 
   distinct(StationCode, ID, .keep_all = T) # 1627 total
@@ -44,7 +38,8 @@ mainstems_all <- rbind(mainstems_us, mainstems_ds) %>%
 rm(mainstems_ds, mainstems_us)
 
 # make a new layer of "unselected" bmi sites
-bmi_not_selected <- sel_bmi_gages %>% filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 561 = (2188 total -  1627 selected)
+bmi_not_selected <- sel_bmi_gages %>% 
+  filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 561 = (2188 total -  1627 selected)
 
 # set background basemaps:
 basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap",
@@ -56,16 +51,18 @@ mapviewOptions(basemaps=basemapsList)
 
 # use selected dataset and drop unnecessary cols
 bmi_final_dat <- bmi_coms_dat %>% 
-  select(-c(benthiccollectioncomments, percentsamplecounted:gridsvolumeanalyzed, discardedorganismcount,
-            benthiclabeffortcomments, resqualcode:personnelcode_labeffort, samplecomments, effortqacode))
+  select(-c(benthiccollectioncomments, percentsamplecounted:gridsvolumeanalyzed, 
+            discardedorganismcount,
+            benthiclabeffortcomments, resqualcode:personnelcode_labeffort, 
+            samplecomments, effortqacode)) %>% 
+  st_drop_geometry()
 
 # now look at how many unique samples are avail: n=1507 unique samples
 bmi_final_dat %>% 
-  st_drop_geometry() %>% # need to remove sf class to make dataframe easier to work with
   distinct(SampleID) %>% tally
 
 # now look at how many unique stations: n=792 stations
-bmi_final_dat %>% st_drop_geometry %>% distinct(StationCode) %>% tally
+bmi_final_dat %>% distinct(StationCode) %>% tally
 
 # Merge with Flow Dat -----------------------------------------------------
 
@@ -82,30 +79,32 @@ usgs_list <- dataRetrieval::whatNWISdata(siteNumber=usgs_list$ID, service='dv', 
     mutate(yr_begin = year(date_begin),
            yr_end = year(date_end),
            yr_total = yr_end-yr_begin) %>% 
-    filter(yr_total > 9) #%>% 
-  # slice(-5) # overflow channel?
+    filter(yr_total > 9) 
   # 441 left with > 9 yrs of data
 
+usgs_list$site_id <- as.integer(usgs_list$site_id)
 
-devtools::install_github('ceff-tech/ffc_api_client/ffcAPIClient')
+#devtools::install_github('ceff-tech/ffc_api_client/ffcAPIClient')
 library(ffcAPIClient)
-options(scipen = 999) # turn of scientific notation
-set_token(Sys.getenv("EFLOWS_TOKEN", "")) 
+#options(scipen = 999) # turn of scientific notation
+ffctoken <- set_token(Sys.getenv("EFLOWS_TOKEN", "")) 
 
 # use flow calculator to pull FFM for each gage
 usgs_ffc_dat <- usgs_list %>% 
-  slice(1:10) %>%
-  mutate(ffc_data = map(site_id, 
-                        ~possibly(ffcAPIClient::get_ffc_results_for_usgs_gage(.x), otherwise = NA))) %>% 
-  mutate(ffc_df = map(ffc_data, ~possibly(suppressWarnings(ffcAPIClient::get_results_as_df(.x)), otherwise=NA))) %>% 
+  slice(1:5) %>%
+  mutate(ffc_data = map(site_id, ~get_ffc_results_for_usgs_gage(.x))) %>% 
+  mutate(ffc_df = map(ffc_data, ~ffcAPIClient::get_results_as_df(.x))) %>% 
   select(-ffc_data) %>% 
   # convert to dataframe (not listcol)
   unnest(cols=c(ffc_df))
 
 
 # follow up with ones that broke?
-test_ff <- ffcAPIClient::get_ffc_results_for_usgs_gage("10257549")
-test_ff <- suppressWarnings(ffcAPIClient::get_results_as_df(test_ff))
+tst <- ffcAPIClient::evaluate_gage_alteration(gage_id = 10257549, token = Sys.getenv("EFLOWS_TOKEN", ""))
+
+# breaks
+#test_ff <- ffcAPIClient::get_ffc_results_for_usgs_gage("10257549")
+#test_ff <- suppressWarnings(ffcAPIClient::get_results_as_df(test_ff))
 
 # Avg Metrics for Period of Record ----------------------------------------
 
@@ -232,11 +231,11 @@ bmi_csci_flow_yrs %>% as.data.frame() %>% distinct(ID) %>% tally()
 
 # Export Cleaned Data -----------------------------------------------------
 
-save(bmi_coms, file="data_output/05_selected_bmi_stations_w_comids.rda")
+save(bmi_coms, file="data_output/05b_selected_bmi_stations_w_comids.rda")
 
-save(bmi_csci_flow_por, file="data_output/05_selected_bmi_stations_w_csci_flow_por.rda")
-save(bmi_csci_flow_yrs, file="data_output/05_selected_bmi_stations_w_csci_flow_years.rda")
-save(bmi_final_dat, file="data_output/05_selected_bmi_cleaned_w_data.rda")
-save(flow_por_wide, flow_por, file="data_output/05_selected_usgs_flow_metrics_POR.rda")
-save(mainstems, file="data_output/05_mainstems_us_ds_selected_gages.rda")
+save(bmi_csci_flow_por, file="data_output/05b_selected_bmi_stations_w_csci_flow_por.rda")
+save(bmi_csci_flow_yrs, file="data_output/05b_selected_bmi_stations_w_csci_flow_years.rda")
+save(bmi_final_dat, file="data_output/05b_selected_bmi_cleaned_w_data.rda")
+save(flow_por_wide, flow_por, file="data_output/05b_selected_usgs_flow_metrics_POR.rda")
+save(mainstems, file="data_output/05b_mainstems_us_ds_selected_gages.rda")
 
