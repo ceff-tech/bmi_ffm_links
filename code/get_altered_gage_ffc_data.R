@@ -32,28 +32,46 @@ table(usgs_list$FINAL_REFERENCE) # 30=Y here, included in reference data but pre
 
 # Setup Error Functions for ffcAPI ----------------------------------------
 
-get_ffc <- possibly(get_ffc_results_for_usgs_gage, otherwise = NA_character_)
+get_ffc <- possibly(get_ffc_results_for_usgs_gage, otherwise = NA_real_)
 # tst <- get_ffc(10253080) # should give NA
-get_ffc_df <- possibly(get_results_as_df, otherwise = NA_character_)
-get_ffc_percentiles <- possibly(get_percentiles, otherwise = NA_character_)
+get_ffc_df <- possibly(get_results_as_df, otherwise = NA_real_)
+get_ffc_percentiles <- possibly(get_percentiles, otherwise = NA_real_)
+
+
+# Load FFC Data -----------------------------------------------------------
+
+load("data_output/usgs_altered_ffc_observed.rda")
 
 # Run FFC: Get FFC Results as DF ------------------------------------------
 
 # use flow calculator to pull FFM for each gage, this works as raw option
 tic()
 # this unnests by percentiles for each metric for each gage
-usgs_ffc_dat <- usgs_list %>% 
-  #slice(1:100) %>% # pick a few rows to test
+usgs_ffc_dat_814 <- usgs_list %>% 
+  slice(801:814) %>% # pick a few rows to test
   mutate(ffc_df = furrr::future_imap(gage_id, ~get_ffc(.x))) %>%
   mutate(ffc_df = furrr::future_imap(ffc_df, ~get_ffc_df(.x))) %>% 
   mutate(ffc_percentiles = furrr::future_imap(ffc_df, ~get_ffc_percentiles(.x))) %>%
-  unnest(cols = c(ffc_percentiles)) %>% # pull out percentiles
-  select(-ffc_percentiles)
-
+  unnest(cols = c(ffc_percentiles)) # pull out percentiles
+beepr::beep(2)
 toc()
 
 # for first 100:
-# 157.437 sec elapsed with future_imap
+# 166.346 sec elapsed with future_imap
+
+# bind and save
+usgs_ffc_data <- bind_rows(usgs_ffc_dat_100, usgs_ffc_dat_200, usgs_ffc_dat_300, usgs_ffc_dat_400, usgs_ffc_dat_500, usgs_ffc_dat_600, usgs_ffc_dat_700, usgs_ffc_dat_800)
+
+# bin with recent 
+usgs_ffc_dat <- bind_rows(usgs_ffc_dat_780, usgs_ffc_dat_790, usgs_ffc_dat_800, usgs_ffc_dat_814)
+usgs_ffc_data <- bind_rows(usgs_ffc_dat, usgs_ffc_data)
+
+# save out
+save(usgs_ffc_data, file = "data_output/usgs_altered_ffc_observed.rda")
+
+# check no of gages
+usgs_ffc_data %>% distinct(gage_id) %>% tally()
+usgs_ffc_data %>% group_by(Metric) %>% tally() %>% View()# so over half are NA
 
 # NOTES:
 ## if unnesting by ffc_df, will get ffc metrics as cols for each year of gage (years as rows)
