@@ -20,10 +20,10 @@ ffctoken <- set_token(Sys.getenv("EFLOWS_TOKEN", ""))
 
 usgs_list <- read_csv("data/FinalAlteredList.csv")
 
-# drop the "T" from the ID
+# clean up: drop the "T" from the ID, drop cols
 usgs_list <- usgs_list %>% 
   mutate(gage_id=gsub("^T",replacement = "", ID)) %>% 
-  select(gage_id, ID:ROADS_KM_SQ_KM)
+  select(gage_id, ID:LONGITUDE, FLOW_YRS_POST_1950:ROADS_KM_SQ_KM) 
 
 # look at reference?
 table(usgs_list$FINAL_REFERENCE) # why are 30=Y here? were they included in reference data, but pre-regulation?
