@@ -21,6 +21,7 @@ suppressPackageStartupMessages({
   library(leaflet);
   library(here);
   library(mapview)
+  library("tidylog", warn.conflicts = FALSE)
 })
 
 

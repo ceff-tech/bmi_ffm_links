@@ -43,8 +43,6 @@ This provides an overview of the steps required to assess functional flow metric
     - View Maps (`04a_view_final_selected_sites_reference.R`, `04a_view_final_selected_sites_allgages.R`)
  - Join Temporally with Flow Data
     - Make sure flow data overlaps with ecological (BMI) data, flow > 1994 (`05a_get_flow_metric_datasets_ref_gages.R`, `05a_get_flow_metric_datasets_all_gages.R`)
-    
-    
 
 
 ```{r}
@@ -57,13 +55,14 @@ DiagrammeR("graph TB;
   B(<b>USGS:</b> Download & Clean <br> Reference Gage Data) 
   C[<b>Join Spatially</b>]
   D((Gage / BMI points <br>in same HUC12))
-  E>Get NHD Flowline COMIDs for BMI and USGS Points] 
+  E(Get NHD Flowline COMIDs for BMI and USGS Points) 
   F>Filter to BMI COMIDs in same <br> NHD mainstem streamline as USGS gages]
   G{<b>STOP:</b> <br><br> BMI COMID not on <br>mainstem USGS <br>streamline}
   H(<b>Calculate BMI Metrics</b>)
   I(<b>Calculate Functional Flow Metrics <br> for selected Gages</b>)
-  J(BRT Models of BMI Response vs. FF Metrics)
-  K(Identify metrics <br> that are best predictors of <br> seasonality or indicators of alteration)
+  J(<b>Boosted Regression Tree Modeling:</b><br> BMI Metrics:<br><ul><li>EPT</li><li>Predators</li><li>Coleoptra</li><li>Clingers</li><li>Tax. Richness</li><li>% Intolerant</li></ul>)
+  K(Reference Models: Identify metrics <br> that are best predictors of <br> seasonality/unimpaired flow)
+  L(Alteration Models: Identify metrics that most strongly indicate flow alteration)
   
   
   A-.->|<i>QA/QC</i>|C
@@ -76,12 +75,13 @@ DiagrammeR("graph TB;
   F -- <i>Filter to Flow Data >1994 <br> to match ecological data period </i>-->I
   H -->J
   I -->J
-  J -- RESULTS -->K
+  J -- <i><b>REFERENCE Models</b></i> -->K
+  J -- <i><b>ALTERATION Models</b></i> -->L
   
-  style A fill:#ffa500,stroke:#333,stroke-width:4px
-  style B fill:#0099ff,stroke:#333,stroke-width:4px
+  style A fill:#ffd996,stroke:#f09b00,stroke-width:4px
+  style B fill:#a5a5ff,stroke:#0000a5,stroke-width:4px
   style H fill:#ffd996,stroke:#f09b00,stroke-width:4px
-  style I fill:##a5a5ff,stroke:#0000a5,stroke-width:4px
+  style I fill:#a5a5ff,stroke:#0000a5,stroke-width:4px
   style G fill:#ffc0cb,stroke:#b40000,stroke-width:4px
   ")
 
@@ -91,20 +91,11 @@ DiagrammeR("graph TB;
 
 ### Next Steps
 
- 1. Get impaired and unimpaired gages (GAGES2) and pair with all BMI sites (**spatially**)
- 2. Get impaired FFC Metrics with BMI metrics
-    - CSCI (measures of departure from reference, anchored to a single site)
-    - MMI (measures of departure from reference, anchored along a gradient with stressed sites), will be more sensitive to flow alteration
-    - % Intolerant Raw/Predicted
-    - Use the % Intolerant Scored for alteration analysis (translating deviation 0-1 based on ref availability and observed scores at stressed sites), but not for reference
-    - % EPT
-    - Shannon's
-    - Habit: Swimmers/Clingers
-    - Species Traits/Lifespan
-    - Clingers
-    - 
-    
- 3. Get regions and bin (use HUC4)
+ 1. Get impaired FFC Metrics with BMI metrics and generate FFM status (-1,0,1)
+ 2. Decide which BMI metrics to assess/use:
+    - **CSCI** = measure of departure from reference, anchored to a single site
+    - **MMI** = measure of departure from reference, anchored along a gradient with stressed sites, will be more sensitive to flow alteration
+ 3. Get regions and bin (use HUC4?)
  4. Run statewide analysis
  5. Run regional analysis
  
@@ -117,3 +108,22 @@ DiagrammeR("graph TB;
       - *No Pre-existing Data/Knowledge*: Prioritization of function components or metrics. So target is within the predicted range for specific segment
       - *Monitoring/Assessment*: how does management change/improve function flows for ecological responses? e.g., implement recession rate and see improvement/increase in targeted response (diversity/abundance/CSCI score)?
  
+
+## Primary Objectives
+
+**At Paired sites (spatial and temporal):**
+
+  1. Take observed FFM from annual, POR, and lagged data vs. predicted FFM and generate alteration "status" (-1=likely altered, 0=indeterminant, 1=likely unaltered)
+      - for period of record, we can use both median values within I80R (between 10/90) and 50% of observations fall in I80R (if no, then indeterminant)
+      - for annual/lag1/lag2, use 1 value is within interdecile range (between 10/90%), if yes = 1, if no=0. No indeterminant
+      - for lagged, how many years previously was it in or out?
+  2. BRT model CSCI vs. FFM status to assess which metrics best describe the gradient of alteration
+  3. Stop and have 4-5 FFM that are important, what do those look like at altered sites? What is directionality of alteration (depleted or augmented)?
+
+### Outcomes:
+
+ - If you care about CSCI score as an ecological objective, these are the metrics that you should focus on refining/assessing/monitoring?
+
+ - These flow metrics tend to be important, typically lower CSCI scores are associated with lower flow metrics or higher alteration
+
+ - Or flow metrics are associated with lag years and more responsive.
