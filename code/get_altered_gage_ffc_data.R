@@ -50,9 +50,9 @@ glimpse(g1$alteration)
 get_ffc_eval <- possibly(evaluate_gage_alteration, otherwise=NA_real_)
 
 # this works for a list of gages and adds list cols, no plots
-tic(msg = "Starting Download") # time start
-g600 <- usgs_list %>% 
-  slice(551:600) %>%  # pick only a subset from gage list
+tic(msg = "Finished Getting Data") # time start
+g800 <- usgs_list %>% 
+  slice(701:814) %>%  # pick only a subset from gage list
   split(.$gage_id) %>% # make into named list
   map(., ~{pluck(.x$gage_id)}) %>% # pull only the gage ID out
   furrr::future_imap(., 
@@ -64,7 +64,7 @@ beepr::beep(2) # something fun to let you know it's done
 toc()
 
 # Make sure the list is named
-names(gAll)
+#names(gAll)
 
 # 02. CLEAN NAs ----------------------------------------------------
 
@@ -92,7 +92,10 @@ f_remove_empty <- function(x){
 #g300f <- f_remove_empty(g300)
 #g400f <- f_remove_empty(g400)
 #g500f <- f_remove_empty(g500)
-g550f <- f_remove_empty(g550)
+#g550f <- f_remove_empty(g550)
+#g600f <- f_remove_empty(g600)
+#g700f <- f_remove_empty(g700)
+g800f <- f_remove_empty(g800)
 
 # SAVE OUT FULL LIST HERE
 
@@ -101,11 +104,12 @@ g550f <- f_remove_empty(g550)
 
 # Subsequently
 load("data_output/usgs_altered_ffc_list.rda") # load existing dataset
-usgs_ffc_alt <- append(x = usgs_ffc_alt, values=c(g550f)) # merge
+usgs_ffc_alt <- append(x = usgs_ffc_alt, values=c(g800f)) # merge
 
 # save
 save(usgs_ffc_alt, file = "data_output/usgs_altered_ffc_list.rda")
 
+# so have 84% of the data
 
 # 03. GET PERCENTILES AND FLATTEN TO DF -------------------------------
 
