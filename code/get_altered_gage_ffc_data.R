@@ -51,10 +51,10 @@ get_ffc_eval <- possibly(evaluate_gage_alteration, otherwise=NA_real_)
 
 # this works for a list of gages and adds list cols, no plots
 tic(msg = "Starting Download") # time start
-gAll <- usgs_list %>% 
-  slice(1:5) %>%  # pick only a subset from gage list
+g100 <- usgs_list %>% 
+  slice(1:100) %>%  # pick only a subset from gage list
   split(.$gage_id) %>% # make into named list
-  map(., ~{pluck(.x$gage_id)}) %>% # pull only the gage ID out
+  map(., ~{pluck(.x$gage_id)}) #%>% # pull only the gage ID out
   furrr::future_imap(., 
                      ~get_ffc_eval(gage_id = .x, 
                                    token = ffctoken, 
@@ -62,6 +62,8 @@ gAll <- usgs_list %>%
                      .progress = TRUE) 
 beepr::beep(2) # something fun to let you know it's done
 toc()
+
+gAll <- g100
 
 # Make sure the list is named
 names(gAll)
@@ -76,7 +78,7 @@ f_remove_empty <- function(x){
   if(is.list(x)) {
     x %>%
       purrr::discard(rlang::is_na) %>%
-      purrr::map(remove_empty)
+      purrr::map(f_remove_empty)
   } else {
     x
   }
