@@ -40,8 +40,8 @@ g1 <- usgs_list %>%
 # here we get a list of 5 df
 names(g1)
 
-# pull just one out
-g1$alteration
+# look at just one
+glimpse(g1$alteration)
 
 
 # 01. DOWNLOAD Multiple Gages IN LIST ------------------------------
@@ -51,8 +51,8 @@ get_ffc_eval <- possibly(evaluate_gage_alteration, otherwise=NA_real_)
 
 # this works for a list of gages and adds list cols, no plots
 tic(msg = "Starting Download") # time start
-g300 <- usgs_list %>% 
-  slice(201:300) %>%  # pick only a subset from gage list
+g600 <- usgs_list %>% 
+  slice(551:600) %>%  # pick only a subset from gage list
   split(.$gage_id) %>% # make into named list
   map(., ~{pluck(.x$gage_id)}) %>% # pull only the gage ID out
   furrr::future_imap(., 
@@ -62,8 +62,6 @@ g300 <- usgs_list %>%
                      .progress = TRUE) 
 beepr::beep(2) # something fun to let you know it's done
 toc()
-
-gAll <- g100
 
 # Make sure the list is named
 names(gAll)
@@ -85,20 +83,25 @@ f_remove_empty <- function(x){
 }
 
 # remove NAs
-gAll_filt <- f_remove_empty(gAll)
-names(gAll_filt)
+#gAll_filt <- f_remove_empty(gAll)
+#names(gAll_filt)
 
-g100f <- f_remove_empty(g100)
-
-g200f <- f_remove_empty(g200)
-
-g300f <- f_remove_empty(g300)
+# completed
+#g100f <- f_remove_empty(g100)
+#g200f <- f_remove_empty(g200)
+#g300f <- f_remove_empty(g300)
+#g400f <- f_remove_empty(g400)
+#g500f <- f_remove_empty(g500)
+g550f <- f_remove_empty(g550)
 
 # SAVE OUT FULL LIST HERE
 
-# bind together multiple runs into one file (can save and read in iteratively)
-usgs_ffc_alt <- append(x = g100f, values=c(g200f, g300f))
-#usgs_ffc_alt <- gAll # rename
+# FIRST TIME: bind together multiple runs into one file
+# usgs_ffc_alt <- append(x = g100f, values=c(g200f, g300f)) # first time
+
+# Subsequently
+load("data_output/usgs_altered_ffc_list.rda") # load existing dataset
+usgs_ffc_alt <- append(x = usgs_ffc_alt, values=c(g550f)) # merge
 
 # save
 save(usgs_ffc_alt, file = "data_output/usgs_altered_ffc_list.rda")
