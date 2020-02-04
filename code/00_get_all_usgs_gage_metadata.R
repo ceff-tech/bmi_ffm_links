@@ -29,7 +29,7 @@ ca_usgs_gages <- dataRetrieval::whatNWISdata(stateCd="California",
   sf::st_as_sf(coords=c("lon","lat"), crs=4269, remove=FALSE)
 
 # save out
-save(ca_usgs_gages, file = "data/usgs/usgs_ca_all_daily_flow_gages.rda")
+save(ca_usgs_gages, file = "data_output/00_usgs_ca_all_daily_flow_gages.rda")
 
 
 # view
