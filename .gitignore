@@ -10,6 +10,5 @@ data/Taxonomy_Ryan_SCCWRP.csv.zip
 data_output/h12s.rda
 data_output/gbms/*
 data_output/selected_nhd/*
-phab-rafi-15apr19.rda
 phab-rafi-15apr19.csv.7z
 data/geomorph/*
