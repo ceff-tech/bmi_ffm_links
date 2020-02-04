@@ -12,3 +12,8 @@ data_output/gbms/*
 data_output/selected_nhd/*
 phab-rafi-15apr19.csv.7z
 data/geomorph/*
+docs/*.zip
+docs/*.pptx
+docs/*.pdf
+docs/meeting_notes_todos.md
+docs/*.xlsx
