@@ -1,11 +1,6 @@
 ### Make a list of ref/station/samples for BMI
 ## R. Peek
 ## Creates dataset of BMI stations across CA that have spatial metadata and Site Status (stressed/interm/ref)
-## DATA OUT:
-### - bmi_stations_metadat (all distinct bmi station and metadata, includes site status, n=1985)
-### "01_bmi_stations_ref_nonref_metadata.rda"
-### - bmi_clean_stations_ss (bmi stations with site status that exist in bmi_clean dataset, n=1349)
-### "01_bmi_cleaned_stations_w_site_status.rda"
 
 # 00 Libraries ---------------------------------------------------------------
 
@@ -14,34 +9,35 @@ library(tidyverse)
 library(lubridate)
 library(sf)
 library(mapview)
+library(tidylog)
 
 # Data were sent by Raffi M. on May 29, 2019
 # 01 Import Reference Sites/Samples -------------------------------------------------
 
 # all ref sites
-ref_sites_xl <- read_excel("data/Reference_sites.xlsx") %>% 
+ref_sites_xl <- read_excel("data/bmi/bmi_reference_sites.xlsx") %>% 
   dplyr::rename(lat=New_Lat, lon=New_Long)# 781 obs with 6 vars
 
-ref_samples <- read_csv("data/samples.ref.csv") %>% 
+ref_samples <- read_csv("data/bmi/bmi_samples.ref.csv") %>% 
   data.frame() %>% 
   mutate(SampleDate=mdy_hms(SampleDate))
 
-ref_stations <- read_csv("data/stations.ref.csv") %>% # 586, matches above
+ref_stations <- read_csv("data/bmi/bmi_stations.ref.csv") %>% # 586, matches above
   dplyr::rename(lat=New_Lat, lon=New_Long) %>% 
   select(StationCode, lat, lon, County, PSARegion, Eco_III_2010)
 
-# how many in both?
+# how many in both? n=586
 ref_sites_xl %>% filter(StationCode %in% ref_stations$StationCode) %>% tally
 
 # double check (this should = nrow(ref_sites_xl) - nrow(ref_stations))
-anti_join(ref_sites_xl, ref_stations, by="StationCode") %>% tally
+anti_join(ref_sites_xl, ref_stations, by="StationCode") %>% tally #n=195
 
 # join two reference sets w lat longs and map:
 ref_sites <- left_join(ref_sites_xl, ref_stations) %>% 
   st_as_sf(coords=c("lon", "lat"), crs=4326, remove=F)
 
 # no lat/lons
-ref_xeric_data <- read_csv("data/ReportingMetrics_USGS Xeric Flows study.csv") %>%
+ref_xeric_data <- read_csv("data/bmi/bmi_reporting_metrics_usgs_xeric_flows_study.csv") %>%
   select(StationCode:SampleDate, CollectionMethodCode, Replicate:Result) %>% 
   mutate(SampleDate=mdy(SampleDate))
 
@@ -57,18 +53,18 @@ ref_xeric_sites %>% filter(StationCode %in% ref_sites$StationCode)
 # 02 Import Non-Reference Sites -----------------------------------------------------
 
 # non-ref sites
-nref_samples <- read_csv("data/samples.nonref.csv") %>% # 1677 nonref unique StationCodes
+nref_samples <- read_csv("data/bmi/bmi_samples.nonref.csv") %>% # 1677 nonref unique StationCodes
   data.frame() %>% 
   mutate(SampleDate=mdy_hms(SampleDate))
 
 # get metadata  
-nref_stations <- read.csv("data/stations.nonref.csv", stringsAsFactors = F) %>% 
+nref_stations <- read.csv("data/bmi/bmi_stations.nonref.csv", stringsAsFactors = F) %>% 
   dplyr::rename(lat=New_Lat, lon=New_Long) %>% 
   select(StationCode, SiteStatus, lat, lon, County, PSARegion, Eco_III_2010) %>% 
   st_as_sf(coords=c("lon", "lat"), crs=4326, remove=F)
 
 # ?? 1985 sites...mostly overlap both ref/non-ref
-stations_out <- read_excel("data/stations.out.xlsx") %>% 
+stations_out <- read_excel("data/bmi/bmi_stations.out.xlsx") %>% 
   dplyr::rename(lat=New_Lat, lon=New_Long) %>% 
   select(StationCode, SiteStatus, lat, lon, County, PSARegion, Eco_III_2010, everything()) %>% 
   st_as_sf(coords=c("lon", "lat"), crs=4326, remove=F)
@@ -102,6 +98,7 @@ inner_join(ref_sites_df, nref_sites_df, by="StationCode") %>% distinct(StationCo
 
 # see what's totally diff between the two?
 anti_join(ref_sites_df, nref_sites_df, by=c("StationCode")) %>% tally # 777 unique ref_sites not in nref_sites
+
 anti_join(nref_sites_df, ref_sites_df, by=c("StationCode")) %>% tally # 1395 unique nonref_sites not in ref_sites, so 4 sites overlap
 
 # samples shared only in stations_out?
@@ -135,38 +132,41 @@ bmi_stations_metadat <- sites_df %>% select(StationCode:PSARegion)
 # 06 Save Out -------------------------------------------------------------
 
 # save out station metadata for all ref_nonref we have data
-# save(bmi_stations_metadat, file = "data_output/01_bmi_stations_ref_nonref_metadata.rda")
+save(bmi_stations_metadat, file = "data_output/01_bmi_stations_ref_nonref_metadata.rda")
 
 # 07 Sanity Check with Other data (see script 00) ----------------------------------
 
-# load data
-load("data_output/01_bmi_stations_ref_nonref_metadata.rda") # from script 01
-load("data_output/00_bmi_cleaned_all.rda") # all data from Script 01
+# load data to make sure it worked
+load("data_output/01_bmi_stations_ref_nonref_metadata.rda") # from script 01, n=2176
 
-# create only spatially distinct stations:
-bmi_clean_distinct <- bmi_clean %>% 
-  distinct(StationCode, latitude, longitude) %>% 
-  rename(lon=longitude, lat=latitude)
+# load all bmi data
+load("data_output/00_bmi_cleaned_all.rda") # all data from Script 00
+
+# load distinct stations
+load("data_output/00_bmi_stations_distinct.rda") # all data from Script 00
 
 # join with full data from other set (sites_df)
-length(unique(bmi_clean_distinct$StationCode)) # n=2935
+length(unique(bmi_stations_distinct$StationCode)) # n=2935
 length(unique(bmi_stations_metadat$StationCode)) # n= 2176
 
 # which sites do we not have SS for?
-missing_site_status <- anti_join(bmi_clean_distinct, bmi_stations_metadat, by="StationCode") #%>% View("No_match") # 1475 missing
-write_csv(missing_site_status, path = "data_output/bmi_missing_site_status.csv")
+missing_site_status <- anti_join(bmi_stations_distinct, bmi_stations_metadat, by="StationCode") #%>% View("No_match") # 1475 missing
 
-inner_join(bmi_clean_distinct, bmi_stations_metadat, by="StationCode") %>% View("Joined") # 1460 with site status
+write_csv(missing_site_status, path = "data_output/01_bmi_missing_site_status.csv")
+
+# quick check
+# inner_join(bmi_stations_distinct, bmi_stations_metadat, by="StationCode") %>% View("Joined") # 1460 with site status
 
 # some duplicated stations w/ diff lats or longs, or very similar
-bmi_clean_stations_ss <- bmi_stations_metadat %>% 
+bmi_stations_distinct_status <- bmi_stations_metadat %>% 
   select(StationCode, SiteStatus, lat, lon) %>% 
-  inner_join(., bmi_clean_distinct %>% select(-lat, -lon), by="StationCode") # n=1460 that have data
+  inner_join(., bmi_stations_distinct %>% select(-latitude, -longitude), by="StationCode") # n=1460 that have data
 
-bmi_clean_stations_ss %>% distinct(StationCode) %>% tally()
+# still n=1460
+bmi_stations_distinct_status %>% distinct(StationCode) %>% tally()
 
 # 08 Save Final Dataset ---------------------------------------------------
 
 # save out final dataset that is ONLY the StationCode, lat, lon, and SiteStatus for the BMI data that is currently available/in the "bmi_clean" dataset.
 
-save(bmi_clean_stations_ss, file = "data_output/01_bmi_cleaned_stations_w_site_status.rda")
+save(bmi_stations_distinct_status, file = "data_output/01_bmi_stations_distinct_status.rda")

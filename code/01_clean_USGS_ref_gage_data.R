@@ -21,26 +21,27 @@ library(janitor)
 # Read in Ref Gages Lists --------------------------------------------------
 
 # this is from the CEFF Database used for stream classification/eflows
-gage_223 <- read_csv("data/gages_ref_223_period_record.csv") %>% 
+gage_223 <- read_csv("data/usgs/gages_ref_223_period_record.csv") %>% 
   mutate(CEFF = TRUE,
          ID = paste0("T", gage))
 
 # gagesII, has all US, filter to CA only
-gages2 <- read_xlsx("data/gages_II_March2013_Info.xlsx") %>% 
+gages2_ca <- read_xlsx("data/usgs/gages_II_March2013_Info.xlsx") %>% 
   filter(STATE=="CA")
 
 # make quick map of ALL gages
-gages2_sf <- gages2 %>% select(STAID, ID, LAT_GAGE, LNG_GAGE, STATE, COUNTYNAME_SITE, CLASS, AGGECOREGION, HYDRO_DISTURB_INDX) %>% 
+gages2_ca_sf <- gages2 %>% select(STAID, ID, LAT_GAGE, LNG_GAGE, STATE, COUNTYNAME_SITE, CLASS, AGGECOREGION, HYDRO_DISTURB_INDX) %>% 
   st_as_sf(coords = c("LNG_GAGE","LAT_GAGE"), 
            remove = F, crs=4326)
-# save(gages2_sf, file = "data_output/gages2_sf.rda")
+
+save(gages2_sf, file = "data_output/01_gages2_all_ca_sf.rda")
 
 # mapview(gages2_sf, zcol="HYDRO_DISTURB_INDX")
 # mapview(gages2_sf, zcol="AGGECOREGION")
 # mapview(gages2_sf, zcol="CLASS")
 
 # usgs list based on gagesII
-gages_usgs <- read_xlsx("data/gages_ca_USGS_reference_screen_Aug2016_ref_only.xlsx") %>% filter(!is.na(FINAL_REFERENCE))
+gages_usgs <- read_xlsx("data/usgs/gages_ca_USGS_reference_screen_Aug2016_ref_only.xlsx") %>% filter(!is.na(FINAL_REFERENCE))
 
 # Merge Datasets ----------------------------------------------------------
 
@@ -95,24 +96,5 @@ save(gages_final, file = "data_output/01_gages_reference_final_250.rda")
 # names(ref_gages_sf)
 # 
 # mapview(ref_gages_sf)
-
-# Connect to Geopackage ---------------------------------------------------
-
-# dbcon <- src_sqlite("data_output/eflows_bmi.gpkg", create = F)
-# src_tbls(dbcon) # see tables in DB
-# 
-# # check layers
-# dsn_link <- paste0(here::here(),"/data_output/eflows_bmi.gpkg")
-# st_layers(dsn_link)
-# 
-# # read 93 Ref gages
-# ref_gages <- st_read(dsn = dbcon, "gages_ref_20190315", as_tibble=TRUE) #%>% 
-# # select(-geometry) %>%  
-# # st_as_sf(coords=c("point_x", "point_y"), crs=4326)
-# 
-# gages <- tbl(dbcon, "gages_final_ref_20180703")  %>% 
-#   collect() %>% 
-#   filter(!is.na(LATITUDE)) %>% 
-#   st_as_sf(coords = c("LONGITUDE","LATITUDE"), remove = F, crs=4326)
 
 

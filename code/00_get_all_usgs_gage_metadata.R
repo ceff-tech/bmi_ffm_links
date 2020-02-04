@@ -33,7 +33,7 @@ save(ca_usgs_gages, file = "data_output/00_usgs_ca_all_daily_flow_gages.rda")
 
 
 # view
-load("data/usgs/usgs_ca_all_daily_flow_gages.rda")
+load("data_output/00_usgs_ca_all_daily_flow_gages.rda")
 
 library(mapview)
 mapview(ca_usgs_gages)

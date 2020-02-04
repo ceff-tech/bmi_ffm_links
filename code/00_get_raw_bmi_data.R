@@ -3,11 +3,6 @@
 ## Filters data for BMI metric generation for use in eflow usgs pairing: 
 ## DATA OUT:
 ### - bmi_clean (cleaned bmi data, used to generate metrics, n=310,216)
-### " data_output/00_bmi_cleaned_all.rda " 
-### - bmi_clean_stations (distinct bmi stations, spatially unique, n=2,935)
-### " data_output/00_bmi_cleaned_stations_distinct_xy.rda " 
-### - bmi_clean_distinct_samps (distinct bmi station SAMPLES from whole dataset, n=5,662)
-### " data_output/00_bmi_cleaned_stations_distinct_sampleID.rda " 
 
 # Libraries ---------------------------------------------------------------
 
@@ -23,29 +18,25 @@ library(lubridate)
 library(CSCI)
 library(BMIMetrics)
 
-# library
-# library(bench) # benchmark times for stuff
-
 # Read in COMIDs ----------------------------------------------------------
 
-comid <- read_excel("data/BMI_COMIDs_for_Ryan.xlsx")
+comid <- read_excel("data/bmi/bmi_comids_for_ryan.xlsx")
 
 # Read in BMI data --------------------------------------------------------
 
+#library(bench) # benchmark times
 ## using VROOM!
 # workout({bugs_v <- vroom::vroom(file = "data/Taxonomy_Ryan_SCCWRP.csv.zip")}, description = "vroom")
-# 
 ## using read_csv
 # workout({bugs <- read_csv(file = "data/Taxonomy_Ryan_SCCWRP.csv.zip")},
 #         description = "readr") 
 
-
+# READ IN FAST!
 bugs <- vroom::vroom(file = "data/Taxonomy_Ryan_SCCWRP.csv.zip") %>% 
   dplyr::rename("StationCode" = stationcode, "SampleID" = sampleid, 
                 "FinalID" = finalid, "BAResult" = baresult, "LifeStageCode" = lifestagecode) %>% 
   mutate("Distinct" = NA) %>% # add for CSCI package
   select(StationCode, stationid, SampleID, everything()) # rearrange
-
 
 # Clean Data --------------------------------------------------------------
 
@@ -68,23 +59,24 @@ bugs <- separate(bugs, col = sampledate, into=c("AA", "BB", "YYYY"), remove = T)
 # how many missing SampleID's?: 7991
 sum(is.na(bugs$SampleID))
 
-# how many missing Sampledates?
+# how many missing Sampledates?: 0
 sum(is.na(bugs$sampledate))
 
 # fix the SampleID: recommended format is "stationcode_sampledate_collectionmethodcode_fieldreplicate"
-bugs$SampleID_rev <- with(bugs, paste0(StationCode, "_", 
-                                       year(sampledate), sprintf(fmt = '%02d', month(sampledate)), 
-                                       sprintf(fmt = '%02d', day(sampledate)), "_",
-                                       collectionmethodcode, "_",
-                                       replicate))
+bugs$SampleID_rev <- with(bugs, 
+                          paste0(StationCode, "_", 
+                                 year(sampledate), 
+                                 sprintf(fmt = '%02d', month(sampledate)),
+                                 sprintf(fmt = '%02d', day(sampledate)),
+                                 "_", collectionmethodcode, "_", replicate))
 
-sum(is.na(bugs$SampleID_rev))
+sum(is.na(bugs$SampleID_rev)) # should be zero
 
 # drop the old sampleID and rename revised/new one
 bugs <- bugs %>% select(StationCode:stationid, SampleID_rev, everything(), -SampleID) %>% 
   dplyr::rename(SampleID=SampleID_rev)
 
-# range of data
+# range of data (1994 to 2018)
 summary(bugs$sampledate)
 
 # Notes from Rafi ---------------------------------------------------------
@@ -98,7 +90,6 @@ summary(bugs$sampledate)
 # collectionmethodcode: These are “reachwide” methods (where locations are sampled in more representative, systematic fashion, e.g., at 25%, 50%, or 75% of stream-width at 11 transects): BMI_RWB, BMI_RWB_MCM, BMI_RWM_MCM
 
 # Some methods have a target count of 600 organisms (BMI_RWB_MCM, BMI_RWM_MCM). Some methods have larger targeted counts of ~900. The SNARL method does a full count. So, when combining data, you will want to do some subsampling to control for those differences. We have functions embedded within the CSCI package that can help with this."
-
 
 # Clean with CSCI ---------------------------------------------------------
 
@@ -114,61 +105,56 @@ summary(bugs_filt$fixedLifeStageCode) # merges/sums the lifestage codes
 
 # Filter to Reachwide Methods ---------------------------------------------
 
-# filter to include "reachwide methods" only:
+## filter to include "reachwide methods" only:
 # bugs_filt <- bugs_filt %>% 
-#   filter(collectionmethodcode %in% c("BMI_RWB", "BMI_RWB_MCM", "BMI_RWM_MCM"))
-#                                      #"BMI_SNARL", "BMI_TRC"))
+#   filter(collectionmethodcode %in%
+#            c("BMI_RWB", "BMI_RWB_MCM", "BMI_RWM_MCM"))
 
+# Look at Distinct Sites by Date/StationID --------------------------------
+
+# look at methods
 table(bugs_filt$collectionmethodcode)
 
-# see how many distinct sites by date/stationid
-sample_distinct <- bugs_filt %>% 
+# see how many distinct sites by date/stationid (n=5662)
+bmi_samples_distinct <- bugs_filt %>% 
   distinct(SampleID, .keep_all = T) %>% 
   select(StationCode, SampleID, latitude, longitude, YYYY:DD)
-  #distinct(StationCode, sampledate, collectionmethodcode, replicate) %>% 
-  # mutate("YYYY"=year(sampledate),
-  #        "MM" = month(sampledate),
-  #        "DD" = day(sampledate))
 
 # write out and send to RAF
 # write_csv(sample_distinct, path = "data_output/sample_list_for_csci.csv")
-# save(sample_distinct, file = "data_output/sample_list_for_csci.rdata")
 
 # Make a Distinct Station List  ---------------------------------------------
 
-bmi_clean_stations <- bugs_filt %>%  # get distinct stations and locations
+bmi_stations_distinct <- bugs_filt %>%  # get distinct station locations
   distinct(StationCode, longitude, latitude) %>% 
   st_as_sf(coords=c("longitude", "latitude"), crs=4326, remove=F) # make spatial
 
-bmi_clean_stations %>% distinct(StationCode) %>% tally()
+bmi_stations_distinct %>% distinct(StationCode) %>% tally() # n=2935
 
 # Save Data ---------------------------------------------------------------
 
 # save raw data
 bmi_clean <- bugs_filt
 
-#bmi_clean_stations 
-bmi_clean_distinct_samps <- sample_distinct
-
 # save filtered/cleaned data
 save(bmi_clean, file ="data_output/00_bmi_cleaned_all.rda")
 
-# save distinct stations by XY and methods
-save(bmi_clean_stations, file="data_output/00_bmi_cleaned_stations_distinct_xy.rda")
+# save distinct stations by XY
+save(bmi_stations_distinct, file="data_output/00_bmi_stations_distinct.rda")
 
-# save distinct stations by XY, methods, date, and replicate
-save(bmi_clean_distinct_samps, file="data_output/00_bmi_cleaned_stations_distinct_sampleID.rda")
+# save distinct samples by SampleID(stationcode_sampledate_collectionmethodcode_fieldreplicate")
+save(bmi_samples_distinct, file="data_output/00_bmi_samples_distinct.rda")
 
 # Make Maps ---------------------------------------------------------------
 
 # make diff set of data that includes collection methods
-bug_station_methods <- bugs_filt %>%  # get distinct stations and locations
+bug_stations_methods_distinct <- bugs_filt %>%  # get distinct stations and locations
   distinct(StationCode, longitude, latitude, collectionmethodcode) %>%
   st_as_sf(coords=c("longitude", "latitude"), crs=4326, remove=F) # make spatial
 
 
 # mapview of collection methods
-mapview(bug_station_methods, zcol="collectionmethodcode", 
+mapview(bug_stations_methods_distinct, zcol="collectionmethodcode", 
         #col.regions="orange", 
         layer="Benthos", cex=4, alpha=0.8)
 
@@ -184,17 +170,17 @@ map_ca <- tm_shape(ca) + tm_polygons() +
 #map_ca  
 
 # then add bug stations by collection method
-(tm_ca_bmi_sites <- map_ca + tm_shape(bug_station_methods) +
+(tm_ca_bmi_sites <- map_ca + tm_shape(bug_stations_methods_distinct) +
   tm_symbols(col="collectionmethodcode", border.col = "gray30", size=0.4) +
   tm_facets(by = "collectionmethodcode", nrow = 2,free.coords = FALSE) + 
   tm_layout(legend.show = F, legend.outside = TRUE, 
             #legend.outside.position = c(0.5, 0.2), 
             legend.outside.size = 0.4))
 
-#tmap_save(filename = "figs/sampling_location_by_collectionmethod.png", width = 11, height = 8, dpi = 300, units = "in")
+tmap_save(filename = "figs/00_bmi_station_by_methods.png", width = 11, height = 8, dpi = 300, units = "in")
 
 # leaflet map:
-tm_ca_bmi_sites <- map_ca + tm_shape(bug_station_methods) +
+tm_ca_bmi_sites <- map_ca + tm_shape(bug_stations_methods_distinct) +
   tm_symbols(col="collectionmethodcode", border.col = "gray30", size=0.4) +
   tm_layout(legend.show = F, legend.outside = TRUE, 
             legend.outside.size = 0.4)
