@@ -17,3 +17,6 @@ docs/*.pptx
 docs/*.pdf
 docs/meeting_notes_todos.md
 docs/*.xlsx
+data/usgs/*.xlsx
+data/usgs/gages_ref_nhdflowline_us.rda
+data_output/z-archive/*
