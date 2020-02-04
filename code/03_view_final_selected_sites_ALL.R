@@ -1,15 +1,12 @@
-# 04 Generate Final Selected Sites/Data
+# 03 Generate Final Selected Sites/Data
 ## R. Peek
 ## Look at final output
-
-## DATA OUT:
-### - sel_h12_bmi (all huc12s with gage/bmi sites inside them, n=53)
-### "data_output/03_selected_h12_contain_bmi_gage.rda"
 
 
 # Libraries ---------------------------------------------------------------
 
 library(tidyverse)
+library(tidylog)
 library(sf)
 library(mapview)
 library(lubridate)
@@ -17,35 +14,32 @@ library(lubridate)
 # Load Data: REFERENCE GAGE SET -------------------------------------------
 
 load("data_output/00_bmi_cleaned_all.rda") # bmi_clean
-load("data_output/01_bmi_cleaned_stations_w_site_status.rda") # bmi_clean_stations_ss (site status)
-load("data_output/03_selected_bmi_and_gages_same_h12_all_gages.rda") # sel_bmi_gages, sel_gages_bmi
-load("data_output/03_selected_nhd_flowlines_mainstems_all_gages.rda") # mainstems_us, mainstems_ds
-sel_h12 <- read_rds("data_output/03_selected_h12_all_gages.rds") # all h12s w bmi and gage: sel_h12_bmi
+load("data_output/01_bmi_stations_distinct_status.rda") # bmi_clean_stations_ss (site status)
+sel_bmi_gages <- readRDS("data_output/02_selected_bmi_h12_all_gages.rds") # sel_bmi_gages
+sel_gages_bmi <- readRDS("data_output/02_selected_usgs_h12_all_gages.rds") # sel_gages_bmi
+load("data_output/02_selected_nhd_mainstems_all_gages.rda") # mainstems_all
+sel_h12 <- read_rds("data_output/02_selected_h12_all_gages.rds") # all h12s w bmi and gage: sel_h12_bmi
 
-load("data_output/03_final_bmi_stations_dat_all_gages.rda") # bmi_coms_dat (all data for selected), bmi_coms_final (just coms and id)
-
+load("data_output/02_selected_final_bmi_stations_dat_all_gages.rda") # bmi_coms_dat (all data for selected), bmi_coms_final (just coms and id)
 
 bmi_coms <- read_rds("data_output/02_bmi_all_stations_comids.rds") # just bmi_coms, comids for all BMI sites
 
 # re order cols
-bmi_coms_final <- bmi_coms_final %>% select(StationCode, longitude, latitude, HUC_12, h12_area_sqkm, ID:to_gage, geometry)
-
-# make a mainstems all file
-mainstems_all <- rbind(mainstems_us, mainstems_ds) %>% 
-  rename(from_gage=to_gage)
+bmi_coms_final <- bmi_coms_final %>% select(StationCode, longitude, latitude, HUC_12, h12_area_sqkm, ID:comid2, geometry)
 
 # make a new layer of "unselected" bmi sites
-bmi_not_selected <- sel_bmi_gages %>% filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 561 = (2188 total -  1627 selected)
+bmi_not_selected <- sel_bmi_gages %>% filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 591 = (2188 total -  1597 selected)
 
 # first add site status
-bmi_coms_final <- left_join(bmi_coms_final, bmi_clean_stations_ss[,c(1:2)], by="StationCode") %>% 
+bmi_coms_final <- left_join(bmi_coms_final, bmi_stations_distinct_status[,c(1:2)], by="StationCode") %>% 
   # filter for distinct
-  distinct(sampleid, ID, .keep_all = TRUE)
-# how many missing ss?
+  distinct(StationCode, ID, .keep_all = TRUE) %>% 
+  select(StationCode:comid2,SiteStatus,geometry)
+
+# how many missing ss? 1000 don't have site status
 bmi_coms_final %>% st_drop_geometry %>% group_by(SiteStatus) %>% tally
 
 #write_csv(missing_site_status, path = "data_output/bmi_missing_site_status.csv")
-
 
 # Set up Mapview Basemap --------------------------------------------------
 
@@ -55,48 +49,58 @@ basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap"
                   "CartoDB.Positron", "Stamen.TopOSMFeatures")
 mapviewOptions(basemaps=basemapsList)
 
-# Make Map of Selected Gages and BMI Stations --------------------------
+
+# Mapdeck Map -------------------------------------------------------------
+
+# mapview breaks but mapdeck WORKS
+library(mapdeck)
+set_token(Sys.getenv("MAPBOX_TOKEN"))
+
+mapdeck(
+  style=mapdeck_style("dark")
+) %>% 
+  add_path(data = mainstems_all, stroke_colour = "gageID", tooltip="nhdplus_comid", auto_highlight = TRUE) %>% 
+  add_sf(data = st_transform(bmi_coms_final, 4326), 
+         fill_colour="#EE7600", tooltip="StationCode", 
+         layer_id="BMI Comids", radius=500) %>% 
+  add_sf(data = st_transform(sel_gages_bmi, 4326), fill_colour="#00EEEE", radius=300, tooltip="site_id",
+         layer_id="USGS Gages")
+
+
+# Make Mapview of Selected Gages and BMI Stations ----------------------
 
 # this map of all sites selected U/S and D/S
-m3 <- mapview(bmi_coms_final, zcol="to_gage", cex=6, col.regions=c("orange","maroon"), layer.name="Final BMI Sites") +  
-  mapview(mainstems_ds, color="darkblue", cex=3, lwd=4, layer.name="NHD D/S Flowline 15km", legend=F)+
-  mapview(mainstems_us, color="slateblue", cex=3, layer.name="NHD U/S Flowline", legend=F)+
+m3 <- mapview(bmi_coms_final, zcol="SiteStatus", cex=6, col.regions=c("orange","maroon"), layer.name="Final BMI Sites") +  
+  mapview(mainstems_all, color="darkblue", cex=3, lwd=4, layer.name="NHD Flowline 10km", legend=F)+
   mapview(sel_gages_bmi, col.regions="cyan", cex=7, layer.name="Reference USGS Gages") + 
   mapview(bmi_not_selected, col.regions="gray", cex=3.2, alpha=0.5, layer.name="Other BMI Sites in H12") +
   mapview(sel_h12, col.regions="dodgerblue", alpha.region=0.1, color="darkblue", legend=F, layer.name="HUC12")
 
 m3@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
 
-# Make Map of Selected Stations by Site Status  --------------------------
-
-m4 <- mapview(bmi_coms_final, zcol="SiteStatus", cex=6, layer.name="Final BMI Sites") +  
-  mapview(mainstems_ds, color="darkblue", cex=3, layer.name="NHD D/S Flowline 15km", legend=F)+
-  mapview(mainstems_us, color="slateblue", cex=3, layer.name="NHD U/S Flowline", legend=F)+
-  mapview(sel_gages_bmi, zcol="stream_class",  cex=7, layer.name="Selected USGS Gages") + #col.regions="cyan",
-  mapview(bmi_not_selected, col.regions="gray", cex=3, alpha=0.5, layer.name="Other BMI Sites in H12") + 
-  mapview(sel_h12_bmi, col.regions="dodgerblue", alpha.region=0.1, color="darkblue", legend=F, layer.name="HUC12")
-
-m4@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
-
+m3
 
 # View Final Tally --------------------------------------------------------
 
 # any NA's?
 bmi_coms_dat %>% st_drop_geometry %>% filter(is.na(StationCode)) # nope
 
-# now look at how many unique samples are avail: n=1507 unique samples
+# now look at how many unique samples are avail: n=1464 unique samples
 bmi_coms_dat %>% st_drop_geometry %>% distinct(SampleID) %>% tally
 
-# now look at how many unique stations: n=792 stations
+# now look at how many unique stations: n=771 stations
 bmi_coms_dat %>% st_drop_geometry %>% distinct(StationCode) %>% tally
 
-# how many unique USGS gages? n=517
+# how many unique USGS gages? n=512
 bmi_coms_dat %>% st_drop_geometry %>% distinct(ID) %>% tally
 
 # total distinct stations 2931
 bmi_coms %>% distinct(StationCode) %>% tally()
 
 # Check against CSCI Scores -----------------------------------------------
+
+## LEFT OFF HERE
+##------ Tue Feb  4 10:44:38 2020 ------##
 
 # see what data exist against CSCI scores currently avail (from Raffi)
 csci <- read_csv("data/csci_core.csv")

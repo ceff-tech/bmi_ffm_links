@@ -84,79 +84,56 @@ usgs_list <- dataRetrieval::whatNWISdata(siteNumber=usgs_list$ID, service='dv', 
 
 usgs_list$site_id <- as.integer(usgs_list$site_id)
 
-#devtools::install_github('ceff-tech/ffc_api_client/ffcAPIClient')
-library(ffcAPIClient)
-#options(scipen = 999) # turn of scientific notation
-ffctoken <- set_token(Sys.getenv("EFLOWS_TOKEN", "")) 
-
-# use flow calculator to pull FFM for each gage
-usgs_ffc_dat <- usgs_list %>% 
-  slice(1:5) %>%
-  mutate(ffc_data = map(site_id, ~get_ffc_results_for_usgs_gage(.x))) %>% 
-  mutate(ffc_df = map(ffc_data, ~ffcAPIClient::get_results_as_df(.x))) %>% 
-  select(-ffc_data) %>% 
-  # convert to dataframe (not listcol)
-  unnest(cols=c(ffc_df))
+# RUN THE `get_altered_gage_ffc_data.R` or `get_reference_gage_ffc_data.R` here
 
 
-# follow up with ones that broke?
-tst <- ffcAPIClient::evaluate_gage_alteration(gage_id = 10257549, token = Sys.getenv("EFLOWS_TOKEN", ""))
+# Load FFC Alteration Data and Join ---------------------------------------
 
-# breaks
-#test_ff <- ffcAPIClient::get_ffc_results_for_usgs_gage("10257549")
-#test_ff <- suppressWarnings(ffcAPIClient::get_results_as_df(test_ff))
+# altered
+load("data_output/usgs_altered_ffc_alteration.rda")
 
-# Avg Metrics for Period of Record ----------------------------------------
+# reference
+load("data_output/usgs_ref_ffc_alteration.rda")
 
-# set ID vars for flow metrics
-flow_idvars <- flow_long %>% group_by(ID, stat) %>% distinct(ID, stat, maxYr, minYr)
+# bind together:
+flow_alt_df <- bind_rows(g_alt_alt, g_ref_alt)
 
-# now avg for PERIOD OF RECORD for CSCI comparison
-flow_por <- flow_long %>% select(-YrRange, -gage, -year, -stream_class) %>% group_by(ID, stat) %>% 
-  summarize_at(vars(data), mean, na.rm=T) %>% 
-  # rejoin yr ranges
-  left_join(., flow_idvars)
+# cross with the actual gage_list
 
-# unique metrics? (should be 34)
-length(unique(flow_por$stat))
+flow_alt_df_filt <- flow_alt_df %>% filter(gage_id %in% usgs_list$site_id)
 
-# make wide for join
-flow_por_wide <- flow_por %>% 
-  pivot_wider(names_from=stat, values_from=data)
-#values_fill=list(data=0))
-# can fill missing values with zero if preferred: values_fill=list(data=0)
-
-# check number unique gages:
-flow_por_wide %>% distinct(ID) %>% dim # should be 223
+# check unique gages
+flow_alt_df_filt %>% distinct(gage_id) %>% tally()
 
 # Get Flow Record only in Same Year/lag as BMI Sites ----------------------
+## NEED TO WAIT ON THIS DON"T HAVE CURRENTLY
 
-# need to pull 2 years prior, 1 year prior, and same year as BMI site data
-
-# make vector of years and BMI_ids
-bmi_yrs <- bmi_final_dat %>% group_by(SampleID) %>% pull(YYYY) %>% unique()
-(bmi_yrs_2 <- bmi_yrs - 2) # set lag 2
-(bmi_yrs_1 <- bmi_yrs - 1) # set lag 1
-
-# now combine and order:
-bmi_years <- combine(bmi_yrs, bmi_yrs_1, bmi_yrs_2) %>% sort() %>% unique() # 25 total years to match with flow record
-#bmi_years # 1993:2017
-
-# rm old files
-rm(bmi_yrs, bmi_yrs_1, bmi_yrs_2)
-
-# now match with flow data (only goes through 2016)
-flow_by_years_bmi <- flow_long %>% 
-  filter(year %in% bmi_years) # 1993:2017
-
-# make wide
-flow_by_years_bmi_wide <- flow_by_years_bmi %>% 
-  pivot_wider(names_from=stat, values_from=data)
-
-flow_by_years_bmi_wide %>% distinct(ID) %>% dim # should be 106 gages match same years
-
-# save flow data out for annual match
-save(flow_by_years_bmi, flow_by_years_bmi_wide, file="data_output/05_selected_flow_by_years_of_bmi.rda")
+# # need to pull 2 years prior, 1 year prior, and same year as BMI site data
+# 
+# # make vector of years and BMI_ids
+# bmi_yrs <- bmi_final_dat %>% group_by(SampleID) %>% pull(YYYY) %>% unique()
+# (bmi_yrs_2 <- bmi_yrs - 2) # set lag 2
+# (bmi_yrs_1 <- bmi_yrs - 1) # set lag 1
+# 
+# # now combine and order:
+# bmi_years <- combine(bmi_yrs, bmi_yrs_1, bmi_yrs_2) %>% sort() %>% unique() # 25 total years to match with flow record
+# #bmi_years # 1993:2017
+# 
+# # rm old files
+# rm(bmi_yrs, bmi_yrs_1, bmi_yrs_2)
+# 
+# # now match with flow data (only goes through 2016)
+# flow_by_years_bmi <- flow_long %>% 
+#   filter(year %in% bmi_years) # 1993:2017
+# 
+# # make wide
+# flow_by_years_bmi_wide <- flow_by_years_bmi %>% 
+#   pivot_wider(names_from=stat, values_from=data)
+# 
+# flow_by_years_bmi_wide %>% distinct(ID) %>% dim # should be 106 gages match same years
+# 
+# # save flow data out for annual match
+# save(flow_by_years_bmi, flow_by_years_bmi_wide, file="data_output/05_selected_flow_by_years_of_bmi.rda")
 
 # Get CSCI Data -----------------------------------------------------------
 
@@ -206,28 +183,26 @@ ggplot(data=bmi_csci, aes(x=SiteStatus, y=csci_percentile)) +
 
 # Join with Flow POR ------------------------------------------------------
 
-bmi_csci_flow_por <- left_join(bmi_csci, flow_por_wide, by="ID")
+bmi_csci_flow_por <- inner_join(bmi_csci, flow_alt_df_filt, by="comid")
 
-# filter to sites that have data in the flow time range? # doesn't matter for POR?
-bmi_csci_flow_por_overlap <- bmi_csci_flow_por %>%
-  filter(sampleyear > minYr, sampleyear< maxYr)
+#bmi_csci_flow_por <- left_join(bmi_csci, flow_por_wide, by="ID")
 
-length(unique(bmi_csci_flow_por_overlap$StationCode)) # 76 stations
-length(unique(bmi_csci_flow_por_overlap$ID)) # 36 gages
+length(unique(bmi_csci_flow_por$StationCode)) # 101 stations
+length(unique(bmi_csci_flow_por$gage_id)) # 74 gages
 
 # Join with Flow by Years that Match/lag BMI -------------------------------
 
-bmi_csci_flow_yrs <- left_join(bmi_csci, flow_by_years_bmi_wide, by=c("ID")) %>% 
-  # filter to same year as BMI + 2 yr lag
-  filter(sampleyear == year | sampleyear == year+1 | sampleyear==year+2)
-
-# double check
-# bmi_csci_flow_yrs %>% select(StationCode, sampleid, sampleyear, year) %>% View()
-
-# filter to sites that have data in the flow time range?
-bmi_csci_flow_yrs %>% as.data.frame() %>% distinct(StationCode) %>% tally()
-bmi_csci_flow_yrs %>% as.data.frame() %>% distinct(sampleid, year) %>% tally()
-bmi_csci_flow_yrs %>% as.data.frame() %>% distinct(ID) %>% tally()
+# bmi_csci_flow_yrs <- left_join(bmi_csci, flow_by_years_bmi_wide, by=c("ID")) %>% 
+#   # filter to same year as BMI + 2 yr lag
+#   filter(sampleyear == year | sampleyear == year+1 | sampleyear==year+2)
+# 
+# # double check
+# # bmi_csci_flow_yrs %>% select(StationCode, sampleid, sampleyear, year) %>% View()
+# 
+# # filter to sites that have data in the flow time range?
+# bmi_csci_flow_yrs %>% as.data.frame() %>% distinct(StationCode) %>% tally()
+# bmi_csci_flow_yrs %>% as.data.frame() %>% distinct(sampleid, year) %>% tally()
+# bmi_csci_flow_yrs %>% as.data.frame() %>% distinct(ID) %>% tally()
 
 # Export Cleaned Data -----------------------------------------------------
 
