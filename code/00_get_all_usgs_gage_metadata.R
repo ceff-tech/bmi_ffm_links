@@ -6,7 +6,6 @@
 library(dplyr)
 library(dataRetrieval)
 
-
 # Set up Parameters -------------------------------------------------------
 
 paramCD <- "00060" # discharge (cfs) (temperature=00010, stage=00065)
@@ -30,4 +29,50 @@ ca_usgs_gages <- dataRetrieval::whatNWISdata(stateCd="California",
   sf::st_as_sf(coords=c("lon","lat"), crs=4269, remove=FALSE)
 
 # save out
-save(ca_usgs_gages, file = "data/usgs_ca_all_daily_flow_gages.rda")
+save(ca_usgs_gages, file = "data/usgs/usgs_ca_all_daily_flow_gages.rda")
+
+
+# view
+load("data/usgs/usgs_ca_all_daily_flow_gages.rda")
+
+library(mapview)
+mapview(ca_usgs_gages)
+
+
+# Mapdeck -----------------------------------------------------------------
+
+
+library(sf)
+library(mapdeck)
+set_token(Sys.getenv("MAPBOX_TOKEN")) # from usethis::edit_r_environ() add token
+
+# make map
+mapdeck(style = 'mapbox://styles/mapbox/dark-v9', pitch = 0) %>%
+  add_scatterplot(
+    data = ca_usgs_gages, 
+    lat = "lat", 
+    lon = "lon",
+    radius = 1000,
+    fill_colour = viridis::viridis(4)[3],
+    tooltip="station_nm",
+    layer_id = "gages",
+    auto_highlight = TRUE
+    )
+
+
+# make map
+mapdeck(style = 'mapbox://styles/mapbox/dark-v9', pitch = 0) %>%
+  mapdeck::add_pointcloud(
+    data = ca_usgs_gages, 
+    lat = "lat", 
+    lon = "lon",
+    elevation = "count_nu",
+    fill_colour = "count_nu",
+    tooltip="station_nm",
+    layer_id = "gages",
+    highlight_colour = viridis::viridis(2)[1],
+    auto_highlight = TRUE,
+    radius = 4
+  )
+
+
