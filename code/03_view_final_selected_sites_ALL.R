@@ -117,103 +117,103 @@ bmi_coms_dat %>% st_drop_geometry %>% distinct(ID) %>% tally
 # total distinct stations 2931
 bmi_coms %>% distinct(StationCode) %>% tally()
 
-# Check against CSCI Scores -----------------------------------------------
-
-## LEFT OFF HERE
-##------ Tue Feb  4 10:44:38 2020 ------##
-
-# see what data exist against CSCI scores currently avail (from Raffi)
-csci <- read_csv("data/csci_core.csv")
-
-# match against existing sites:
-bmi_csci <- inner_join(bmi_coms_final, csci, by=c("StationCode"="stationcode"))
-
-bmi_csci <- left_join(bmi_csci, bmi_clean_stations_ss[,c(1:2)], by="StationCode")
-
-
-# map
-mapview(bmi_coms_final, color="orange", col.regions="gray", alpha.regions=0.1,
-        layer.name="Selected BMI Sites") +
-mapview(bmi_csci, col.regions="mediumpurple2", cex=1, layer.name="Selected BMI w CSCI") + 
-  mapview(sel_gages_bmi, col.regions="dodgerblue", cex=2.5, alpha.regions=0.7, 
-          layer.name="USGS gages")
-
-# how many unique matches?
-length(unique(bmi_csci$StationCode))
-table(bmi_csci$SiteStatus)
-
-# look at CSCI histogram of all scores
-(bmi_csci %>% ggplot() + geom_histogram(aes(csci), bins = 40) +
-  labs(subtitle = "Raw CSCI score for reference gages") +
-  theme_bw() -> gg_csci_hist)
-
-# look at CSCI boxplot single box plot
-bmi_csci %>% ggplot() + geom_boxplot(aes(y=csci), show.legend = F, fill="mediumpurple3") +
-  labs(subtitle = "Raw CSCI score for reference gages") +
-  theme_bw()
-
-# look at CSCI boxplot by year
-(bmi_csci %>% ggplot() + geom_boxplot(aes(y=csci, x=sampleyear, group=as.factor(sampleyear)), show.legend = F, fill="mediumpurple3", color="gray30") +
-  labs(subtitle = "Raw CSCI score for reference gages") +
-  theme_bw() -> gg_bmi_box_yr)
-
-# look at sampling timing
-hist(bmi_csci$samplemonth) # majority of months sampled May:Aug
-table(bmi_csci$samplemonth)
-
-# look at CSCI percentile by Site Status (not avail for all sites)
-
-# function to get data
-stat_box_data <- function(y, upper_limit = max(bmi_csci$csci, na.rm = T)) {
-  return( 
-    data.frame(
-      y = 0.95 * upper_limit,
-      label = paste('count =', length(y), '\n',
-                    'mean =', round(mean(y, na.rm = T), 2), '\n')
-    )
-  )
-}
-
-# plot CSCI
-(gg_csci_ss <- ggplot(data=filter(bmi_csci, !is.na(SiteStatus)), aes(x=SiteStatus, y=csci)) + 
-  geom_violin(aes(fill=SiteStatus), color="transparent", alpha=0.8, show.legend = F)+
-  geom_boxplot(fill="gray40", show.legend = F, outlier.alpha=0, width=.1) +
-  stat_summary(fun.data=stat_box_data, geom="text", hjust=1, vjust=0.9) +
-  ggdark::dark_theme_bw(base_family = "Roboto Condensed") +
-  labs(x="Site Status", y="Raw CSCI Score") + 
-  scale_fill_viridis_d())
-
-# function for percentile
-stat_box_data <- function(y, upper_limit = max(bmi_csci$csci_percentile, na.rm=T)) {
-  return( 
-    data.frame(
-      y = 0.95 * upper_limit,
-      label = paste('count =', length(y), '\n',
-                    'mean =', round(mean(y, na.rm=T), 2), '\n')
-    )
-  )
-}
-
-# plot CSCI percentile
-(gg_csci_ss_prcnt <- ggplot(data=filter(bmi_csci, !is.na(SiteStatus)), 
-                        aes(x=SiteStatus, y=csci_percentile)) + 
-  geom_violin(aes(fill=SiteStatus), color="transparent", alpha=0.8, show.legend = F)+
-  geom_boxplot(fill="gray40", show.legend = F, outlier.alpha=0, coef=0, width=.1) +
-  stat_summary(fun.data=stat_box_data, geom="text", hjust=1, vjust=0.9) +
-  ylim(c(0,1))+
-  ggdark::dark_theme_bw(base_family = "Roboto Condensed") +
-  labs(x="Site Status", y="CSCI Percentile") + 
-  scale_fill_viridis_d())
-
-library(patchwork)
-
-# horiz
-gg_csci_ss + gg_csci_ss_prcnt
-
-# vert
-gg_csci_ss + gg_csci_ss_prcnt + plot_layout(ncol=1)
-
-# nested layout
-(gg_csci_ss / gg_csci_ss_prcnt) - (gg_csci_hist / gg_bmi_box_yr)
-
-ggsave(filename = "figs/04b_bmi_ref_sites_csci_summaries_all.png", width = 11, height = 8.5, dpi=300, units = "in")
+# # Check against CSCI Scores -----------------------------------------------
+# 
+# 
+# 
+# # see what data exist against CSCI scores currently avail (from Raffi)
+# csci <- read_csv("data/csci/csci_core.csv")
+# csci2 <- read_csv("data/csci/csci_core_v2.csv")
+# 
+# # match against existing sites:
+# bmi_csci <- inner_join(bmi_coms_final, csci, by=c("StationCode"="stationcode"))
+# 
+# # only 995 unique
+# bmi_csci %>% st_drop_geometry() %>% distinct(sampleid) %>% View()
+# 
+# # map
+# mapview(bmi_coms_final, color="orange", col.regions="gray", alpha.regions=0.1,
+#         layer.name="Selected BMI Sites") +
+# mapview(bmi_csci, col.regions="mediumpurple2", cex=1, layer.name="Selected BMI w CSCI") + 
+#   mapview(sel_gages_bmi, col.regions="dodgerblue", cex=2.5, alpha.regions=0.7, 
+#           layer.name="USGS gages")
+# 
+# # how many unique matches?
+# length(unique(bmi_csci$StationCode))
+# table(bmi_csci$SiteStatus)
+# 
+# # look at CSCI histogram of all scores
+# (bmi_csci %>% ggplot() + geom_histogram(aes(csci), bins = 40) +
+#   labs(subtitle = "Raw CSCI score for reference gages") +
+#   theme_bw() -> gg_csci_hist)
+# 
+# # look at CSCI boxplot single box plot
+# bmi_csci %>% ggplot() + geom_boxplot(aes(y=csci), show.legend = F, fill="mediumpurple3") +
+#   labs(subtitle = "Raw CSCI score for reference gages") +
+#   theme_bw()
+# 
+# # look at CSCI boxplot by year
+# (bmi_csci %>% ggplot() + geom_boxplot(aes(y=csci, x=sampleyear, group=as.factor(sampleyear)), show.legend = F, fill="mediumpurple3", color="gray30") +
+#   labs(subtitle = "Raw CSCI score for reference gages") +
+#   theme_bw() -> gg_bmi_box_yr)
+# 
+# # look at sampling timing
+# hist(bmi_csci$samplemonth) # majority of months sampled May:Aug
+# table(bmi_csci$samplemonth)
+# 
+# # look at CSCI percentile by Site Status (not avail for all sites)
+# 
+# # function to get data
+# stat_box_data <- function(y, upper_limit = max(bmi_csci$csci, na.rm = T)) {
+#   return( 
+#     data.frame(
+#       y = 0.95 * upper_limit,
+#       label = paste('count =', length(y), '\n',
+#                     'mean =', round(mean(y, na.rm = T), 2), '\n')
+#     )
+#   )
+# }
+# 
+# # plot CSCI
+# (gg_csci_ss <- ggplot(data=filter(bmi_csci, !is.na(SiteStatus)), aes(x=SiteStatus, y=csci)) + 
+#   geom_violin(aes(fill=SiteStatus), color="transparent", alpha=0.8, show.legend = F)+
+#   geom_boxplot(fill="gray40", show.legend = F, outlier.alpha=0, width=.1) +
+#   stat_summary(fun.data=stat_box_data, geom="text", hjust=1, vjust=0.9) +
+#   ggdark::dark_theme_bw(base_family = "Roboto Condensed") +
+#   labs(x="Site Status", y="Raw CSCI Score") + 
+#   scale_fill_viridis_d())
+# 
+# # function for percentile
+# stat_box_data <- function(y, upper_limit = max(bmi_csci$csci_percentile, na.rm=T)) {
+#   return( 
+#     data.frame(
+#       y = 0.95 * upper_limit,
+#       label = paste('count =', length(y), '\n',
+#                     'mean =', round(mean(y, na.rm=T), 2), '\n')
+#     )
+#   )
+# }
+# 
+# # plot CSCI percentile
+# (gg_csci_ss_prcnt <- ggplot(data=filter(bmi_csci, !is.na(SiteStatus)), 
+#                         aes(x=SiteStatus, y=csci_percentile)) + 
+#   geom_violin(aes(fill=SiteStatus), color="transparent", alpha=0.8, show.legend = F)+
+#   geom_boxplot(fill="gray40", show.legend = F, outlier.alpha=0, coef=0, width=.1) +
+#   stat_summary(fun.data=stat_box_data, geom="text", hjust=1, vjust=0.9) +
+#   ylim(c(0,1))+
+#   ggdark::dark_theme_bw(base_family = "Roboto Condensed") +
+#   labs(x="Site Status", y="CSCI Percentile") + 
+#   scale_fill_viridis_d())
+# 
+# library(patchwork)
+# 
+# # horiz
+# gg_csci_ss + gg_csci_ss_prcnt
+# 
+# # vert
+# gg_csci_ss + gg_csci_ss_prcnt + plot_layout(ncol=1)
+# 
+# # nested layout
+# (gg_csci_ss / gg_csci_ss_prcnt) - (gg_csci_hist / gg_bmi_box_yr)
+# 
+# ggsave(filename = "figs/03_bmi_ref_sites_csci_summaries_all.png", width = 11, height = 8.5, dpi=300, units = "in")
