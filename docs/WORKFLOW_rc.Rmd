@@ -1,31 +1,29 @@
 ---
 title: "Analysis Workflow for BMI/ASCI vs. FFM"
-author: "R. Peek"
 date: "Updated: `r format(Sys.Date())`"
 output: 
-  html_document:
-    highlight: pygments
-    theme: yeti
-    toc: yes
-    toc_float: yes
+  hrbrthemes::ipsum:
+    toc: true
     code_folding: hide
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r include=FALSE}
+knitr::opts_chunk$set(fig.retina=2)
 knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(message = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
 
-suppressPackageStartupMessages({
-  library(tidyverse);
-  library(sf);
-  library(leaflet);
-  library(here);
-  library(mapview)
-})
-
 ```
+
+
+```{r ipsum_setup, message=FALSE, warning=FALSE, cache=FALSE, echo=FALSE}
+library(hrbrthemes)
+library(tidyverse)
+
+
+update_geom_font_defaults(font_rc)
+```
+
 
 ## Analysis Pipeline
 
@@ -33,60 +31,29 @@ This provides an overview of the steps required to assess functional flow metric
 
 ### Steps to Pair BMI/ASCI Sites with Flow Sites
 
- - Get & Clean BMI Data (`00_get_raw_bmi_data.R`, `01_clean_BMI_station_data.R`)
- - Clean USGS Data (`00_get_all_usgs_gage_metadata.R`, `01_clean_USGS_ref_gage_data.R`)
- - Join Spatially (`02_link_spatial_bmi_gages_REFERENCE.R`, `03_link_spatial_bmi_gages_ALL.R`)
+1. Get Data (`00_get_raw_bmi_data.R`, `00_clean_BMI_station_data.R`)
+2. Clean Data (`01_clean_BMI_station_data.R`, `01_clean_USGS_ref_gage_data.R`)
+3. Join Spatially (`02_link_bmi_all_gages_spatially.R`)
     - Filter to sites within same HUC12 as USGS gage
     - Get mainstem COMIDs for USGS gage upstream/downstream NHD segments
     - Select only BMI sites that are on same mainstem COMID list as associated USGS gage
-    - Distance filter is currently downstream only, within 15 km
-    - View Maps (`04a_view_final_selected_sites_reference.R`, `04a_view_final_selected_sites_allgages.R`)
- - Join Temporally with Flow Data
-    - Make sure flow data overlaps with ecological (BMI) data, flow > 1994 (`05a_get_flow_metric_datasets_ref_gages.R`, `05a_get_flow_metric_datasets_all_gages.R`)
+    - Distance filter is currently downstream only, within 10 km
+    - View Maps (`03_view_final_selected_sites_ALL`)
+4. Join Temporally with Flow Data
+    - Make sure flow data overlaps with ecological (BMI) data, flow > 1994 (`04_get_flow_metric_datasets_ALL.R`)
 
 
-```{r}
-library(DiagrammeR)
+## Mapping Out Sampling Sites
 
-# left to right mermaid
+Here are sampling sites by method.
 
-DiagrammeR("graph TB;
-  A(<b>CSCI:</b> Collect & Clean <br> BMI Data) 
-  B(<b>USGS:</b> Download & Clean <br> Reference Gage Data) 
-  C[<b>Join Spatially</b>]
-  D((Gage / BMI points <br>in same HUC12))
-  E(Get NHD Flowline COMIDs for BMI and USGS Points) 
-  F>Filter to BMI COMIDs in same <br> NHD mainstem streamline as USGS gages]
-  G{<b>STOP:</b> <br><br> BMI COMID not on <br>mainstem USGS <br>streamline}
-  H(<b>Calculate BMI Metrics</b>)
-  I(<b>Calculate Functional Flow Metrics <br> for selected Gages</b>)
-  J(<b>Boosted Regression Tree Modeling:</b><br> BMI Metrics:<br><ul><li>EPT</li><li>Predators</li><li>Coleoptra</li><li>Clingers</li><li>Tax. Richness</li><li>% Intolerant</li></ul>)
-  K(Reference Models: Identify metrics <br> that are best predictors of <br> seasonality/unimpaired flow)
-  L(Alteration Models: Identify metrics that most strongly indicate flow alteration)
-  
-  
-  A-.->|<i>QA/QC</i>|C
-  B-.->|<i>>10 years of data</i>|C
-  C -->D
-  D -->E
-  E -->F
-  E -->G
-  F -->H
-  F -- <i>Filter to Flow Data >1994 <br> to match ecological data period </i>-->I
-  H -->J
-  I -->J
-  J -- <i><b>REFERENCE Models</b></i> -->K
-  J -- <i><b>ALTERATION Models</b></i> -->L
-  
-  style A fill:#ffd996,stroke:#f09b00,stroke-width:4px
-  style B fill:#a5a5ff,stroke:#0000a5,stroke-width:4px
-  style H fill:#ffd996,stroke:#f09b00,stroke-width:4px
-  style I fill:#a5a5ff,stroke:#0000a5,stroke-width:4px
-  style G fill:#ffc0cb,stroke:#b40000,stroke-width:4px
-  ")
+### Maps
+
+```{r sitesmap, fig.show='hold'}
+
+knitr::include_graphics(paste0(here::here(),"/figs/00_bmi_station_by_methods.png"))
 
 ```
-
 
 
 ### Next Steps
@@ -127,3 +94,8 @@ DiagrammeR("graph TB;
  - These flow metrics tend to be important, typically lower CSCI scores are associated with lower flow metrics or higher alteration
 
  - Or flow metrics are associated with lag years and more responsive.
+
+```{r bib, include=FALSE}
+# KEEP THIS AT THE END OF THE DOCUMENT TO GENERATE A LOCAL bib FILE FOR PKGS USED
+knitr::write_bib(sub("^package:", "", grep("package", search(), value=TRUE)), file='skeleton.bib')
+```

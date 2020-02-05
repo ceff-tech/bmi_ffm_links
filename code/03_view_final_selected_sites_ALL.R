@@ -53,32 +53,52 @@ mapviewOptions(basemaps=basemapsList)
 # Mapdeck Map -------------------------------------------------------------
 
 # mapview breaks but mapdeck WORKS
-library(mapdeck)
-set_token(Sys.getenv("MAPBOX_TOKEN"))
+# library(mapdeck)
+# set_token(Sys.getenv("MAPBOX_TOKEN"))
+# 
+# mapdeck(
+#   style=mapdeck_style("dark")
+# ) %>% 
+#   add_path(data = mainstems_all, stroke_colour = "gageID", tooltip="nhdplus_comid", auto_highlight = TRUE) %>% 
+#   add_sf(data = st_transform(bmi_coms_final, 4326), 
+#          fill_colour="#EE7600", tooltip="StationCode", 
+#          layer_id="BMI Comids", radius=500) %>% 
+#   add_sf(data = st_transform(sel_gages_bmi, 4326), fill_colour="#00EEEE", radius=300, tooltip="site_id",
+#          layer_id="USGS Gages")
 
-mapdeck(
-  style=mapdeck_style("dark")
-) %>% 
-  add_path(data = mainstems_all, stroke_colour = "gageID", tooltip="nhdplus_comid", auto_highlight = TRUE) %>% 
-  add_sf(data = st_transform(bmi_coms_final, 4326), 
-         fill_colour="#EE7600", tooltip="StationCode", 
-         layer_id="BMI Comids", radius=500) %>% 
-  add_sf(data = st_transform(sel_gages_bmi, 4326), fill_colour="#00EEEE", radius=300, tooltip="site_id",
-         layer_id="USGS Gages")
+
+# # Make Mapview of Selected Gages and BMI Stations ----------------------
+# 
+# # this map of all sites selected U/S and D/S, takes awhile to load
+# m3 <- mapview(bmi_coms_final, zcol="SiteStatus", cex=6, col.regions=c("orange","maroon"), layer.name="Final BMI Sites") +  
+#   mapview(mainstems_all, color="darkblue", cex=3, lwd=4, layer.name="NHD Flowline 10km", legend=F)+
+#   mapview(sel_gages_bmi, col.regions="cyan", cex=7, layer.name="Reference USGS Gages") + 
+#   mapview(bmi_not_selected, col.regions="gray", cex=3.2, alpha=0.5, layer.name="Other BMI Sites in H12") +
+#   mapview(sel_h12, col.regions="dodgerblue", alpha.region=0.1, color="darkblue", legend=F, layer.name="HUC12")
+# 
+# m3@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
+
+# see tmaptools + OpenStreetMap
 
 
-# Make Mapview of Selected Gages and BMI Stations ----------------------
+# Tmap --------------------------------------------------------------------
 
-# this map of all sites selected U/S and D/S
-m3 <- mapview(bmi_coms_final, zcol="SiteStatus", cex=6, col.regions=c("orange","maroon"), layer.name="Final BMI Sites") +  
-  mapview(mainstems_all, color="darkblue", cex=3, lwd=4, layer.name="NHD Flowline 10km", legend=F)+
-  mapview(sel_gages_bmi, col.regions="cyan", cex=7, layer.name="Reference USGS Gages") + 
-  mapview(bmi_not_selected, col.regions="gray", cex=3.2, alpha=0.5, layer.name="Other BMI Sites in H12") +
-  mapview(sel_h12, col.regions="dodgerblue", alpha.region=0.1, color="darkblue", legend=F, layer.name="HUC12")
+library(tmap)
+library(USAboundaries)
+ca<-us_counties(states="ca")
+load("data_output/major_rivers_dissolved.rda")
 
-m3@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
-
-m3
+#
+tm_shape(ca) + 
+  tm_polygons() +
+  tm_shape(rivs) + tm_lines(col="darkblue", lwd=0.7, alpha=0.8) +
+  tm_shape(bmi_coms_final) +
+  tm_dots(col = "orange", shape = 21, size = 0.2, alpha=0.8) + 
+  tm_layout(legend.show = FALSE, frame = FALSE)
+  
+# tmaptools::palette_explorer()
+# tm_shape(bmi_coms_final) +
+#   tm_symbols(shape = 21, col = "h12_area_sqkm", n=5, pal="-Greens") #reverse the palette
 
 # View Final Tally --------------------------------------------------------
 
