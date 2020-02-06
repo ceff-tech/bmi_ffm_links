@@ -1,4 +1,4 @@
-# 10 Extract and Plot TOP Flow variables from GBM
+# 07 Extract and Plot TOP Flow variables from GBM
 # R. Peek
 
 # Libraries ---------------------------------------------------------------
@@ -21,34 +21,30 @@ library(ingredients)
 # Data --------------------------------------------------------------------
 
 ## VARIABLES:
-hydroDat <- "Lag1" # can be Annual, Lag1, Lag2, POR
-bmiVar <- quote(mmi_percentile) # select response var
-# Shannon_Diversity, csci_percentile, Intolerant_Percent, mmi_percentile
+hydroDat <- "POR" # can be Annual, Lag1, Lag2, POR
+bmiVar <- quote(csci) # select response var
 
 # get data from GBM outputs:
-(brt <- list.files(path="data_output/gbms", pattern = paste0("^10_gbm_final_", tolower(bmiVar), ".*",tolower(hydroDat),"\\.rds$")))
+(brt <- list.files(path="models/", pattern = paste0("^06_gbm_final_", tolower(bmiVar), ".*",tolower(hydroDat),"\\.rds$")))
 
 (brt <- brt[grepl(tolower(hydroDat), x = brt)])
 
-gbm_final <- read_rds(path=paste0("data_output/gbms/", brt))
+gbm_final <- read_rds(path=paste0("models/", brt))
 class(gbm_final)
 
 # get hydrodatasets (for PDPs)
-#load("data_output/gbms/10_gbm_final_csci_percentile_hydrodata.rda")
-load(paste0("data_output/gbms/10_gbm_final_", tolower(bmiVar),"_hydrodata.rda"))
+load(paste0("models/06_gbm_final_", tolower(bmiVar),"_hydrodata.rda"))
 
 # rename datasets for plotting:
-gbm_out_tr <- data_lag1_tr # NEED TO CHANGE THESE
-gbm_out_te <- data_lag1_te
+gbm_out_tr <- data_por_tr # NEED TO CHANGE THESE
+gbm_out_te <- data_por_te
 
-#load("data_output/08_gbm_bmi_metrics_RI_combined_noSC.rda")
-load("data_output/05_selected_bmi_stations_w_comids.rda")
-load("data_output/07_mainstems_bmi_selected_gages.rda")
-
+bmi_csci <- read_rds("data_output/04_selected_bmi_stations_w_csci.rds")
+load("data_output/05_selected_mainstems_final.rda")
 
 # USE DALEX ---------------------------------------------------------------
 
-gbm_explain <- explain(gbm_final, data=gbm_out_tr[,-1], y=gbm_out_tr$mmi_percentile, na.rm=TRUE)
+gbm_explain <- explain(gbm_final, data=gbm_out_tr[,-1], y=gbm_out_tr$csci, na.rm=TRUE)
 
 # feature importance
 gbm_feat <- feature_importance(gbm_explain)
@@ -59,16 +55,16 @@ library(iBreakDown)
 gbm_cr <- break_down(gbm_explain, new_observation = gbm_out_tr[1,])
 plot(gbm_cr)
 
-# doesn't work with NAs
+## doesn't work with NAs
 
 # partial dependency using ingredients
-gbm_pd <- partial_dependency(gbm_explain, variables="CV")
-plot(gbm_pd)
+#gbm_pd <- partial_dependency(gbm_explain, variables="Peak_10",)
+#plot(gbm_pd)
 
 # ceteris_paribus
-gbm_cp_pg <- ceteris_paribus(gbm_explain, 
-                             new_observation = gbm_out_tr[1,],
-                             variables="CV")
+#gbm_cp_pg <- ceteris_paribus(gbm_explain, 
+#                             new_observation = gbm_out_tr[1,],
+#                             variables="CV")
 
 # MAKE RI RELATIVE INFLUENCE PLOTS (MSE) -------------------------------------
 
@@ -103,7 +99,7 @@ gbm_fin_ri_top <- tibble(RI=summary(gbm_final, plotit=FALSE)$rel.inf[1:gbm_fin_t
     geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2)) 
 
 # save out
-#ggsave(filename=tolower(paste0("figs/10_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI", ".png")), width = 8, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(paste0("models/06_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_mse", ".png")), width = 8, height = 7, units = "in", dpi = 300)
 
 # MAKE RI PERMUTATION TEST PLOTS ------------------------------------------------
 
@@ -138,7 +134,7 @@ gbm_fin_pt_top <- tibble(PT=summary(gbm_final, method=permutation.test.gbm, plot
     ggdark::dark_theme_classic(base_family = "Roboto Condensed"))
 
 # save
-#ggsave(filename=tolower(paste0("figs/10_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_pt", ".png")), width = 8, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(paste0("models/06_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_permtest", ".png")), width = 8, height = 7, units = "in", dpi = 300)
 
 
 # COMBINE RIs AND SAVE -----------------------------------------------------
@@ -147,12 +143,12 @@ gbm_fin_pt_top <- tibble(PT=summary(gbm_final, method=permutation.test.gbm, plot
 assign(x = tolower(paste0(as_name(bmiVar),"_",hydroDat,"_RI")), value=bind_rows(gbm_fin_PT, gbm_fin_RI))
 ls(pattern = tolower(as_name(bmiVar)))
 
-write_rds(x = get(ls(pattern = tolower(as_name(bmiVar)))), path = paste0("data_output/gbms/10_gbm_RI_",tolower(as_name(bmiVar)),"_", tolower(hydroDat), ".rds"), compress = "gz")
+write_rds(x = get(ls(pattern = tolower(as_name(bmiVar)))), path = paste0("models/06_gbm_RI_",tolower(as_name(bmiVar)),"_", tolower(hydroDat), ".rds"), compress = "gz")
 
 # DISMO: Marginal FX Plots ----------------------------------------------
 
 # MARGINAL FX:: partial dependency or marginal effect plots (ALL)
-pdf(file=paste0("figs/10_gbm_marginal_effects_",
+pdf(file=paste0("models/06_gbm_marginal_effects_",
                 tolower(as_name(bmiVar)),
                 "_",tolower(hydroDat),".pdf"),
     width = 9, height = 6)
