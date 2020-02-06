@@ -3,7 +3,7 @@
 # Libraries ---------------------------------------------------------------
 
 # MAIN
-#devtools::install_github('ceff-tech/ffc_api_client/ffcAPIClient')
+devtools::install_github('ceff-tech/ffc_api_client/ffcAPIClient')
 library(ffcAPIClient)
 
 # set/get the token for using the FFC
