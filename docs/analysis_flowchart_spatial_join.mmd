@@ -1,0 +1,15 @@
+graph TB;
+
+  A(BMI CSCI Data)-.->|QA/QC| C[Join Spatially: <br>Gage/BMI points in same HUC12]
+  B(USGS: <br> Download & Clean Reference Gage Data)-.->|>10 years of data| C
+  C--> D(Get NHD Flowline COMIDs for BMI and USGS Points)
+  D--> E>Filter to BMI COMIDs in same <br> NHD mainstem streamline as USGS gages]
+  D--> F((STOP: <br><br> BMI COMID not on <br>mainstem USGS <br>streamline))
+  E-->|Filter to Flow Data >1994 <br> to match ecological data period| G(Pull Altered Status for Selected Gages)
+  
+  style A fill:#ffd996,stroke:#f09b00,stroke-width:4px
+  style B fill:#a5a5ff,stroke:#0000a5,stroke-width:4px
+  style E fill:#ffd996,stroke:#f09b00,stroke-width:2px
+  style D fill:#a5a5ff,stroke:#0000a5,stroke-width:4px
+  style F fill:#ffc0cb,stroke:#b40000,stroke-width:4px
+  style G fill:#3CB371,stroke:#006400,stroke-width:2px

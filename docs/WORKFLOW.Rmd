@@ -7,13 +7,21 @@ output:
       highlight: pygments
       theme: yeti
       toc: yes
+      toc_float: true
       code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
+#knitr::opts_chunk$set(fig.retina=2)
 knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(message = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
+#knitr::opts_chunk$set(cache = FALSE)
+
+# can tweak theme with "hrbrthemes::ipsum:" below output
+#library(hrbrthemes)
+#library(tidyverse)
+#update_geom_font_defaults(font_rc)
 
 ```
 
@@ -35,46 +43,20 @@ This provides an overview of the steps required to assess functional flow metric
     - Make sure flow data overlaps with ecological (BMI) data, flow > 1994 (`04_get_flow_metric_datasets_ALL.R`)
 
 
-```{r, eval=FALSE, echo=FALSE}
+```{r diagrams, eval=FALSE, include=FALSE}
 
 library(DiagrammeR)
+library(htmltools)
 
-# left to right mermaid
-
-DiagrammeR("graph TB;
-  A(<b>CSCI:</b> Collect & Clean <br> BMI Data) 
-  B(<b>USGS:</b> Download & Clean <br> Reference Gage Data) 
-  C[<b>Join Spatially</b>]
-  D((Gage / BMI points <br>in same HUC12))
-  E(Get NHD Flowline COMIDs for BMI and USGS Points) 
-  F>Filter to BMI COMIDs in same <br> NHD mainstem streamline as USGS gages]
-  G{<b>STOP:</b> <br><br> BMI COMID not on <br>mainstem USGS <br>streamline}
-  H(<b>Calculate BMI Metrics</b>)
-  I(<b>Calculate Functional Flow Metrics <br> for selected Gages</b>)
-  J(<b>Boosted Regression Tree Modeling:</b><br> BMI Metrics:<br><ul><li>EPT</li><li>Predators</li><li>Coleoptra</li><li>Clingers</li><li>Tax. Richness</li><li>% Intolerant</li></ul>)
-  K(Alteration Models: Identify metrics that most strongly indicate flow alteration)
-  
-  
-  A-.->|<i>QA/QC</i>|C
-  B-.->|<i>>10 years of data</i>|C
-  C -->D
-  D -->E
-  E -->F
-  E -->G
-  F -->H
-  F -- <i>Filter to Flow Data >1994 <br> to match ecological data period </i>-->I
-  H -->J
-  I -->J
-  J -- <i><b>ALTERATION Models</b></i> -->K
-  
-  style A fill:#ffd996,stroke:#f09b00,stroke-width:4px
-  style B fill:#a5a5ff,stroke:#0000a5,stroke-width:4px
-  style H fill:#ffd996,stroke:#f09b00,stroke-width:4px
-  style I fill:#a5a5ff,stroke:#0000a5,stroke-width:4px
-  style G fill:#ffc0cb,stroke:#b40000,stroke-width:4px
-  ")
+mermaid(paste0(here::here(),"/docs/analysis_flowchart_spatial_join.mmd"))
 
 ```
+
+```{r spatialWorkflow}
+
+knitr::include_graphics(paste0(here::here(),"/figs/analysis_flow_chart_spatial_join.png"))
+```
+
 
 
 ### Next Steps
@@ -115,3 +97,12 @@ DiagrammeR("graph TB;
  - These flow metrics tend to be important, typically lower CSCI scores are associated with lower flow metrics or higher alteration
 
  - Or flow metrics are associated with lag years and more responsive.
+ 
+ 
+ 
+```{r bib, include=FALSE}
+
+# KEEP THIS AT THE END OF THE DOCUMENT TO GENERATE A LOCAL bib FILE FOR PKGS USED
+knitr::write_bib(sub("^package:", "", grep("package", search(), value=TRUE)), file='skeleton.bib')
+
+```
