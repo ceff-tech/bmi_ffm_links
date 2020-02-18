@@ -86,7 +86,7 @@ g2_f <- f_remove_empty(g2) # so dropped 2
 length(g2_f)
 
 # rm
-rm(g2, g2_f)
+#rm(g2, g2_f)
 
 # 01. DOWNLOAD Multiple Gages IN LIST ------------------------------
 
@@ -158,8 +158,17 @@ write_csv(g_alt_ffc, path="data_output/usgs_altered_ffc_metrics.csv")
 
 # 05. GET ALL ALTERATION STATUS AND FLATTEN TO DF ---------------------
 
-g_alt_alt <- map(g2_f, ~unnest(.x$alteration)) #%>%
-  bind_rows(., .id="list_id") # since gage_id already in df
+load("data_output/usgs_altered_ffc_list.rda")
+
+# first pull all alteration dataframes out
+g_alt_alt <- map(usgs_ffc_alt, ~.x[["alteration"]])
+
+# then convert all logicals to text before bind rows together
+g_alt_alt <- rapply(g_alt_alt, 
+                    as.character, # function to apply
+                    "logical", # class to match in df
+                      how="replace") %>% # what to do w match
+     bind_rows()
 
 # save 
 save(g_alt_alt, file = "data_output/usgs_altered_ffc_alteration.rda")
