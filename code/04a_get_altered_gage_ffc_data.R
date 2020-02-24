@@ -11,6 +11,7 @@ ffctoken <- set_token(Sys.getenv("EFLOWS_TOKEN", ""))
 
 # SUPPPORTING
 library(tidyverse) # yes
+library(sf)
 library(tictoc) # timing stuff
 library(furrr) # parallel processing for mapping functions/loops (purrr)
 #library(tidylog) # good for logging what happens
@@ -31,9 +32,11 @@ f_remove_empty <- function(x){
   }
 }
 
-# Get Gages ---------------------------------------------------------------
+# Get ALL ALTERED Gages ---------------------------------------------------------------
 
-# read in altered gage list
+# this is from TED
+
+# read in ALL altered gage list (from Ted)
 usgs_list <- read_csv("data/usgs/usgs_gages_final_altered_list.csv")
 
 # clean up: drop the "T" from the ID, drop cols
