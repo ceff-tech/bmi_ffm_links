@@ -21,10 +21,10 @@ set.seed(321) # reproducibility
 
 # Load Data ---------------------------------------------------------------
 
-bmi_csci_por <- read_rds("data_output/04_selected_bmi_stations_w_csci_flow_por.rds")
+bmi_csci_por <- read_rds("data_output/05_selected_bmi_stations_w_csci_ffm_alt_por.rds")
 
 load("data_output/05_selected_mainstems_final.rda") # mainstems_final
-bmi_nearest <- readRDS("data_output/05_selected_bmi_csci_por_nearest_gage.rds")
+#bmi_nearest <- readRDS("data_output/05_selected_bmi_csci_por_nearest_gage.rds")
 
 ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
 
@@ -53,15 +53,17 @@ bmiVar <- quote(csci) # select response var from list above
 # POR DATA ----------------------------------------------------------------
 
 # need to select and spread data: 
-
 data_por <- bmi_csci_por %>% st_drop_geometry() %>% 
   dplyr::select(StationCode, HUC_12, ID, comid, SiteStatus, sampleid, 
                 collectionmethodcode, fieldreplicate, sampleyear, 
-                gagetype, huc_region, csci, metric, status_code) %>% 
+                huc_region, csci, metric, status_code) %>% 
   # need to spread the metrics wide
   pivot_wider(names_from = metric, values_from = status_code) %>% 
   #filter(huc_region %in% Hregions) %>% # make it regional %>% 
   as.data.frame()
+
+
+# Prep Model Data ---------------------------------------------------------
 
 # make sure data is randomized:
 random_index <- sample(1:nrow(data_por), nrow(data_por))
@@ -80,70 +82,50 @@ data_por_te <- testing(data_por_split) %>%
 
 # ANNUAL DATA -------------------------------------------------------------
 
-data_ann <- dplyr::select(bmi_csci_por, 1, 106:107, 151:152, 91:93, 96, one_of(bmi.metrics), 115:148) %>% 
-  #filter(StationCode %in% region_sel$StationCode) %>% 
-  as.data.frame()
-
-# make sure data is randomized:
-random_index <- sample(1:nrow(data_ann), nrow(data_ann))
-data_ann <- data_ann[random_index, ]
-
-## Split data and specify train vs. test using rsample
-data_ann_split <- initial_split(data_ann, prop = .9)
-data_ann_tr <- training(data_ann_split) %>% 
-  dplyr::select({{bmiVar}}, 18:ncol(.)) %>% 
-  filter(!is.na({{bmiVar}})) %>% as.data.frame()
-data_ann_te  <- testing(data_ann_split) %>% 
-  dplyr::select({{bmiVar}}, 18:ncol(.)) %>% 
-  filter(!is.na({{bmiVar}})) %>% as.data.frame()
+# data_ann <- dplyr::select(bmi_csci_por, 1, 106:107, 151:152, 91:93, 96, one_of(bmi.metrics), 115:148) %>% 
+#   #filter(StationCode %in% region_sel$StationCode) %>% 
+#   as.data.frame()
+# 
+# # make sure data is randomized:
+# random_index <- sample(1:nrow(data_ann), nrow(data_ann))
+# data_ann <- data_ann[random_index, ]
+# 
+# ## Split data and specify train vs. test using rsample
+# data_ann_split <- initial_split(data_ann, prop = .9)
+# data_ann_tr <- training(data_ann_split) %>% 
+#   dplyr::select({{bmiVar}}, 18:ncol(.)) %>% 
+#   filter(!is.na({{bmiVar}})) %>% as.data.frame()
+# data_ann_te  <- testing(data_ann_split) %>% 
+#   dplyr::select({{bmiVar}}, 18:ncol(.)) %>% 
+#   filter(!is.na({{bmiVar}})) %>% as.data.frame()
 
 # LAG1 DATA ---------------------------------------------------------------
 
-data_lag1 <- dplyr::select(bmi_flow_metrics_lag1_csci, 1, 106:107, 151:152, 91:93, 96, one_of(bmi.metrics), 115:148) %>% 
-  #filter(StationCode %in% region_sel$StationCode) %>% 
-  as.data.frame()
-
-# make sure data is randomized:
-random_index <- sample(1:nrow(data_lag1), nrow(data_lag1))
-data_lag1 <- data_lag1[random_index, ]
-
-## Split data and specify train vs. test using rsample
-data_lag1_split <- initial_split(data_lag1, prop = .9)
-data_lag1_tr <- training(data_lag1_split) %>% 
-  dplyr::select({{bmiVar}}, 18:ncol(.)) %>% 
-  filter(!is.na({{bmiVar}})) %>% as.data.frame()
-data_lag1_te  <- testing(data_lag1_split) %>% 
-  dplyr::select({{bmiVar}}, 18:ncol(.)) %>% 
-  filter(!is.na({{bmiVar}})) %>% as.data.frame()
-
-# LAG2 DATA ---------------------------------------------------------------
-
-data_lag2 <- dplyr::select(bmi_flow_metrics_lag2_csci, 1, 106:107, 151:152, 91:93, 96, one_of(bmi.metrics), 115:148) %>% 
-  #filter(StationCode %in% region_sel$StationCode) %>% 
-  as.data.frame()
-
-# make sure data is randomized:
-random_index <- sample(1:nrow(data_lag2), nrow(data_lag2))
-data_lag2 <- data_lag2[random_index, ]
-
-## Split data and specify train vs. test using rsample
-data_lag2_split <- initial_split(data_lag2, prop = .9)
-data_lag2_tr <- training(data_lag2_split) %>% 
-  dplyr::select({{bmiVar}}, 18:ncol(.)) %>% 
-  filter(!is.na({{bmiVar}})) %>% as.data.frame()
-data_lag2_te <- testing(data_lag2_split) %>% 
-  dplyr::select({{bmiVar}}, 18:ncol(.)) %>% 
-  filter(!is.na({{bmiVar}})) %>% as.data.frame()
-
+# data_lag1 <- dplyr::select(bmi_flow_metrics_lag1_csci, 1, 106:107, 151:152, 91:93, 96, one_of(bmi.metrics), 115:148) %>% 
+#   #filter(StationCode %in% region_sel$StationCode) %>% 
+#   as.data.frame()
+# 
+# # make sure data is randomized:
+# random_index <- sample(1:nrow(data_lag1), nrow(data_lag1))
+# data_lag1 <- data_lag1[random_index, ]
+# 
+# ## Split data and specify train vs. test using rsample
+# data_lag1_split <- initial_split(data_lag1, prop = .9)
+# data_lag1_tr <- training(data_lag1_split) %>% 
+#   dplyr::select({{bmiVar}}, 18:ncol(.)) %>% 
+#   filter(!is.na({{bmiVar}})) %>% as.data.frame()
+# data_lag1_te  <- testing(data_lag1_split) %>% 
+#   dplyr::select({{bmiVar}}, 18:ncol(.)) %>% 
+#   filter(!is.na({{bmiVar}})) %>% as.data.frame()
 
 # GBM.STEP TUNING GRID  -------------------------------------------------
 
 # set up tuning params
 hyper_grid <- expand.grid(
-  shrinkage = c(.001, .005), # c(0.001, .005, .01)  
-  interaction.depth = c(2, 3, 4),
-  n.minobsinnode = c(5,10),
-  bag.fraction = c(0.75, 0.8)
+  shrinkage = c(.007, .009), # c(0.001, .005, .01)  
+  interaction.depth = c(5), # c(2, 3, 4)
+  n.minobsinnode = c(5), # c(5,10)
+  bag.fraction = c(0.75) # c(0.75, 0.8)
 )
 
 ## SET THIS ONCE to input correct HYDRODAT
@@ -193,7 +175,6 @@ hyper_grid$dev_explained <- purrr::pmap_dbl(
 
 # % percent exlained
 #(gbm.fit.final$self.statistics$mean.null - gbm.fit.final$cv.statistics$deviance.mean) / gbm.fit.final$self.statistics$mean.null 
-
 # look at results:
 hyper_grid %>% 
   dplyr::arrange(desc(dev_explained)) %>%
@@ -203,7 +184,7 @@ hyper_grid %>%
     dplyr::arrange(desc(dev_explained)) %>% #
     head(n=1))
 
-write_csv(hyper_grid, path = paste0("models/06_gbm_hypergrid_",tolower(as_name(bmiVar)),"_", tolower(hydroDat),".csv"))
+write_csv(hyper_grid, path = paste0("models/07_gbm_hypergrid_",tolower(as_name(bmiVar)),"_", tolower(hydroDat),".csv"), append = TRUE)
 
 # FINAL BRT.STEP --------------------------------------------------------
 
@@ -236,18 +217,18 @@ capture.output(gbm_fin_out <- purrr::pmap(
       bag.fraction = ..4,
       data = gbm_hydrodat_tr # CHECK AND CHANGE!!
     )
-  ), file=paste0("models/06_gbm_final_",tolower(as_name(bmiVar)),"_", tolower(hydroDat),"_output.txt"), append=T)
+  ), file=paste0("models/07_gbm_final_",tolower(as_name(bmiVar)),"_", tolower(hydroDat),"_output.txt"), append=T)
 
 #strip off a list layer
 (gbm_fin_out <- gbm_fin_out[[1]])
 
 # add hyperbest to capture output file:
 cat("\nBest parameters for GBM.STEP:\n\n", 
-    file = paste0("models/06_gbm_final_",tolower(as_name(bmiVar)),"_", tolower(hydroDat),"_output.txt"), append=TRUE)
+    file = paste0("models/07_gbm_final_",tolower(as_name(bmiVar)),"_", tolower(hydroDat),"_output.txt"), append=TRUE)
 
 # for testing:
 #cat(format_tsv(hyper_best))
-write_tsv(hyper_best, path = paste0("models/06_gbm_final_",
+write_tsv(hyper_best, path = paste0("models/07_gbm_final_",
                                     tolower(as_name(bmiVar)),"_", 
                                     tolower(hydroDat),"_output.txt"),
           col_names = TRUE, append=TRUE)
@@ -261,7 +242,7 @@ assign(x = tolower(paste0("gbm_final_", as_name(bmiVar),"_",hydroDat)), value=gb
 (fileToSave <- ls(pattern = paste0("gbm_final_", tolower(as_name(bmiVar)))))
 
 # save to RDS
-write_rds(x = get(fileToSave), path = paste0("models/06_",fileToSave, ".rds"), compress = "gz")
+write_rds(x = get(fileToSave), path = paste0("models/07_",fileToSave, ".rds"), compress = "gz")
 
 # SAVE ALL HYDRO DATASETS for this var:
-save(list = ls(pattern="data_"), file = tolower(paste0("models/06_gbm_final_", as_name(bmiVar), "_hydrodata.rda")))
+save(list = ls(pattern="data_"), file = tolower(paste0("models/07_gbm_final_", as_name(bmiVar), "_hydrodata.rda")))

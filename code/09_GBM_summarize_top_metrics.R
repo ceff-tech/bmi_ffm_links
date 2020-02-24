@@ -14,30 +14,13 @@ library(pdp)
 library(rlang)
 library(purrr)
 
-# SET VARIABLES:
-#hydroDat <- "Annual" # can be Annual, Lag1, Lag2, POR
-#bmiVar <- quote(mmi_percentile) # select response var
-# Shannon_Diversity, csci_percentile, Intolerant_Percent, mmi_percentile
-
-# Create RI RDS Data -------------------------------------------------------------
-
-# get data from specific BMI GBM outputs:
-#(rds_var <- list.files(path="data_output/gbms", pattern = paste0("^10_gbm_RI_", tolower(bmiVar), ".*\\.rds$"), full.names = T))
-
-# Get all GBM RI data:
-#(rdss <- list.files(path="data_output/gbms", pattern = paste0("^10_gbm_RI_.*\\.rds$"), full.names = T))
-
-# use purrr to read in all the files
-#rds_ri<-purrr::map_df(rdss, readRDS)
-
-# save out
-#saveRDS(rds_ri, file = "data_output/gbms/11_gbm_RI_all_vars.rds")
-
 # Load Data ---------------------------------------------------------------
 
-bmi_RI_combined <- readRDS("data_output/gbms/11_gbm_RI_all_vars.rds")
-load("data_output/05_selected_bmi_stations_w_comids.rda")
-load("data_output/07_mainstems_bmi_selected_gages.rda")
+bmi_RI_combined <- readRDS(file = "models/08_gbm_RI_csci_por.rds")
+# orig data
+bmi_csci_por <- read_rds("data_output/05_selected_bmi_stations_w_csci_ffm_alt_por.rds")
+
+load("data_output/05_selected_mainstems_final.rda") # mainstems_fina
 
 # Plot & Summarize All RI Combined ----------------------------------------
 
@@ -115,7 +98,7 @@ bmi_RI_combined %>% group_by(flowdat, var, flow_component) %>%
   theme_classic(base_family = "Roboto Condensed") +
   facet_grid(.~flowdat)
 
-ggsave(filename = "figs/faceted_RI_by_flowcomp_hydrodat.png", width = 9, height = 6, units = "in", dpi = 300)
+ggsave(filename = "figs/09_faceted_RI_by_flowcomp_hydrodat.png", width = 9, height = 6, units = "in", dpi = 300)
 
 # Faceted by BMI metrics and flow components:
 bmi_RI_combined %>% group_by(flowdat, var, Ymetric, flow_component) %>% 
@@ -165,7 +148,33 @@ bmi_RI_combined %>% group_by(flowdat, var, Ymetric, flow_component) %>%
 
 ggsave(filename = "figs/faceted_RI_by_flowcomp_bmi_LAG2.png", width = 9, height = 6, units = "in", dpi = 300)
 
-  
+
+
+# Mapview -----------------------------------------------------------------
+
+library(mapview)
+
+sel_gages_bmi <- read_rds("data_output/02_selected_usgs_h12_all_gages.rds")
+
+# set background basemaps:
+basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap",
+                  "OpenTopoMap", "OpenStreetMap", 
+                  "CartoDB.Positron", "Stamen.TopOSMFeatures")
+
+mapviewOptions(basemaps=basemapsList)
+
+# filter data
+unique(bmi_csci_por$metric)
+bmi_peak_5 <- filter(bmi_csci_por, metric=="Peak_5")
+bmi_sp_roc <- filter(bmi_csci_por, metric=="SP_ROC")
+
+m1 <- mapview(bmi_peak_5, zcol="status", layer.name="Benthos", alpha=0.8, cex=5, burst=TRUE) #+
+
+m2 <- mapview(bmi_sp_roc, zcol="status", layer.name="Benthos", alpha=0.8, cex=5, burst=TRUE) #+
+  #mapview(sel_gages_bmi, col.regions="blue", layer.name="Gages", cex=3, alpha=0.2)
+
+# add measure option  
+m2@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")  
     
 # LEAFLET -------------------------------------------------------------------
 
@@ -185,13 +194,13 @@ m <- leaflet() %>% addTiles() %>%
   
   
   # CDEC BMI STATIONS
-  addCircleMarkers(data=bmi_coms, group="BMI Coms",
+  addCircleMarkers(data=bmi_csci_por, group="BMI",
                    popup=paste0("<strong>","StationID: ","</strong>", 
-                                bmi_coms$StationCode, 
+                                bmi_csci_por$StationCode, 
                                 "<br><strong>", "Lat: ","</strong>", 
-                                bmi_coms$lat, 
+                                bmi_csci_por$latitude, 
                                 "<br><strong>", "Lon: ","</strong>", 
-                                bmi_coms$lon),
+                                bmi_csci_por$longitude),
                    stroke=TRUE, weight=0.6,radius=4,
                    fillOpacity = 0.5, color="gray",
                    fillColor= "maroon") %>%  

@@ -2,7 +2,7 @@
 # R. Peek
 
 # Libraries ---------------------------------------------------------------
- 
+
 library(tidyverse)
 library(sf)
 library(leaflet)
@@ -17,6 +17,8 @@ library(rlang)
 library(DALEX)
 library(ingredients)
 
+# orig data
+bmi_csci_por <- read_rds("data_output/05_selected_bmi_stations_w_csci_ffm_alt_por.rds")
 
 # Data --------------------------------------------------------------------
 
@@ -25,7 +27,7 @@ hydroDat <- "POR" # can be Annual, Lag1, Lag2, POR
 bmiVar <- quote(csci) # select response var
 
 # get data from GBM outputs:
-(brt <- list.files(path="models/", pattern = paste0("^06_gbm_final_", tolower(bmiVar), ".*",tolower(hydroDat),"\\.rds$")))
+(brt <- list.files(path="models/", pattern = paste0("^07_gbm_final_", tolower(bmiVar), ".*",tolower(hydroDat),"\\.rds$")))
 
 (brt <- brt[grepl(tolower(hydroDat), x = brt)])
 
@@ -33,7 +35,7 @@ gbm_final <- read_rds(path=paste0("models/", brt))
 class(gbm_final)
 
 # get hydrodatasets (for PDPs)
-load(paste0("models/06_gbm_final_", tolower(bmiVar),"_hydrodata.rda"))
+load(paste0("models/07_gbm_final_", tolower(bmiVar),"_hydrodata.rda"))
 
 # rename datasets for plotting:
 gbm_out_tr <- data_por_tr # NEED TO CHANGE THESE
@@ -58,7 +60,7 @@ plot(gbm_cr)
 ## doesn't work with NAs
 
 # partial dependency using ingredients
-#gbm_pd <- partial_dependency(gbm_explain, variables="Peak_10",)
+#gbm_pd <- partial_dependency(gbm_explain, variables="SP_ROC",)
 #plot(gbm_pd)
 
 # ceteris_paribus
@@ -94,12 +96,12 @@ gbm_fin_ri_top <- tibble(RI=summary(gbm_final, plotit=FALSE)$rel.inf[1:gbm_fin_t
     labs(title=paste0(hydroDat, ": Top ", gbm_fin_topn," vars: ", as_label(bmiVar)), 
          y="Relative Influence (%)", x="",
          subtitle = "MSE Criterion") +
-    ylim(c(0,30)) +
+    ylim(c(0,20)) +
     ggdark::dark_theme_classic(base_family = "Roboto Condensed")+
     geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2)) 
 
 # save out
-ggsave(filename=tolower(paste0("models/06_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_mse", ".png")), width = 8, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(paste0("models/08_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_mse", ".png")), width = 8, height = 7, units = "in", dpi = 300)
 
 # MAKE RI PERMUTATION TEST PLOTS ------------------------------------------------
 
@@ -129,26 +131,35 @@ gbm_fin_pt_top <- tibble(PT=summary(gbm_final, method=permutation.test.gbm, plot
          y="Relative Influence (%) (perm test)", x="",
          subtitle = "Permutation Test"
     ) +
-    #ylim(c(0,30)) +
+    ylim(c(0,20)) +
     geom_hline(yintercept = 5, color="maroon", lwd=1, lty=2) +
     ggdark::dark_theme_classic(base_family = "Roboto Condensed"))
 
 # save
-ggsave(filename=tolower(paste0("models/06_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_permtest", ".png")), width = 8, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(paste0("models/08_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_permtest", ".png")), width = 8, height = 7, units = "in", dpi = 300)
+
+
+# Plot Side by Side -------------------------------------------------------
+
+library(cowplot)
+
+(pg1 <- plot_grid(fin_ri_ann, fin_pt_ann, align = "h", labels=c("A","B")))
+cowplot::save_plot(pg1, filename = tolower(paste0("models/08_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_both", ".png")), base_width = 11, units = "in", dpi = 300)
 
 
 # COMBINE RIs AND SAVE -----------------------------------------------------
 
 # reassign names for RI outputs and save:
 assign(x = tolower(paste0(as_name(bmiVar),"_",hydroDat,"_RI")), value=bind_rows(gbm_fin_PT, gbm_fin_RI))
-ls(pattern = tolower(as_name(bmiVar)))
 
-write_rds(x = get(ls(pattern = tolower(as_name(bmiVar)))), path = paste0("models/06_gbm_RI_",tolower(as_name(bmiVar)),"_", tolower(hydroDat), ".rds"), compress = "gz")
+filepattern <- ls(pattern = paste0("^",tolower(as_name(bmiVar))))
+
+write_rds(x = get(filepattern), path = paste0("models/08_gbm_RI_",tolower(as_name(bmiVar)),"_", tolower(hydroDat), ".rds"))
 
 # DISMO: Marginal FX Plots ----------------------------------------------
 
 # MARGINAL FX:: partial dependency or marginal effect plots (ALL)
-pdf(file=paste0("models/06_gbm_marginal_effects_",
+pdf(file=paste0("models/08_gbm_marginal_effects_",
                 tolower(as_name(bmiVar)),
                 "_",tolower(hydroDat),".pdf"),
     width = 9, height = 6)
@@ -171,7 +182,7 @@ library(pdp)
 (bestHydro_pt <- gbm_fin_pt_top %>% top_n(n = 3, PT))
 
 # set top var Number
-varNo <- 1 # single number makes single plot
+varNo <- 3 # single number makes single plot
 
 # SINGLE PLOT
 gbm_final %>%
@@ -184,7 +195,7 @@ gbm_final %>%
        y=paste0("Predicted ", as_name(bmiVar)))
 
 ## HEAT MAP PLOT
-varNos <- c(1:2) # mult number makes heat plot
+varNos <- c(1,2) # mult number makes heat plot
 
 # DUAL PLOT (HEATMAP)
 gbm_final %>%
@@ -221,6 +232,8 @@ gbm_final %>%
 #        y=paste0("Predicted ", as_name(bmiVar))) +
 #   ggdark::dark_theme_classic(base_family = "Roboto Condensed")
 # ice1_pt
+
+varNo <- 1 # single number makes single plot
 
 (ice2_pt <- gbm_final %>%
    partial(
@@ -261,12 +274,12 @@ ggsave(filename=paste0("figs/pdp_ice_",tolower(as_name(bmiVar)), "_",hydroDat,
 cowplot::plot_grid(ice2_pt, ice2_ri, nrow = 1, labels = "POR", 
                    label_colour = "white", label_fontfamily = "Roboto Condensed", label_size = 10)
 
-# permutation test:
-ggsave(filename=paste0("figs/pdp_ice_",tolower(as_name(bmiVar)),  
-                       "_top_var_", 
-                       as.character(bestHydro_pt$varnames[varNo]),"_",
-                       as.character(bestHydro_ri$varnames[varNo]),
-                       ".png"), width = 11, height = 7, units = "in", dpi=300)
+# # permutation test:
+# ggsave(filename=paste0("figs/pdp_ice_",tolower(as_name(bmiVar)),  
+#                        "_top_var_", 
+#                        as.character(bestHydro_pt$varnames[varNo]),"_",
+#                        as.character(bestHydro_ri$varnames[varNo]),
+#                        ".png"), width = 11, height = 7, units = "in", dpi=300)
 
 
 # Predict -----------------------------------------------------------------
