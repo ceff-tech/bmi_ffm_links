@@ -1,6 +1,5 @@
-# 04 Merge BMI Data with Flow Data by year
+# 05 Merge BMI CSCI Data with Flow Data for Period of Record
 ## R. Peek
-## Link the BMI data by flow data with a lag, annual, and POR
 
 # Libraries ---------------------------------------------------------------
 
@@ -13,31 +12,30 @@ library(tidylog)
 
 # Load Data ---------------------------------------------------------------
 
-# bmi data
-load("data_output/02_selected_final_bmi_stations_dat_all_gages.rda") # bmi_coms_dat (all data for selected), bmi_coms_final (just coms and id)
+# bmi data:
+### bmi_coms_dat (all data for selected), 
+### bmi_coms_final (just coms and id)
+load("data_output/02_selected_final_bmi_stations_dat_all_gages.rda") 
+# CSCI data selected?
+bmi_csci <- read_rds("data_output/04_selected_bmi_stations_w_csci.rds")
+
+# CSCI all 
+load("data_output/04_all_csci_data.rda")
+
 # bmi w site status
 load("data_output/01_bmi_stations_distinct_status.rda")
 
 # the spatially joined points
 sel_bmi_gages <- readRDS("data_output/02_selected_bmi_h12_all_gages.rds")
-sel_gages_bmi <- readRDS("data_output/02_selected_usgs_h12_all_gages.rds") 
+sel_gages_bmi <- readRDS("data_output/02_selected_usgs_h12_all_gages.rds")
 sel_h12 <- read_rds("data_output/02_selected_h12_all_gages.rds")
 
 # nhd streamlines
 load("data_output/02_selected_nhd_mainstems_all_gages.rda") # mainstems_all
 
 # flow alteration status:
-load("data_output/usgs_ref_ffc_alteration.rda")
-load("data_output/usgs_altered_ffc_alteration.rda")
-
-# combine
-g_ref_alt <- g_ref_alt %>%  
-  mutate(gagetype="ref")
-
-g_alt_alt <- g_alt_alt %>%  
-  mutate(gagetype="alt")
-
-bind_rows(g_ref_alt, g_alt_alt) -> usgs_ffstat
+load("data_output/04_usgs_all_ffc_alteration.rda")
+usgs_ffstat <- g_all_alt; rm(g_all_alt)
 
 # re order cols
 bmi_coms_final <- bmi_coms_final %>% 
@@ -86,7 +84,8 @@ bmi_csci <- inner_join(bmi_coms_final, csci,
 bmi_csci_miss <- anti_join(bmi_coms_final, csci, by=c("StationCode"="stationcode")) %>% distinct(StationCode, comid, .keep_all=T) %>% st_drop_geometry() %>% 
   select(-elev_m, -h12_area_sqkm, -date_begin, -date_end, -end_yr) %>% 
   rename(gageID=ID)
-write_csv(bmi_csci_miss, path = "data_output/04_bmi_sites_missing_csci_data.csv")
+
+# write_csv(bmi_csci_miss, path = "data_output/04_bmi_sites_missing_csci_data.csv")
 
 # how many unique matches?
 length(unique(bmi_coms_final$StationCode)) 
@@ -103,44 +102,18 @@ bmi_csci %>% st_drop_geometry() %>%
 
 # join together csci data with ffm alteration status data
 bmi_csci_por <- bmi_csci %>% 
-  inner_join(., usgs_ffstat, by=c("comid", "ID"="list_id")) %>% 
+  inner_join(., usgs_ffstat, by=c("comid", "ID"="gage_id")) %>% 
   distinct(sampleid, metric, gage_id, comid, .keep_all=TRUE)
 
-# Get Flow Record only in Same Year/lag as BMI Sites ----------------------
-## NEED TO WAIT ON THIS DON"T HAVE CURRENTLY
-
-# # need to pull 2 years prior, 1 year prior, and same year as BMI site data
-# 
-# # make vector of years and BMI_ids
-# bmi_yrs <- bmi_final_dat %>% group_by(SampleID) %>% pull(YYYY) %>% unique()
-# (bmi_yrs_2 <- bmi_yrs - 2) # set lag 2
-# (bmi_yrs_1 <- bmi_yrs - 1) # set lag 1
-# 
-# # now combine and order:
-# bmi_years <- combine(bmi_yrs, bmi_yrs_1, bmi_yrs_2) %>% sort() %>% unique() # 25 total years to match with flow record
-# #bmi_years # 1993:2017
-# 
-# # rm old files
-# rm(bmi_yrs, bmi_yrs_1, bmi_yrs_2)
-# 
-# # now match with flow data (only goes through 2016)
-# flow_by_years_bmi <- flow_long %>% 
-#   filter(year %in% bmi_years) # 1993:2017
-# 
-# # make wide
-# flow_by_years_bmi_wide <- flow_by_years_bmi %>% 
-#   pivot_wider(names_from=stat, values_from=data)
-# 
-# flow_by_years_bmi_wide %>% distinct(ID) %>% dim # should be 106 gages match same years
-# 
-# # save flow data out for annual match
-# save(flow_by_years_bmi, flow_by_years_bmi_wide, file="data_output/05_selected_flow_by_years_of_bmi.rda")
-
+# so based on Gages (n=147)
+bmi_csci_por %>% st_drop_geometry() %>% distinct(ID) %>% tally()
+# so based on BMI Stations (n=196)
+bmi_csci_por %>% st_drop_geometry() %>% distinct(StationCode) %>% tally()
 
 # Visualize ---------------------------------------------------------------
 
 # function to get data
-stat_box_data <- function(y, upper_limit = max(bmi_csci$csci, na.rm = TRUE)) {
+stat_box_data <- function(y, upper_limit = max(bmi_csci_por$csci, na.rm = TRUE)) {
   return( 
     data.frame(
       y = 0.95 * upper_limit,
@@ -151,10 +124,16 @@ stat_box_data <- function(y, upper_limit = max(bmi_csci$csci, na.rm = TRUE)) {
 }
 
 # plot CSCI no NAs
-ggplot(data=filter(bmi_csci, !is.na(SiteStatus)), aes(x=SiteStatus, y=csci)) + 
+ggplot(data=filter(bmi_csci_por, !is.na(SiteStatus)), aes(x=SiteStatus, y=csci)) + 
   geom_boxplot(aes(fill=SiteStatus), show.legend = F) +
   stat_summary(fun.data=stat_box_data, geom="text",cex=3, hjust=1, vjust=0.9) +
   ylab("CSCI") + xlab("Site Status")+
+  theme_bw()
+
+# plot alteration status
+ggplot(data=bmi_csci_por, aes(x=status, y=csci)) + 
+  geom_boxplot(aes(fill=status), show.legend = F) +
+  ylab("CSCI") + xlab("Alteration Status")+
   theme_bw()
 
 # plot CSCI percentile w/ NAs
@@ -165,28 +144,14 @@ ggplot(data=bmi_csci, aes(x=SiteStatus, y=csci_percentile)) +
   theme_bw()
 
 
-length(unique(bmi_csci_por$StationCode)) # 109 stations
-length(unique(bmi_csci_por$gage_id)) # 78 gages
+length(unique(bmi_csci_por$StationCode)) # 196 stations
+length(unique(bmi_csci_por$ID)) # 147 gages
 
-# Join with Flow by Years that Match/lag BMI -------------------------------
-
-# bmi_csci_flow_yrs <- left_join(bmi_csci, flow_by_years_bmi_wide, by=c("ID")) %>% 
-#   # filter to same year as BMI + 2 yr lag
-#   filter(sampleyear == year | sampleyear == year+1 | sampleyear==year+2)
-# 
-# # double check
-# # bmi_csci_flow_yrs %>% select(StationCode, sampleid, sampleyear, year) %>% View()
-# 
-# # filter to sites that have data in the flow time range?
-# bmi_csci_flow_yrs %>% as.data.frame() %>% distinct(StationCode) %>% tally()
-# bmi_csci_flow_yrs %>% as.data.frame() %>% distinct(sampleid, year) %>% tally()
-# bmi_csci_flow_yrs %>% as.data.frame() %>% distinct(ID) %>% tally()
 
 # Export Cleaned Data -----------------------------------------------------
 
 # save the bmi_csci_por
-write_rds(bmi_csci_por, path = "data_output/04_selected_bmi_stations_w_csci_flow_por.rds")
-write_rds(bmi_csci, path = "data_output/04_selected_bmi_stations_w_csci.rds")
-save(csci, file="data_output/04_all_csci_data.rda")
-save(usgs_ffstat, file="data_output/04_usgs_ffm_alteration_status_all_gages.rda")
+write_rds(bmi_csci_por, path = "data_output/05_selected_bmi_stations_w_csci_ffm_alt_por.rds")
+write_rds(bmi_csci, path = "data_output/05_selected_bmi_stations_w_csci.rds")
+save(csci, file="data_output/05_all_csci_data.rda")
 
