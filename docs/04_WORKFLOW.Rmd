@@ -93,24 +93,27 @@ Magnitude of wet season base flow (10th and 50th percentile of daily flows withi
 
 </div>
  
-
-
 ## INTRODUCTION
 
- - BMIs are good indicators of stream health
- - The statewide dataset provides opportunity to connect biology with hydrology (FF metrics)
- - By utilizing the statewide CSCI biologic index in at paired flow sites, we can assess patterns of alteration in functional flow metrics, and evaluate and identify which metrics best describe a gradient of alteration from an ecological flow perspective.
- - These metrics can be used to develop flow-ecology response relationships which can help inform flow management recommendations by helping to determine which parts of the hydrograph (components and metrics) management efforts should focus on
- - This approach provides a unique perspective on how alteration has impacted stream health/communities across the state
+Benthic macroinvertebrates have been successfully used as indicators of stream health in a wide range of studies (Cite cite cite). Hydrologic alteration can cause shifts in community responses (Rehn 2009,  Poff et al. 2007) and there is a large body of literature on quantifying hydrologic alteration, yet there remains a significant gap in research linking biological responses with metrics hydrologic variability, which is an important step towards development of environmental flows (Poff and Zimmerman 2010, Yarnell et al 2020).
+
+*Paragraph here briefly describing functional flows?*
+
+California has a number of statewide monitoring programs, but the Surface Water Ambient Monitoring Program (SWAMP) is tasked with assessing water quality in all of California's surface waters. The program conducts monitoring directly and through collaborative partnerships across the state, and provides numerous datasets which are designed to support water resource management in California. Leveraging this statewide dataset in conjunction with new tools for quantifying hydrologic variability at a fine scale across California provides a unique opportunity to better assess biological responses to hydrologic alteration using functional flow metrics.
+
+Furthermore, a new statewide biological scoring tool for assessing freshwater stream health (California Stream Condition Index or CSCI) combines biological condition information (measures of ecological function) with taxonomic completeness information to provide an overall measure of stream health (Mazor et al. 2016). This index provides a comparable metric of stream health across a broad range of environmental variability present in California.
+
+By spatially and temporally pairing sampling localities that have both BMI sampling data (and CSCI scores) as well as USGS gage stationst that have sufficient data to calculate functional flow metrics, we can assess patterns of alteration using biological response associated with stream health.
+
+These data can be used to identify and evaluate which metrics best describe a gradient of alteration from an ecological flow perspective, and can help develop flow-ecology response relationships to use in informing flow management recommendations. Identifying the relative influence of specific hydrologic metrics can help determine which parts of the hydrograph (components and metrics) management efforts should focus on when designing or implementing environmental flows. Ultimately, linking hydrologic and biologic datasets at broad and fine scales provides a unique perspective on how alteration has impacted stream health and BMI communities across the state.
 
 ## METHODS
 
-This provides an overview of the steps required to assess functional flow metrics in relation to BMI and ASCI ecological data. The basic overview requires spatially linked ecological stream data and associated functional flow metrics (FFM) for a given stream or stream segment. We used a functional flows approach, as defined by Yarnell et al. 2015 and Yarnell et al. 2020, to make relationships between hydrologic conditions and BMIs. The Functional Flows Calculator (eflows.ucdavis.edu/hydrology) provided functional flow metrics for flow data associated with each USGS gage used in this analysis. We generated a score of alteration based on the functional flow metrics.
+To assess functional flow metrics in relation to bioassesment/stream health data we first spatially filtered and paired existing BMI bioassessment data with associated USGS gages for a given stream or stream segment. Once these site pairs were identified, we used a functional flows approach, as defined by Yarnell et al. 2015 and Yarnell et al. 2020, and a functional flows calculator (eflows.ucdavis.edu/hydrology) to generate functional flow metrics for use in this analysis. Using the functional flow metrics for reach gaged site, we generated a score of alteration based on comparisons with the reference (unimpaired) data and the natural range of variability observed at a site. These data were used to build models to identify which flow metrics were most associated with a gradient of alteration in relation to stream health (using CSCI scores) across California.
 
-### Steps to Pair BMI/ASCI Sites with Flow Sites
+### Filter and Pair BMI sites with USGS sites
 
-To make relationships between benthic macroinvertebrates (BMIs) and flow, identified all BMI monitoring sampling sites across the state, with sampling between 1994-2018 (SWAMP/SWCCRP). We then linked these locations with any USGS gage sites that both occurred in the same HUC12 as the BMI station, and existed on the same NHD mainstem streamline within 10 km. We then filtered to USGS gages that had at least ten years of daily flow data and had flow data post 1994 to generate functional flow metrics (Figure \@ref(fig:spatialWorkflow)).
-
+To assess relationships between benthic macroinvertebrate sampling localities and flow metrics, we identified all bioassessment sites with BMI data in California, sampled between 1994-2018 (SWAMP/SWCCRP). We then linked these BMI locations with any USGS gage site that occurred in the same HUC12, and existed within 10 km of the USGS gage and was on the same NHD mainstem streamline. We then filtered to USGS gages that had at least ten years of daily flow data and included flow data post-1994 (to ensure some overlap with BMI sampling). These final paired sites were used to generate data and derive functional flow metrics (Figure \@ref(fig:spatialWorkflow)).
 
 Below are the basic steps (and associated code) used to clean, pair, and aggregate data:
 
@@ -126,7 +129,7 @@ Below are the basic steps (and associated code) used to clean, pair, and aggrega
     - Make sure flow data overlaps with ecological (BMI) data, flow > 1994 (`04_get_flow_metric_datasets_ALL.R`)
 
 
-```{r diagrams, eval=FALSE, include=FALSE}
+```{r diagrams, eval=F, include=FALSE}
 
 library(DiagrammeR)
 library(htmltools)
@@ -142,7 +145,7 @@ knitr::include_graphics(paste0(here::here(),"/figs/analysis_flow_chart_spatial_j
 
 ### Join Different Hydrologic Datasets
 
-Once data sites were paired, hydrologic data was used to calculate functional flow metrics, and an estimate of alteration status. Alteration status and functional flow metric data were joined with BMI StationCodes to spatially link the paired BMI-USGS sites, yielding hydrologically-linked BMI metric data (i.e., CSCI). To better understand temporal trends in the data, we split datasets into four distinct groups. 
+Once BMI and USGS sites were paired, hydrologic data was used to calculate functional flow metrics, and generate estimates of alteration status. To better understand temporal trends in the data, we split hydrologic datasets into four distinct groups. 
 
  - **Period of Record (POR):** FF metrics were calculated based on the entire gage period of record (>= 10 years).
  - **Annual:** FF metrics were calculated for the same year the BMI sample was collected, and only these data were used (1:1 comparison).
@@ -151,7 +154,7 @@ Once data sites were paired, hydrologic data was used to calculate functional fl
 
 ### Calculate Alteration Status
 
-To quantify alteration status in relation to the reference or unimpaired hydrologic conditions at a site, the California Environmental Flow Framework and associated working group developed the following rules. These rules were applied across the functional flow metrics to determine whether a metric at a site or stream segment could be quantified as altered in comparison to the reference data. The following categories and associated rules were developed:
+To quantify alteration status in relation to the reference or unimpaired hydrologic conditions at a site, the California Environmental Flow Framework working group developed the following rules. These rules were applied across the functional flow metrics to determine whether a metric at a site or stream segment could be quantified as altered in comparison to the reference data. The following categories and associated rules were developed:
 
 **LIKELY UNALTERED:**
  
@@ -170,28 +173,26 @@ To quantify alteration status in relation to the reference or unimpaired hydrolo
 
 ### Boosted Regression Methods
 
-Alteration status scores from the FFM data were modeled against CSCI scores from each BMI using a boosted regression tree analysis, following methods from Steel et al 2017. Boosted regression trees (BRT) were used to assess relationships between flow metrics of alteration status and CSCI. Boosted regression trees, a method from the decision tree family of statistics, are well suited for large and complex ecological datasets because they do not assume normality, nor linear relationships between predictor and response variables, they ignore non-informative predictor variables, and can accept predictors that are numeric, categorical, or binary (Brown et al., 2012; Elith, Leathwick, & Hastie, 2008). They are also unaffected by outliers (Elith et al.,2008), and effectively handle both missing data and correlated predictors (De’ath, 2007; Dormann et al., 2013). BRTs use iterative boosting algorithms to combine simple decision trees to improve model performance (De’ath, 2007). These methods are becoming more common in ecological research and have been shown to outperform many traditional statistical methods (Guisan et al., 2007; Phillips, Anderson, &Schapire, 2006).
+Alteration status scores from the FFM data were modeled against CSCI scores from each BMI locality using a boosted regression tree analysis, following methods from Steel et al 2017. Boosted regression trees (BRT) were used to assess relationships between flow metrics of alteration status and CSCI. Boosted regression trees, a method from the decision tree family of statistics, are well suited for large and complex ecological datasets because they do not assume normality, nor linear relationships between predictor and response variables, they ignore non-informative predictor variables, and can accept predictors that are numeric, categorical, or binary (Brown et al., 2012; Elith, Leathwick, & Hastie, 2008). They are also unaffected by outliers (Elith et al.,2008), and effectively handle both missing data and correlated predictors (De’ath, 2007; Dormann et al., 2013). BRTs use iterative boosting algorithms to combine simple decision trees to improve model performance (De’ath, 2007). These methods are becoming more common in ecological research and have been shown to outperform many traditional statistical methods (Guisan et al., 2007; Phillips, Anderson, &Schapire, 2006).
 
 ## RESULTS
 
-We mapped a total of 2,935 unique BMI sampling stations across California, and 810 USGS gage sites (Figure \@ref(fig:map1), \@ref(fig:map2)). After pairing sites, we identified 196 BMI stations with 147 USGS gages across the state.
+We mapped a total of 2,935 unique BMI sampling stations across California, and 810 USGS gage sites (Figure \@ref(fig:map1)). After pairing sites, we identified 196 BMI stations with 147 USGS gages across the state.
 
 
-```{r map1, echo=FALSE, eval=TRUE, out.width='30%', fig.cap="Map of all available BMI sampling sites with CSCI data"}
+```{r map1, echo=FALSE, eval=TRUE, fig.show = "hold", out.width = "50%", fig.align = "default", fig.cap="Map of all available BMI sampling sites and USGS gage sites with >10 years of data"}
 
 knitr::include_graphics(paste0(here::here(),"/figs/map_of_bmi_sites.jpg"))
-
-```
-
-
-```{r map2, echo=FALSE, eval=TRUE, out.width='30%', fig.cap="Map of all available USGS sites in California with more than 10 years of data"}
 
 knitr::include_graphics(paste0(here::here(),"/figs/map_of_usgs_sites_w_rivers.jpg"))
 
 ```
 
+### Modeling
 
-Based on modeling, the top variables correlated with alteration were identified using boosted regression trees (Table \@ref(tab:brtTab) ). 
+Boosted regression tree models were run using 90% of the data for training and 10% for testing, with grid iteration and tuning across parameters for shrinkage, interaction depth, number of minimum observation in a node, and bag fraction used in validation. The final model explained 43% of the deviance and had a cross-validation correlation of 0.664 (s.e., 0.019). 
+
+Based on the BRT modeling, the top five variables correlated with alteration were representaive of each of the five flow components (Table \@ref(tab:brtTab) ). 
 
 
 ```{r brtTab, eval=TRUE}
@@ -210,10 +211,13 @@ bmi_RI_combined %>% group_by(flowdat, var) %>%
 ```
 
 
-Models converged on similar variable sets (Figure \@ref(fig:RIwide)).
+Two different methods for assessing the relative influence of each variable were used to calculate the importance of each variable in the model. Each method converged on similar variable sets but with slightly different rankings (Figure \@ref(fig:RIwide)).
+
+<br> 
 
 (ref:RIwide) Boosted regression tree summary of variables with greatest relative influence on the response (CSCI). MSE is the mean-square error which assess which variables have the largest average reduction in MSE (split criterion, while the permutation test assesses which variables yield the largest average decrease in accuracy at each split. Both indicated the same set of variables but in slightly different orders
 
+<br>
 
 ```{r RIwide, echo=FALSE, eval=TRUE, out.width='80%', fig.cap="(ref:RIwide)"}
 
@@ -221,6 +225,8 @@ knitr::include_graphics(paste0(here::here(),"/models/08_gbm_csci_por_top_ri_both
 
 ```
 
+<br>
+<br>
 
 One metric from each flow component was identified as highly informative based on BRT modeling (Figure \@ref(fig:barRI)). 
 
@@ -231,8 +237,7 @@ knitr::include_graphics(paste0(here::here(),"/figs/09_faceted_RI_by_flowcomp_hyd
 
 ```
 
-
-Marginal effects plots for the top eight variables (Figure \@ref(fig:RImargfx)). 
+Partial dependency plots provide a way to evaluate how the response (CSCI) is changing with changes to the predictor variables (FFM). These plots do not show a predicted CSCI value, but rather how a variable influences or correlates with the response. In these plots, the CSCI value on the y-axis has been centered and scaled around zero (Figure \@ref(fig:RImargfx)). 
 
 
 ```{r RImargfx, echo=FALSE, eval=TRUE, out.width='80%', fig.cap="Partial dependency plots showing the top eight variables. Note CSCI scores were centered and scaled around zero. Alteration status scores of 1 indicate likely unaltered, while score of -1 indicates likely altered"}
