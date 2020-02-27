@@ -35,6 +35,8 @@ load("data_output/02_selected_nhd_mainstems_all_gages.rda") # mainstems_all
 
 # flow alteration status:
 load("data_output/04_usgs_all_ffc_alteration.rda")
+load("data_output/04_usgs_all_ffc_metrics.rda")
+g_all_ffc %>% select(-c(gage_id, Year, `__summer_durations_flush`, `__summer_no_flow_counts`, contains("Julian"))) %>% names()
 usgs_ffstat <- g_all_alt; rm(g_all_alt)
 
 # re order cols

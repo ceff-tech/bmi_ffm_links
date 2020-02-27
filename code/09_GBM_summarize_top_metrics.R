@@ -23,14 +23,13 @@ bmi_csci_por <- read_rds("data_output/05_selected_bmi_stations_w_csci_ffm_alt_po
 load("data_output/05_selected_mainstems_final.rda") # mainstems_fina
 
 
-
 # Plot & Summarize All RI Combined ----------------------------------------
 
 # most common hydrometric by flowdata type?
 bmi_RI_combined %>% group_by(flowdat, var) %>% 
   summarize(meanRI = mean(rel.inf),
             sumRI = sum(rel.inf)) %>% 
-  top_n(3) %>% 
+  top_n(5) %>% 
   arrange(flowdat, desc(meanRI))
 
 # most common hydrometric by response?
@@ -66,11 +65,11 @@ flowmets <- unique(bmi_RI_combined$var)
 
 bmi_RI_combined <- bmi_RI_combined %>% 
   mutate(flow_component = case_when(
-    grepl("DS_", var) ~ "Dry-season baseflow", #Mag90, Mag10, Tim, Dur_WS, Dur_WSI
+    grepl("DS_", var) ~ "Dry-season baseflow",
     grepl("SP_", var) ~ "Spring recession flow",
     grepl("Peak_", var) ~ "Peak flow",
-    grepl("Wet_Tim|Wet_BFL_Mag|Wet_BFL_Dur", var) ~ "Wet-season baseflow",
-    grepl("WSI_Dur|WSI_Mag|WSI_Tim", var) ~ "Fall pulse flow",
+    grepl("Wet_", var) ~ "Wet-season baseflow",
+    grepl("FA_", var) ~ "Fall pulse flow",
     TRUE ~ "General"
   ),
   flow_component = factor(flow_component, levels = c("Fall pulse flow", "Wet-season baseflow", "Peak flow", "Spring recession flow", "Dry-season baseflow", "General")),
