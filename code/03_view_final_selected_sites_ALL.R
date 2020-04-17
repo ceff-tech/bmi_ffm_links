@@ -94,7 +94,11 @@ tm_shape(ca) +
   tm_shape(rivs) + tm_lines(col="darkblue", lwd=0.7, alpha=0.8) +
   tm_shape(bmi_coms_final) +
   tm_dots(col = "orange", shape = 21, size = 0.2, alpha=0.8) + 
-  tm_layout(legend.show = FALSE, frame = FALSE)
+  tm_layout(title = "BMI Sites\n in CA", legend.show = FALSE, frame = FALSE, fontfamily = "Roboto Condensed", title.position = c(0.7, 0.7)) +
+  tm_compass(type = "4star", position = c("right","top"))+
+  tm_scale_bar(position = c("left","bottom"))
+
+tmap::tmap_save(filename = "figs/03_map_tmap_bmi_sites_w_rivers.png", width = 8, height = 11, units = "in", dpi = 300)  
   
 # tmaptools::palette_explorer()
 # tm_shape(bmi_coms_final) +

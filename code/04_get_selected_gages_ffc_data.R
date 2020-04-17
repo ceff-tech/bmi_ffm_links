@@ -39,13 +39,20 @@ f_remove_empty <- function(x){
 load("data_output/02_selected_final_bmi_stations_dat_all_gages.rda")
 rm(bmi_coms_dat)
 
-#load("data_output/00_usgs_ca_all_daily_flow_gages.rda") # all gages for metadata
+load("data_output/00_usgs_ca_all_daily_flow_gages.rda") # all gages for metadata
 
 # load the list of data we already have:
 load("data_output/usgs_altered_ffc_list.rda")
 
 usgs_alt_list <- names(usgs_ffc_alt) %>% as_tibble() %>% 
   rename(gage_id=value)
+
+# get metadata?
+left_join(usgs_alt_list, ca_usgs_gages, by=c("gage_id"="site_id"))
+
+# get ref data
+
+
 
 # Cleaning Data ----------------------------------------------------------------
 
@@ -111,8 +118,8 @@ usgs_list <- gages_to_get %>% st_drop_geometry()
 
 # RUN
 tic(msg = "Finished Getting Data") # time start
-g_300 <- usgs_list %>% 
-  slice(201:336) %>%  # pick a subset of rows from gage list
+g_100 <- usgs_list %>% 
+  slice(1:100) %>%  # pick a subset of rows from gage list
   split(.$gage_id) %>% # make into named list
   map(., ~{select(.x, gage_id, comid)}) %>% # pull gage ID out
   furrr::future_imap(., 
