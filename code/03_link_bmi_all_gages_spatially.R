@@ -16,7 +16,7 @@ library(nhdplusTools)
 
 # 01. Load Data ---------------------------------------------------------------
 
-load("data_output/00_bmi_cleaned_all.rda") # all data
+#load("data_output/00_bmi_cleaned_all.rda") # all data
 load("data_output/00_bmi_stations_distinct.rda") # distinct bmi stations
 load("data_output/01_bmi_stations_distinct_status.rda") # bmi_stations w site status
 load("data_output/01_usgs_all_gages.rda") # final gages list
@@ -278,11 +278,6 @@ save(mainstems_us, mainstems_ds, file = "data_output/03_selected_nhd_mainstems_g
 
 # * PREVIEW MAP ----------------------------------------------------------
 
-sel_bmi_gages<-readRDS("data_output/03_selected_bmi_h12_all_gages.rds")
-sel_gages_bmi<-readRDS("data_output/03_selected_usgs_h12_all_gages.rds")
-sel_h12_bmi<-readRDS("data_output/03_selected_h12_all_gages.rds")
-load("data_output/03_selected_nhd_mainstems_gages.rda")
-
 # mapview breaks but mapdeck WORKS
 library(mapdeck)
 set_token(Sys.getenv("MAPBOX_TOKEN"))
@@ -299,6 +294,12 @@ mapdeck(
 
 
 # 10. FILTER TO BMI SITES IN USGS MAINSTEM COMIDS -----------------------------
+
+sel_bmi_gages<-readRDS("data_output/03_selected_bmi_h12_all_gages.rds")
+sel_gages_bmi<-readRDS("data_output/03_selected_usgs_h12_all_gages.rds")
+sel_h12_bmi<-readRDS("data_output/03_selected_h12_all_gages.rds")
+load("data_output/03_selected_nhd_mainstems_gages.rda")
+
 
 # get distinct segs only
 mainstems_distinct <- mainstems_all %>% distinct(nhdplus_comid, .keep_all=TRUE)
@@ -384,32 +385,47 @@ bmi_not_selected <- sel_bmi_gages %>% filter(!as.character(comid) %in% mainstems
 
 # get all gages selected
 gages_selected <- sel_gages_bmi %>% 
-  #distinct(gage_id, .keep_all=TRUE) #%>% 
   filter(gage_id %in% bmi_coms_final$gage_id)
 
+# get the gages not selected
+gages_not_selected <- sel_gages_bmi %>% 
+  filter(!gage_id %in% bmi_coms_final$gage_id)
+
+table(gages_selected$CEFF_type) # ALT=156  REF=56
+
 # this map of all sites selected U/S and D/S
-m3 <- mapview(bmi_coms_final, cex=6, col.regions="orange", layer.name="Selected BMI comids") +  
-  mapview(mainstems_distinct, zcol="from_gage", cex=3, layer.name="NHD Flowlines")+
-  mapview(gages_selected, col.regions="cyan", cex=7, layer.name="Selected USGS Gages") + 
-  # these are all bmi in same H12 but not selected
-  mapview(bmi_not_selected, col.regions="gray", cex=3.2, alpha=0.5, layer.name="Other BMI Sites in H12") + 
-  mapview(sel_h12_bmi, col.regions="dodgerblue", alpha.region=0.1, color="darkblue", legend=F, layer.name="HUC12")
+m3 <- mapview(bmi_coms_final, cex=6, col.regions="orange", 
+              layer.name="Selected BMI comids") +  
+  mapview(mainstems_distinct, color="steelblue", cex=3, 
+          layer.name="NHD Flowlines") +
+  mapview(gages_selected, col.regions="skyblue", cex=7, color="blue2",
+          layer.name="Selected USGS Gages") + 
+  # these are all bmi or gages in same H12 but not selected
+  mapview(gages_not_selected, col.regions="slateblue", color="gray20",
+          cex=3.2, layer.name="Other USGS Gages") + 
+  mapview(bmi_not_selected, col.regions="gold", color="gray20", cex=3.2, 
+          layer.name="Other BMI Sites in H12") + 
+  mapview(sel_h12_bmi, col.regions="dodgerblue", alpha.region=0.1, 
+          color="darkblue", legend=F, layer.name="HUC12")
 
 m3@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
 
 # save this final map out as:"map_of_final_gages_bmi_stations_all_gages"
 #mapshot(m3, url = paste0(here::here(),"/figs/03_map_of_final_bmi_stations_gages_h12s.html"))
 
-# need to go through and add some stations that fall just out side (didn't snap with mainstem), and create 
-# better layer showing "selected" USGS gages, and those that aren't paired.
+# need to go through and add some stations that fall just out side (didn't snap with mainstem).
 
 
 # SAVE OUT ----------------------------------------------------------------
 
+# load the full dataset from 00
+load("data_output/00_bmi_cleaned_all.rda") # all data
+
+
 # pull BMI sites and get list of data, first join with orig full dataset:
-bmi_coms_dat <- left_join(bmi_coms_final, st_drop_geometry(bmi_clean), by="StationCode") %>% 
-  select(-latitude.y, -longitude.y) %>% 
-  rename(lat = latitude.x, lon = longitude.x)
+bmi_coms_dat <- left_join(bmi_coms_final, bmi_clean %>% select(-latitude, -longitude), by="StationCode") #%>% 
+  #select(-latitude.y, -longitude.y) %>% 
+  #rename(lat = latitude.x, lon = longitude.x)
 
 # now look at how many unique samples are avail: n=915 unique samples
 bmi_coms_dat %>% as.data.frame() %>% group_by(SampleID) %>% distinct(SampleID) %>% tally
@@ -417,5 +433,14 @@ bmi_coms_dat %>% as.data.frame() %>% group_by(SampleID) %>% distinct(SampleID) %
 # now look at how many unique stations: n=489 stations
 bmi_coms_dat %>% as.data.frame() %>% group_by(StationCode) %>% distinct(StationCode) %>% tally
 
+# summary
+summary(bmi_coms_dat)
+hist(bmi_coms_dat$MM) # what months?
+# if trim to summer months how many records do we lose?
+bmi_coms_dat_trim <- bmi_coms_dat %>% filter(MM>5 & MM<10) 
+# lose 56% data if trim Jul - Sep
+# lose 45% data if trim Jun - Sep
+hist(bmi_coms_dat_trim$MM)
+
 # save out
-save(bmi_coms_dat, bmi_coms_final, file = "data_output/03_selected_final_bmi_stations_dat_all_gages.rda")
+save(bmi_coms_dat, bmi_coms_dat_trim, bmi_coms_final, file = "data_output/03_selected_final_bmi_stations_dat_all_gages.rda")
