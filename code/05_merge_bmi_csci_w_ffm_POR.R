@@ -13,9 +13,11 @@ library(tidylog)
 # Load Data ---------------------------------------------------------------
 
 # bmi data:
-### bmi_coms_dat (all data for selected), 
+### bmi_coms_dat (all data for selected site pairs), 
 ### bmi_coms_final (just coms and id)
-load("data_output/02_selected_final_bmi_stations_dat_all_gages.rda") 
+### bmi_coms_dat_trim (all data for selected site pairs btwn Jun-Sep)
+load("data_output/03_selected_final_bmi_stations_dat_all_gages.rda") 
+
 # CSCI data selected?
 bmi_csci <- read_rds("data_output/04_selected_bmi_stations_w_csci.rds")
 
@@ -26,30 +28,51 @@ load("data_output/04_all_csci_data.rda")
 load("data_output/01_bmi_stations_distinct_status.rda")
 
 # the spatially joined points
-sel_bmi_gages <- readRDS("data_output/02_selected_bmi_h12_all_gages.rds")
-sel_gages_bmi <- readRDS("data_output/02_selected_usgs_h12_all_gages.rds")
-sel_h12 <- read_rds("data_output/02_selected_h12_all_gages.rds")
-
+sel_bmi_gages<-readRDS("data_output/03_selected_bmi_h12_all_gages.rds")
+sel_gages_bmi<-readRDS("data_output/03_selected_usgs_h12_all_gages.rds")
+sel_h12_bmi<-readRDS("data_output/03_selected_h12_all_gages.rds")
 # nhd streamlines
-load("data_output/02_selected_nhd_mainstems_all_gages.rda") # mainstems_all
+load("data_output/03_selected_nhd_mainstems_gages.rda") # mainstems_all
 
-# flow alteration status:
-load("data_output/04_usgs_all_ffc_alteration.rda")
-load("data_output/04_usgs_all_ffc_metrics.rda")
-g_all_ffc %>% select(-c(gage_id, Year, `__summer_durations_flush`, `__summer_no_flow_counts`, contains("Julian"))) %>% names()
-usgs_ffstat <- g_all_alt; rm(g_all_alt)
 
-# re order cols
-bmi_coms_final <- bmi_coms_final %>% 
-  select(StationCode, longitude, latitude, 
-         HUC_12, h12_area_sqkm, ID:comid, geometry) %>% 
-# add site status
-  left_join(bmi_stations_distinct_status[, c(1:2)], by="StationCode") %>% 
-  distinct(StationCode, ID, .keep_all = T) # 1597 total
+# Get Functional Flow Data ------------------------------------------------
+
+# pulled in 02 code
+
+load("data_output/02_usgs_ref_ffc_alteration.rda") # alteration status: g_alt_ref
+load("data_output/02_usgs_altered_ffc_alteration.rda") # alteration status: g_alt_alt
+load("data_output/02_usgs_altered_ffc_metrics.rda") # ffc altered: g_alt_ffc
+load("data_output/02_usgs_ref_ffc_metrics.rda") # ffc reference: g_ref_ffc
+
+# need to trim out cols we don't need:
+g_alt_ffc <- g_alt_ffc %>% select(names(g_ref_ffc)) 
+
+# then merge
+g_all_ffc <- bind_rows(g_alt_ffc, g_ref_ffc)
+
+# rm old
+rm(g_alt_ffc, g_ref_ffc)
+
+# alteration status metrics (for POR)
+# fix weird numeric vs. character
+g_alt_alt <- g_alt_alt %>% mutate(gage_id = as.character(gage_id))
+g_all_alt <- bind_rows(g_alt_alt, g_alt_ref)
+rm(g_alt_alt, g_alt_ref)
+
+
+# Tidy BMI/GAGE Data -----------------------------------------------------------
 
 # make a new layer of "unselected" bmi sites, dropped bc off mainstem
 bmi_not_selected <- sel_bmi_gages %>% 
-  filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 591 = (2188 total -  1597 selected)
+  filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 352
+
+# get all gages selected # n=212
+gages_selected <- sel_gages_bmi %>% 
+  filter(gage_id %in% bmi_coms_final$gage_id)
+
+# get the gages not selected # n=54
+gages_not_selected <- sel_gages_bmi %>% 
+  filter(!gage_id %in% bmi_coms_final$gage_id)
 
 # set background basemaps:
 basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap",
@@ -78,25 +101,34 @@ rm(csci1, csci2)
 # now have n=4034 unique samples
 csci %>%  distinct(sampleid) %>% tally()
 
-# match against existing sites irrespective of sampleid
-bmi_csci <- inner_join(bmi_coms_final, csci, 
-                       by=c("StationCode"="stationcode")) %>% # n=2081
-  distinct(sampleid, ID, .keep_all = T) # 2049 distinct combos of sampleid/ID
+# fix sampleID to be YMD
+library(lubridate)
+csci <- csci %>% 
+  mutate(MM = stringi::stri_pad_left(month(sampledate), 2, pad="0"),
+         YYYY = year(sampledate),
+         DD = stringi::stri_pad_left(day(sampledate), 2, pad="0"),
+         SampleID2 = paste0(stationcode,"_", YYYY, MM, DD, "_", collectionmethodcode, "_", fieldreplicate)) %>% 
+  select(-MM, -YYYY, -DD, -fieldreplicate, -collectionmethodcode)
 
-bmi_csci_miss <- anti_join(bmi_coms_final, csci, by=c("StationCode"="stationcode")) %>% distinct(StationCode, comid, .keep_all=T) %>% st_drop_geometry() %>% 
-  select(-elev_m, -h12_area_sqkm, -date_begin, -date_end, -end_yr) %>% 
-  rename(gageID=ID)
+# number of unique Stations: 
+st_drop_geometry(bmi_coms_dat) %>% distinct(StationCode) # n=489
+st_drop_geometry(bmi_coms_dat_trim) %>% distinct(StationCode) # n=291
 
-# write_csv(bmi_csci_miss, path = "data_output/04_bmi_sites_missing_csci_data.csv")
+# first trim to unique sampleIDs only (to match with CSCI) 
+bmi_csci <- st_drop_geometry(bmi_coms_dat_trim) %>% distinct(SampleID, .keep_all=TRUE) %>% #n=457 
+# match CSCI scores against selected sites
+  inner_join(., csci, by=c("SampleID"="SampleID2")) %>% 
+  select(StationCode:SampleID, count:sampleyear) # n=259 total (so 291-259 = 32 missing)
 
-# how many unique matches?
-length(unique(bmi_coms_final$StationCode)) 
-# 771 stations (but some w mult gage matches)
-length(unique(bmi_csci$StationCode)) # only 575 matches
+table(bmi_csci$CEFF_type)
+# ALT = 159, REF = 100
 
-# view Site Status
-bmi_csci %>% st_drop_geometry() %>% 
-  group_by(SiteStatus) %>% tally()
+# Look at Missing CSCI ----------------------------------------------------
+
+bmi_csci_miss <- anti_join(bmi_coms_final, csci, by=c("StationCode"="stationcode")) %>% 
+  distinct(StationCode, comid, .keep_all=T) %>% st_drop_geometry() 
+
+#write_csv(bmi_csci_miss, path = "data_output/04_bmi_sites_missing_csci_data.csv")
 
 # Make BMI POR FF Dataset -----------------------------------------------
 

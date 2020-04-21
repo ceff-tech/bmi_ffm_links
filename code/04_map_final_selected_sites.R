@@ -13,30 +13,21 @@ library(lubridate)
 
 # Load Data: REFERENCE GAGE SET -------------------------------------------
 
-load("data_output/00_bmi_cleaned_all.rda") # bmi_clean
-load("data_output/01_bmi_stations_distinct_status.rda") # bmi_clean_stations_ss (site status)
-sel_bmi_gages <- readRDS("data_output/02_selected_bmi_h12_all_gages.rds") # sel_bmi_gages
-sel_gages_bmi <- readRDS("data_output/02_selected_usgs_h12_all_gages.rds") # sel_gages_bmi
-load("data_output/02_selected_nhd_mainstems_all_gages.rda") # mainstems_all
-sel_h12 <- read_rds("data_output/02_selected_h12_all_gages.rds") # all h12s w bmi and gage: sel_h12_bmi
+load("data_output/01_bmi_stations_distinct_status.rda")
+sel_bmi_gages <- readRDS("data_output/03_selected_bmi_h12_all_gages.rds") # sel_bmi_gages
+sel_gages_bmi <- readRDS("data_output/03_selected_usgs_h12_all_gages.rds") # sel_gages_bmi
+load("data_output/03_selected_nhd_mainstems_gages.rda") # mainstems_all
+sel_h12_bmi <- read_rds("data_output/03_selected_h12_all_gages.rds")
 
-load("data_output/02_selected_final_bmi_stations_dat_all_gages.rda") # bmi_coms_dat (all data for selected), bmi_coms_final (just coms and id)
-
-bmi_coms <- read_rds("data_output/02_bmi_all_stations_comids.rds") # just bmi_coms, comids for all BMI sites
-
-# re order cols
-bmi_coms_final <- bmi_coms_final %>% select(StationCode, longitude, latitude, HUC_12, h12_area_sqkm, ID:comid2, geometry)
-
-# make a new layer of "unselected" bmi sites
-bmi_not_selected <- sel_bmi_gages %>% filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 591 = (2188 total -  1597 selected)
+load("data_output/03_selected_final_bmi_stations_dat_all_gages.rda") # bmi_coms_dat (all data for selected), bmi_coms_final (just coms and id)
 
 # first add site status
-bmi_coms_final <- left_join(bmi_coms_final, bmi_stations_distinct_status[,c(1:2)], by="StationCode") %>% 
+bmi_coms_final <- left_join(bmi_coms_final, bmi_stations_distinct_status[,c(1:2)], by="StationCode") %>%
   # filter for distinct
-  distinct(StationCode, ID, .keep_all = TRUE) %>% 
+  distinct(StationCode, ID, .keep_all = TRUE) %>%
   select(StationCode:comid2,SiteStatus,geometry)
 
-# how many missing ss? 1000 don't have site status
+# how many missing ss? 371 don't have site status
 bmi_coms_final %>% st_drop_geometry %>% group_by(SiteStatus) %>% tally
 
 #write_csv(missing_site_status, path = "data_output/bmi_missing_site_status.csv")
@@ -67,18 +58,40 @@ mapviewOptions(basemaps=basemapsList)
 #          layer_id="USGS Gages")
 
 
-# # Make Mapview of Selected Gages and BMI Stations ----------------------
-# 
-# # this map of all sites selected U/S and D/S, takes awhile to load
-# m3 <- mapview(bmi_coms_final, zcol="SiteStatus", cex=6, col.regions=c("orange","maroon"), layer.name="Final BMI Sites") +  
-#   mapview(mainstems_all, color="darkblue", cex=3, lwd=4, layer.name="NHD Flowline 10km", legend=F)+
-#   mapview(sel_gages_bmi, col.regions="cyan", cex=7, layer.name="Reference USGS Gages") + 
-#   mapview(bmi_not_selected, col.regions="gray", cex=3.2, alpha=0.5, layer.name="Other BMI Sites in H12") +
-#   mapview(sel_h12, col.regions="dodgerblue", alpha.region=0.1, color="darkblue", legend=F, layer.name="HUC12")
-# 
-# m3@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
+# Make Mapview of Selected Gages and BMI Stations ----------------------
 
-# see tmaptools + OpenStreetMap
+# get all BMI not selected...check why not on map
+bmi_not_selected <- sel_bmi_gages %>% filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 352
+
+# get all gages selected
+gages_selected <- sel_gages_bmi %>% 
+  filter(gage_id %in% bmi_coms_final$gage_id)
+
+# get the gages not selected
+gages_not_selected <- sel_gages_bmi %>% 
+  filter(!gage_id %in% bmi_coms_final$gage_id)
+
+# get mainstems distinct
+mainstems_distinct <- mainstems_all %>% distinct(nhdplus_comid, .keep_all=TRUE)
+
+table(gages_selected$CEFF_type) # ALT=156  REF=56
+
+# this map of all sites selected U/S and D/S
+m3 <- mapview(bmi_coms_final, cex=6, col.regions="orange", 
+              layer.name="Selected BMI comids") +  
+  mapview(mainstems_distinct, color="steelblue", cex=3, 
+          layer.name="NHD Flowlines") +
+  mapview(gages_selected, col.regions="skyblue", cex=7, color="blue2",
+          layer.name="Selected USGS Gages") + 
+  # these are all bmi or gages in same H12 but not selected
+  mapview(gages_not_selected, col.regions="slateblue", color="gray20",
+          cex=3.2, layer.name="Other USGS Gages") + 
+  mapview(bmi_not_selected, col.regions="gold", color="gray20", cex=3.2, 
+          layer.name="Other BMI Sites in H12") + 
+  mapview(sel_h12_bmi, col.regions="dodgerblue", alpha.region=0.1, 
+          color="darkblue", legend=F, layer.name="HUC12")
+
+m3@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
 
 
 # Tmap --------------------------------------------------------------------
@@ -88,7 +101,7 @@ library(USAboundaries)
 ca<-us_counties(states="ca")
 load("data_output/major_rivers_dissolved.rda")
 
-#
+# make a tmap
 tm_shape(ca) + 
   tm_polygons() +
   tm_shape(rivs) + tm_lines(col="darkblue", lwd=0.7, alpha=0.8) +
@@ -99,6 +112,24 @@ tm_shape(ca) +
   tm_scale_bar(position = c("left","bottom"))
 
 tmap::tmap_save(filename = "figs/03_map_tmap_bmi_sites_w_rivers.png", width = 8, height = 11, units = "in", dpi = 300)  
+
+# make paired sites
+tm_shape(ca) + 
+  tm_polygons(alpha = 0.2) +
+  tm_shape(rivs) + tm_lines(col="darkblue", lwd=0.7, alpha=0.8) +
+  tm_shape(bmi_coms_final) +
+  tm_dots(col = "gold1", shape = 21, size = 0.5, alpha=0.8, title="BMI Sites", legend.show = TRUE, legend.is.portrait = TRUE) + 
+  tm_shape(gages_selected) +
+  tm_dots(col = "CEFF_type", shape=21, size=0.2, alpha=0.8, palette=c("steelblue", "#440154FF"), 
+          title="USGS Gage", legend.show = TRUE) +
+  tm_layout(title = "BMI Sites (orange)\n& USGS Gage Pairs",
+            frame = FALSE, fontfamily = "Roboto Condensed",
+            title.position = c(0.65, 0.7)) +
+  tm_compass(type = "4star", position = c("right","top"))+
+  tm_scale_bar(position = c("left","bottom"))
+
+tmap::tmap_save(filename = "figs/03_map_tmap_bmi_usgs_sites_w_rivers.png", width = 8, height = 11, units = "in", dpi = 300)  
+
   
 # tmaptools::palette_explorer()
 # tm_shape(bmi_coms_final) +
