@@ -123,26 +123,49 @@ bmi_csci <- st_drop_geometry(bmi_coms_dat_trim) %>% distinct(SampleID, .keep_all
 table(bmi_csci$CEFF_type)
 # ALT = 159, REF = 100
 
-# Look at Missing CSCI ----------------------------------------------------
-
-bmi_csci_miss <- anti_join(bmi_coms_final, csci, by=c("StationCode"="stationcode")) %>% 
-  distinct(StationCode, comid, .keep_all=T) %>% st_drop_geometry() 
-
-#write_csv(bmi_csci_miss, path = "data_output/04_bmi_sites_missing_csci_data.csv")
-
 # Make BMI POR FF Dataset -----------------------------------------------
 
-# RUN THE `get_altered_gage_ffc_data.R` or `get_reference_gage_ffc_data.R` here
+# join csci data with bug data: 
+bmi_csci <- bmi_csci %>% 
+  mutate(gage_id = as.character(gage_id)) %>% 
+  select(-comid2)
 
 # join together csci data with ffm alteration status data
-bmi_csci_por <- bmi_csci %>% 
-  inner_join(., usgs_ffstat, by=c("comid", "ID"="gage_id")) %>% 
-  distinct(sampleid, metric, gage_id, comid, .keep_all=TRUE)
+bmi_csci_por <-  inner_join(bmi_csci, g_all_alt,
+                            #by=c("comid")) %>% # n=1655
+                            #by=c("comid", "gage_id")) # %>% # n=1160
+                            # since only want observed data at USGS comid (not using the predicted percentiles at comid of BMI site), can use below:
+                            by=c("gage_id")) %>%   # n=5843
+  distinct(SampleID, metric, gage_id, .keep_all=TRUE) %>% 
+  rename(comid_bmi = comid.x, comid_ffc = comid.y)
 
-# so based on Gages (n=147)
-bmi_csci_por %>% st_drop_geometry() %>% distinct(ID) %>% tally()
-# so based on BMI Stations (n=196)
-bmi_csci_por %>% st_drop_geometry() %>% distinct(StationCode) %>% tally()
+# so based on Gages (n=87)
+bmi_csci_por %>% distinct(gage_id) %>% tally()
+# so based on BMI Stations (n=167)
+bmi_csci_por %>% distinct(StationCode) %>% tally()
+
+bmi_csci_por %>% distinct(gage_id, .keep_all=TRUE) %>% group_by(CEFF_type) %>%  tally()
+
+# make SF geometry fields for GAGE and BMI
+bmi_csci_por_sf <- bmi_csci_por %>% 
+  st_as_sf(., coords=c("longitude","latitude"), crs = 4326, remove=FALSE) %>% 
+  # rename the geometry col
+  rename("geom_bmi"=geometry)
+
+# make a USGS geom field
+bmi_csci_por %>% 
+  st_as_sf(., coords=c("LONGITUDE","LATITUDE"), crs = 4326, remove=FALSE) %>% 
+  # rename the geometry col
+  rename("geom_usgs"=geometry) %>% 
+  select(geom_usgs) %>% 
+  bind_cols(., bmi_csci_por_sf) %>% 
+  select(StationCode:geom_bmi, geom_usgs)-> bmi_csci_por_sf
+  
+# to switch active geometry, can use st_set_geometry
+st_geometry(bmi_csci_por_sf)
+
+mapview(bmi_csci_por_sf$geom_bmi, col.regions="orange", cex=3.5) + mapview(bmi_csci_por_sf$geom_usgs, col.regions="steelblue")
+
 
 # Visualize ---------------------------------------------------------------
 
@@ -157,13 +180,6 @@ stat_box_data <- function(y, upper_limit = max(bmi_csci_por$csci, na.rm = TRUE))
   )
 }
 
-# plot CSCI no NAs
-ggplot(data=filter(bmi_csci_por, !is.na(SiteStatus)), aes(x=SiteStatus, y=csci)) + 
-  geom_boxplot(aes(fill=SiteStatus), show.legend = F) +
-  stat_summary(fun.data=stat_box_data, geom="text",cex=3, hjust=1, vjust=0.9) +
-  ylab("CSCI") + xlab("Site Status")+
-  theme_bw()
-
 # plot alteration status
 ggplot(data=bmi_csci_por, aes(x=status, y=csci)) + 
   geom_boxplot(aes(fill=status), show.legend = F) +
@@ -171,8 +187,8 @@ ggplot(data=bmi_csci_por, aes(x=status, y=csci)) +
   theme_bw()
 
 # plot CSCI percentile w/ NAs
-ggplot(data=bmi_csci, aes(x=SiteStatus, y=csci_percentile)) + 
-  geom_boxplot(aes(fill=SiteStatus), show.legend = F) +
+ggplot(data=bmi_csci_por, aes(x=status, y=csci)) + 
+  geom_boxplot(aes(fill=status), show.legend = F) +
   stat_summary(fun.data=stat_box_data, geom="text", cex=3, hjust=1, vjust=0.9) +
   ylab("CSCI") + xlab("Site Status")+
   theme_bw()
@@ -187,5 +203,8 @@ length(unique(bmi_csci_por$ID)) # 147 gages
 # save the bmi_csci_por
 write_rds(bmi_csci_por, path = "data_output/05_selected_bmi_stations_w_csci_ffm_alt_por.rds")
 write_rds(bmi_csci, path = "data_output/05_selected_bmi_stations_w_csci.rds")
+save(bmi_csci_por_sf, bmi_csci_por, file="data_output/05_selected_bmi_csci_por_and_sf.rda")
+
+save(g_all_alt, g_all_ffc, file = "data_output/05_all_alt_ffc.rda")
 save(csci, file="data_output/05_all_csci_data.rda")
 
