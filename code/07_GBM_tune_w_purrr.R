@@ -23,10 +23,9 @@ set.seed(321) # reproducibility
 
 bmi_csci_por <- read_rds("data_output/05_selected_bmi_stations_w_csci_ffm_alt_por.rds")
 
-load("data_output/05_selected_mainstems_final.rda") # mainstems_final
-#bmi_nearest <- readRDS("data_output/05_selected_bmi_csci_por_nearest_gage.rds")
-
-ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
+load("data_output/03_selected_nhd_mainstems_gages.rda") # mainstems_all
+#load("data_output/05_selected_mainstems_final.rda") # mainstems_final
+#ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
 
 # Filter: Select Regions --------------------------------------------------
 
@@ -53,10 +52,9 @@ bmiVar <- quote(csci) # select response var from list above
 # POR DATA ----------------------------------------------------------------
 
 # need to select and spread data: 
-data_por <- bmi_csci_por %>% st_drop_geometry() %>% 
-  dplyr::select(StationCode, HUC_12, ID, comid, SiteStatus, sampleid, 
-                collectionmethodcode, fieldreplicate, sampleyear, 
-                huc_region, csci, metric, status_code) %>% 
+data_por <- bmi_csci_por %>% 
+  dplyr::select(StationCode, HUC_12, ID, comid_ffc, comid_bmi, SampleID, 
+                sampleyear, CEFF_type, csci, csci_percentile, metric, status_code, alteration_type) %>% 
   # need to spread the metrics wide
   pivot_wider(names_from = metric, values_from = status_code) %>% 
   #filter(huc_region %in% Hregions) %>% # make it regional %>% 
@@ -78,7 +76,6 @@ data_por_tr <- training(data_por_split) %>%
 data_por_te <- testing(data_por_split) %>% 
   dplyr::select({{bmiVar}}, 12:ncol(.)) %>% 
   filter(!is.na({{bmiVar}})) %>% as.data.frame()
-
 
 # ANNUAL DATA -------------------------------------------------------------
 

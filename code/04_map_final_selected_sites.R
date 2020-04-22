@@ -21,6 +21,8 @@ sel_h12_bmi <- read_rds("data_output/03_selected_h12_all_gages.rds")
 
 load("data_output/03_selected_final_bmi_stations_dat_all_gages.rda") # bmi_coms_dat (all data for selected), bmi_coms_final (just coms and id)
 
+ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
+
 # first add site status
 bmi_coms_final <- left_join(bmi_coms_final, bmi_stations_distinct_status[,c(1:2)], by="StationCode") %>%
   # filter for distinct
@@ -79,6 +81,7 @@ table(gages_selected$CEFF_type) # ALT=156  REF=56
 # this map of all sites selected U/S and D/S
 m3 <- mapview(bmi_coms_final, cex=6, col.regions="orange", 
               layer.name="Selected BMI comids") +  
+  mapview(ca_sp_regions, color="gray", cex=3, legend=F)+
   mapview(mainstems_distinct, color="steelblue", cex=3, 
           layer.name="NHD Flowlines") +
   mapview(gages_selected, col.regions="skyblue", cex=7, color="blue2",

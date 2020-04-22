@@ -41,7 +41,7 @@ load(paste0("models/07_gbm_final_", tolower(bmiVar),"_hydrodata.rda"))
 gbm_out_tr <- data_por_tr # NEED TO CHANGE THESE
 gbm_out_te <- data_por_te
 
-bmi_csci <- read_rds("data_output/04_selected_bmi_stations_w_csci.rds")
+bmi_csci <- read_rds("data_output/05_selected_bmi_stations_w_csci.rds")
 load("data_output/05_selected_mainstems_final.rda")
 
 # USE DALEX ---------------------------------------------------------------

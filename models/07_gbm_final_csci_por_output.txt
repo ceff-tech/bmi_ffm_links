@@ -97,3 +97,116 @@ Best parameters for GBM.STEP:
 
 shrinkage	interaction.depth	n.minobsinnode	bag.fraction	dev_explained
 0.007	5	5	0.75	0.42297152597621923
+
+ 
+ GBM STEP - version 2.9 
+ 
+Performing cross-validation optimisation of a boosted regression tree model 
+for csci and using a family of gaussian 
+Using 708 observations and 24 predictors 
+creating 10 initial models of 100 trees 
+
+ folds are unstratified 
+total mean deviance =  0.0642 
+tolerance is fixed at  1e-04 
+ntrees resid. dev. 
+100    0.0543 
+now adding trees... 
+200   0.0516 
+300   0.0505 
+400   0.0501 
+500   0.0497 
+600   0.0495 
+700   0.0492 
+800   0.049 
+900   0.0489 
+1000   0.0487 
+1100   0.0486 
+1200   0.0485 
+1300   0.0484 
+1400   0.0483 
+1500   0.0482 
+1600   0.0482 
+1700   0.0481 
+1800   0.048 
+1900   0.048 
+2000   0.0479 
+2100   0.0479 
+2200   0.0477 
+2300   0.0477 
+2400   0.0476 
+2500   0.0476 
+2600   0.0476 
+2700   0.0475 
+2800   0.0474 
+2900   0.0474 
+3000   0.0473 
+3100   0.0473 
+3200   0.0473 
+3300   0.0472 
+3400   0.0472 
+3500   0.0471 
+3600   0.0471 
+3700   0.047 
+3800   0.0469 
+3900   0.047 
+4000   0.0469 
+4100   0.0469 
+4200   0.0469 
+4300   0.0469 
+4400   0.0468 
+4500   0.0468 
+4600   0.0468 
+4700   0.0468 
+4800   0.0467 
+4900   0.0467 
+5000   0.0467 
+5100   0.0467 
+5200   0.0466 
+5300   0.0466 
+5400   0.0466 
+5500   0.0466 
+5600   0.0466 
+5700   0.0466 
+5800   0.0465 
+5900   0.0465 
+6000   0.0465 
+6100   0.0465 
+6200   0.0464 
+6300   0.0464 
+6400   0.0464 
+6500   0.0464 
+6600   0.0464 
+6700   0.0463 
+6800   0.0463 
+6900   0.0463 
+7000   0.0463 
+7100   0.0463 
+7200   0.0463 
+7300   0.0463 
+7400   0.0463 
+7500   0.0463 
+7600   0.0463 
+7700   0.0463 
+7800   0.0463 
+7900   0.0463 
+8000   0.0463 
+8100   0.0463 
+8200   0.0462 
+8300   0.0462 
+8400   0.0462 
+
+mean total deviance = 0.064 
+mean residual deviance = 0.03 
+ 
+estimated cv deviance = 0.046 ; se = 0.003 
+ 
+training data correlation = 0.73 
+cv correlation =  0.551 ; se = 0.022 
+ 
+elapsed time -  0.03 minutes 
+
+Best parameters for GBM.STEP:
+
+shrinkage	interaction.depth	n.minobsinnode	bag.fraction	dev_explained
+0.009	5	5	0.75	0.28020618381745016

@@ -437,10 +437,13 @@ bmi_coms_dat %>% as.data.frame() %>% group_by(StationCode) %>% distinct(StationC
 summary(bmi_coms_dat)
 hist(bmi_coms_dat$MM) # what months?
 # if trim to summer months how many records do we lose?
-bmi_coms_dat_trim <- bmi_coms_dat %>% filter(MM>5 & MM<10) 
+bmi_coms_dat_trim <- bmi_coms_dat %>% filter(MM>4 & MM<10) 
 # lose 56% data if trim Jul - Sep
 # lose 45% data if trim Jun - Sep
 hist(bmi_coms_dat_trim$MM)
 
+# bmi_may <- bmi_coms_dat %>% filter(MM==5)
+# class(bmi_may)
+# mapview(bmi_may)
 # save out
 save(bmi_coms_dat, bmi_coms_dat_trim, bmi_coms_final, file = "data_output/03_selected_final_bmi_stations_dat_all_gages.rda")
