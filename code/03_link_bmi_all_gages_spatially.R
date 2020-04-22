@@ -1,4 +1,4 @@
-# 02 Spatially Linking BMI with ALL GAGES
+# 03 Spatially Linking BMI with ALL GAGES
 ## R. Peek 2020
 
 ## Spatially link the BMI station data with the USGS gage data using multiple spatial filters
@@ -10,55 +10,58 @@ library(tidylog)
 library(sf)
 library(mapview)
 library(lubridate)
+
 #devtools::install_github("USGS-R/nhdplusTools")
 library(nhdplusTools)
 #library(tmap)
 
 # 01. Load Data ---------------------------------------------------------------
 
-#load("data_output/00_bmi_cleaned_all.rda") # all data
+# FISH REGIONS
+ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
+
+# ALL BMI DATA CLEANED
+load("data_output/00_bmi_cleaned_all.rda") # all data
+
+# ALL BMI DISTINCT STATIONS
 load("data_output/00_bmi_stations_distinct.rda") # distinct bmi stations
-load("data_output/01_bmi_stations_distinct_status.rda") # bmi_stations w site status
+
+# ALL GAGES W FFC DATA
 load("data_output/01_usgs_all_gages.rda") # final gages list
-load("data_output/00_usgs_ca_all_daily_flow_gages.rda") # all gages for metadata
-# bmi_comids <- readRDS("data_output/02_bmi_all_stations_comids.rds")
+
+# HUC12s
 load("data_output/huc12_sf.rda") # CA h12s
 
+# bmi_comids <- readRDS("data_output/02_bmi_all_stations_comids.rds")
 
-ca_usgs_gages <- ca_usgs_gages %>% 
-  mutate(gage_id=as.numeric(site_id),
-         ID = paste0("T", site_id)) %>%
-  dplyr::select(gage_id, ID, station_nm:geometry)
+# load("data_output/00_usgs_ca_all_daily_flow_gages.rda") # all gages for metadata
+
+# ca_usgs_gages <- ca_usgs_gages %>% 
+#   mutate(gage_id=as.numeric(site_id),
+#          ID = paste0("T", site_id)) %>%
+#   dplyr::select(gage_id, ID, station_nm:geometry)
 
 # 02. Make Data Spatial -------------------------------------------------------
 
 # make spatial
-
-# add watershed area in sqkm
-h12 <- h12 %>% 
-  mutate(h12_area_sqkm=Shape_Area/1e6) %>% 
-  st_transform(4269)
-
 bmi_clean <- bmi_clean %>% 
-  st_as_sf(coords=c("longitude", "latitude"), crs=4326, remove=F) %>% 
-  st_transform(4269)
+  st_as_sf(coords=c("longitude", "latitude"), crs=4326, remove=F)
 
 bmi_stations_distinct <- bmi_stations_distinct %>% 
-  st_transform(4269)
+  st_transform(4326)
 
-# stations with site status
-bmi_stations_distinct_status <- bmi_stations_distinct_status %>%
-  st_as_sf(coords=c("lon", "lat"), crs=4326, remove=F) %>%
-  st_transform(4269)
+gages <- usgs_final_all %>% st_transform(4326)
+rm(usgs_final_all)
 
-# make a gages dataset
-gages <- usgs_final_all %>% st_transform(4269)
+ca_sp_regions <- ca_sp_regions %>% st_transform(4326)
 
 # check projs are same
 st_crs(bmi_clean)
 st_crs(bmi_stations_distinct)
-st_crs(bmi_stations_distinct_status)
 st_crs(gages)
+st_crs(h12)
+st_crs(ca_sp_regions)
+
 
 # 03. FILTER-Gages in Same Time As BMI -----------------------------------
 

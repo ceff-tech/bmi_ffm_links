@@ -133,13 +133,13 @@ bmi_stations_distinct %>% distinct(StationCode) %>% tally() # n=2935
 bmi_clean <- bugs_filt; rm(bugs_filt)
 
 # save filtered/cleaned data
-#save(bmi_clean, file ="data_output/00_bmi_cleaned_all.rda")
+save(bmi_clean, file ="data_output/00_bmi_cleaned_all.rda")
 
 # save distinct stations by XY
-#save(bmi_stations_distinct, file="data_output/00_bmi_stations_distinct.rda")
+save(bmi_stations_distinct, file="data_output/00_bmi_stations_distinct.rda")
 
 # save distinct samples by SampleID(stationcode_sampledate_collectionmethodcode_fieldreplicate")
-#save(bmi_samples_distinct, file="data_output/00_bmi_samples_distinct.rda")
+save(bmi_samples_distinct, file="data_output/00_bmi_samples_distinct.rda")
 
 # Join with CSCI Scores -----------------------------------------------
  

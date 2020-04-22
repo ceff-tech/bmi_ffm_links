@@ -23,7 +23,6 @@ ca_usgs_gages <- ca_usgs_gages %>%
          ID = paste0("T", site_id)) %>%
   dplyr::select(gage_id, ID, station_nm:geometry)
 
-
 # Get All Altered USGS Gages ----------------------------------------------
 
 # alteration list from Ted
@@ -41,7 +40,7 @@ table(usgs_alt_list$FINAL_REFERENCE) # 30=Y here,
 # so some stretch of years is a mix of ref/altered
 
 # load the list of data already downloaded from FFC (n=576) data we already have:
-load("data_output/usgs_altered_ffc_list.rda")
+load("data_output/02_usgs_altered_ffc_list.rda")
 usgs_alt_ffc <- names(usgs_ffc_alt) %>% as_tibble() %>% 
   mutate(gage_id=as.numeric(value)) %>% select(-value)
 rm(usgs_ffc_alt)
@@ -118,34 +117,22 @@ summary(usgs_final_all)
 usgs_final_all <- st_as_sf(usgs_final_all, coords = c("LONGITUDE","LATITUDE"), 
          remove = F, crs=4326)
 
+# Add Years and Metadata --------------------------------------------------
+
+usgs_final_all <- left_join(usgs_final_all, st_drop_geometry(ca_usgs_gages[,c(1,12:14)]), by="gage_id") %>% 
+  # add end year
+  mutate(end_yr = year(date_end),
+         end_yr = if_else(is.na(end_yr), REF_END_YEAR, end_yr))
+
+table(usgs_final_all$CEFF_type)
+
+# Quick Map ---------------------------------------------------------------
+
 # make a map
 mapview(usgs_final_all)
-
 
 # Save out Gages ----------------------------------------------------------
 
 save(usgs_final_all, file = "data_output/01_usgs_all_gages.rda")
-
-
-# Look at CEFF DB ----------------------------------------------------------
-
-# # need to be connected via vpn to the CWS server:
-# mdblink <- "/Volumes/projects/environmental_flows/DATA/hydrogeomorph_classification/California_Hydro_Geomorphic_Classification.mdb"
-# 
-# # see table names:
-# mdb.get(mdblink, tables=TRUE)
-# 
-# # get single table
-# ref_gages <- mdb.get(mdblink, tables="UCD_Ref_Gages_CA_Hydrologic_Classification") %>% 
-#   # clean names w janitor
-#   clean_names() %>% 
-#   dplyr::select(-shape) # drop shape field
-# 
-# # try with sf
-# ref_gages_sf <- st_as_sf(ref_gages, coords = c("longdd","latdd"), 
-#                          remove = F, crs=4326)
-# names(ref_gages_sf)
-# 
-# mapview(ref_gages_sf)
 
 
