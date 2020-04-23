@@ -129,9 +129,6 @@ bmi_stations_distinct %>% distinct(StationCode) %>% tally() # n=2935
 
 # Save Data ---------------------------------------------------------------
 
-# save raw data
-bmi_clean <- bugs_filt; rm(bugs_filt)
-
 # save filtered/cleaned data
 save(bmi_clean, file ="data_output/00_bmi_cleaned_all.rda")
 
@@ -174,6 +171,9 @@ bmi_samples_distinct_csci <- left_join(bmi_samples_distinct, csci, by=c("SampleI
 # see how many CSCI missing? # n=2737 (48% of data)
 bmi_samples_distinct_csci %>% filter(is.na(csci)) %>% tally()/nrow(bmi_samples_distinct_csci)
 
+# save out
+save(bmi_samples_distinct_csci, file = "data_output/00_bmi_samples_distinct_csci.rda")
+
 # look at distrib through months and years
 # ggplot() + 
 #   geom_boxplot(data=bmi_samples_distinct_csci %>% filter(MM>4, MM<10), aes(x=YYYY, y=csci, group=YYYY), color="gray70") +
@@ -183,27 +183,27 @@ bmi_samples_distinct_csci %>% filter(is.na(csci)) %>% tally()/nrow(bmi_samples_d
 #   coord_flip() +
 #   facet_grid(.~MM)
 
-
 #  * Plot CSCI Data by Month ----------------------------------------------
 
 library(ggtext)
 
-# look at distrib through years
-ggplot() + 
-  geom_jitter(data=bmi_samples_distinct_csci, #%>% 
-              #filter(MM>4, MM<10), 
-              aes(x=as.factor(YYYY), y=csci, group=as.factor(YYYY), color=as.factor(MM)), alpha=0.7, show.legend=TRUE) +
-  scale_color_viridis_d("Month", option = "D") +
-  geom_violin(data=bmi_samples_distinct_csci, #%>% 
-              #filter(MM>4, MM<10), 
-              aes(x=as.factor(YYYY), y=csci, group=as.factor(YYYY)), color="gray40", alpha=0.2,draw_quantiles = c(0.25,0.5, 0.75)) +
-  theme_bw(base_family = "Roboto Condensed") +
-  labs(x="", y="CSCI", 
-       subtitle = "Raw CSCI Score by Year of Sample",
-       caption = "Data from SCCWRP & SWAMP\n<www.waterboards.ca.gov/water_issues/programs/swamp>") +
-  theme(
-    axis.text.x = element_text(angle=60, vjust=0.05, hjust=0.2))
-ggsave(filename = "figs/00_raw_csci_score_by_year.png", width = 9, height = 6, units = "in", dpi=300)
+# # look at distrib through years
+# ggplot() + 
+#   geom_jitter(data=bmi_samples_distinct_csci, #%>% 
+#               #filter(MM>4, MM<10), 
+#               aes(x=as.factor(YYYY), y=csci, group=as.factor(YYYY), color=as.factor(MM)), alpha=0.7, show.legend=TRUE) +
+#   scale_color_viridis_d("Month", option = "D") +
+#   geom_violin(data=bmi_samples_distinct_csci, #%>% 
+#               #filter(MM>4, MM<10), 
+#               aes(x=as.factor(YYYY), y=csci, group=as.factor(YYYY)), color="gray40", alpha=0.2,draw_quantiles = c(0.25,0.5, 0.75)) +
+#   theme_bw(base_family = "Roboto Condensed") +
+#   labs(x="", y="CSCI", 
+#        subtitle = "Raw CSCI Score by Year of Sample",
+#        caption = "Data from SCCWRP & SWAMP\n<www.waterboards.ca.gov/water_issues/programs/swamp>") +
+#   theme(
+#     axis.text.x = element_text(angle=60, vjust=0.05, hjust=0.2))
+
+#ggsave(filename = "figs/00_raw_csci_score_by_year.png", width = 9, height = 6, units = "in", dpi=300)
 
 #  * Plot CSCI Data by Month ----------------------------------------------
 
@@ -237,7 +237,6 @@ bmi_samples_distinct_csci_sf <- bmi_samples_distinct_csci %>%
 # * Map of sites with CSCI scores -----------------------------------------
 mapview(bmi_samples_distinct_csci_sf %>% filter(!is.na(csci)), zcol="csci",cex=4, alpha.regions=0.8,
         layer.name="BMI Samples w CSCI")
-
 
 
 # * Map of sites colored by Collection Methods ------------------------------
