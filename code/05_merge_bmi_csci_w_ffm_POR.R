@@ -109,8 +109,25 @@ mapview(bmi_csci_por_sf, cex=7, col.regions="orange",
 
 # Visualize ---------------------------------------------------------------
 
+library(ggthemes)
+
+# separate by month and drop everything before/after May-Sep
+bmi_csci_por_trim <- bmi_csci_por %>% 
+  tidyr::separate(., col=SampleID, into = c("Site","YMD"), sep="_", remove=FALSE) %>% 
+  select(-Site) %>% 
+  # fix the one site that formats improperly (SMCR8_327_06282009_BMI_RWB_1)
+  mutate(YMD = case_when(
+    grepl("SMCR8_327", StationCode) ~ "06282009",
+    TRUE ~ YMD),
+    # now format as date
+    YMD=mdy(YMD),
+         MM = month(YMD)) %>% 
+  filter(MM>4, MM<11)
+
+hist(bmi_csci_por_trim$MM)
+
 # function to get data
-stat_box_data <- function(y, upper_limit = max(bmi_csci_por_sf$csci, na.rm = TRUE)) {
+stat_box_data <- function(y, upper_limit = max(bmi_csci_por_trim$csci, na.rm = TRUE)) {
   return( 
     data.frame(
       y = 0.95 * upper_limit,
@@ -120,26 +137,23 @@ stat_box_data <- function(y, upper_limit = max(bmi_csci_por_sf$csci, na.rm = TRU
   )
 }
 
-# plot alteration status
-ggplot(data=bmi_csci_por, aes(x=status, y=csci)) + 
-  geom_boxplot(aes(fill=status), show.legend = F) +
-  ylab("CSCI") + xlab("Alteration Status")+
-  theme_bw()
 
-# plot CSCI percentile w/ NAs
-ggplot(data=bmi_csci_por, aes(x=status, y=csci)) + 
+# plot CSCI w/ NAs
+ggplot(data=bmi_csci_por_trim %>% filter(status!="not_enough_data"), aes(x=CEFF_type, y=csci)) + 
   geom_boxplot(aes(fill=status), show.legend = F) +
   stat_summary(fun.data=stat_box_data, geom="text", cex=3, hjust=1, vjust=0.9) +
-  ylab("CSCI") + xlab("Site Status")+
-  theme_bw()
-
+  labs(y="CSCI", x="CEFF Gage Type", subtitle="CSCI Score by FFC Alteration Status")+
+  theme_bw(base_family = "Roboto Condensed") + facet_grid(.~status) +
+  scale_fill_colorblind()
+ggsave(filename = "figs/05_csci_scores_by_alteration_status_ceff_type.png", height = 8, width = 11, units = "in",dpi=300)
 
 # Export Cleaned Data -----------------------------------------------------
 
 # save the bmi_csci_por
 write_rds(bmi_csci_por, path = "data_output/05_selected_bmi_stations_w_csci_ffm_alt_por.rds")
+write_rds(bmi_csci_por_trim, path = "data_output/05_selected_bmi_stations_w_csci_ffm_alt_por_trim.rds")
 
-save(bmi_csci_por_sf, bmi_csci_por_usgs, file="data_output/05_selected_bmi_csci_por_and_sf.rda")
+save(bmi_csci_por_trim, bmi_csci_por_sf, bmi_csci_por_usgs, file="data_output/05_selected_bmi_csci_por_and_sf.rda")
 
 save(g_all_alt, g_all_ffc, file = "data_output/05_all_alt_ffc.rda")
 
