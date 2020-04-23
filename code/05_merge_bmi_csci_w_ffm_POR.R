@@ -18,19 +18,9 @@ library(tidylog)
 ### bmi_coms_dat_trim (all data for selected site pairs btwn Jun-Sep)
 load("data_output/03_selected_final_bmi_stations_dat_all_gages.rda") 
 
-# CSCI data selected?
-bmi_csci <- read_rds("data_output/04_selected_bmi_stations_w_csci.rds")
+# FISH REGIONS
+ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
 
-# CSCI all 
-load("data_output/04_all_csci_data.rda")
-
-# bmi w site status
-load("data_output/01_bmi_stations_distinct_status.rda")
-
-# the spatially joined points
-sel_bmi_gages<-readRDS("data_output/03_selected_bmi_h12_all_gages.rds")
-sel_gages_bmi<-readRDS("data_output/03_selected_usgs_h12_all_gages.rds")
-sel_h12_bmi<-readRDS("data_output/03_selected_h12_all_gages.rds")
 # nhd streamlines
 load("data_output/03_selected_nhd_mainstems_gages.rda") # mainstems_all
 
@@ -60,19 +50,7 @@ g_all_alt <- bind_rows(g_alt_alt, g_alt_ref)
 rm(g_alt_alt, g_alt_ref)
 
 
-# Tidy BMI/GAGE Data -----------------------------------------------------------
-
-# make a new layer of "unselected" bmi sites, dropped bc off mainstem
-bmi_not_selected <- sel_bmi_gages %>% 
-  filter(!as.character(comid) %in% mainstems_all$nhdplus_comid) # should be 352
-
-# get all gages selected # n=212
-gages_selected <- sel_gages_bmi %>% 
-  filter(gage_id %in% bmi_coms_final$gage_id)
-
-# get the gages not selected # n=54
-gages_not_selected <- sel_gages_bmi %>% 
-  filter(!gage_id %in% bmi_coms_final$gage_id)
+# Set Basemaps ------------------------------------------------------------
 
 # set background basemaps:
 basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap",
@@ -80,97 +58,59 @@ basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap"
                   "CartoDB.Positron", "Stamen.TopOSMFeatures")
 mapviewOptions(basemaps=basemapsList)
 
-# Get CSCI Data -----------------------------------------------------------
-
-# see what data exist against CSCI scores currently avail (from Raffi)
-csci1 <- read_csv("data/csci/csci_core.csv") %>% 
-  mutate(sampledate=as.Date(sampledate)) %>% 
-  select(sampleid, stationcode, sampledate, collectionmethodcode, fieldreplicate, count, csci, csci_percentile)
-csci2 <- read_csv("data/csci/csci_core_v2.csv") %>% 
-  rename(stationcode=StationCode) %>%
-  mutate(sampledate=mdy(sampledate)) %>% 
-  select(sampleid, stationcode, sampledate, collectionmethodcode, fieldreplicate, count, csci, csci_percentile)
-
-# join together
-csci<-bind_rows(csci1, csci2) %>% 
-  mutate(sampleyear=year(sampledate))
-
-# rm old files
-rm(csci1, csci2)
-
-# now have n=4034 unique samples
-csci %>%  distinct(sampleid) %>% tally()
-
-# fix sampleID to be YMD
-library(lubridate)
-csci <- csci %>% 
-  mutate(MM = stringi::stri_pad_left(month(sampledate), 2, pad="0"),
-         YYYY = year(sampledate),
-         DD = stringi::stri_pad_left(day(sampledate), 2, pad="0"),
-         SampleID2 = paste0(stationcode,"_", YYYY, MM, DD, "_", collectionmethodcode, "_", fieldreplicate)) %>% 
-  select(-MM, -YYYY, -DD, -fieldreplicate, -collectionmethodcode)
-
-# number of unique Stations: 
-st_drop_geometry(bmi_coms_dat) %>% distinct(StationCode) # n=489
-st_drop_geometry(bmi_coms_dat_trim) %>% distinct(StationCode) # n=291
-
-# first trim to unique sampleIDs only (to match with CSCI) 
-bmi_csci <- st_drop_geometry(bmi_coms_dat_trim) %>% distinct(SampleID, .keep_all=TRUE) %>% #n=457 
-# match CSCI scores against selected sites
-  inner_join(., csci, by=c("SampleID"="SampleID2")) %>% 
-  select(StationCode:SampleID, count:sampleyear) # n=259 total (so 291-259 = 32 missing)
-
-table(bmi_csci$CEFF_type)
-# ALT = 159, REF = 100
-
 # Make BMI POR FF Dataset -----------------------------------------------
 
-# join csci data with bug data: 
-bmi_csci <- bmi_csci %>% 
-  mutate(gage_id = as.character(gage_id)) %>% 
-  select(-comid2)
+# make gage_id as character for join:
+sel_bmi_coms_final_v2 <- sel_bmi_coms_final_v2 %>% 
+  mutate(gage_id_c = gsub("^T", "", ID))
 
-# join together csci data with ffm alteration status data
-bmi_csci_por <-  inner_join(bmi_csci, g_all_alt,
-                            #by=c("comid")) %>% # n=1655
-                            #by=c("comid", "gage_id")) # %>% # n=1160
-                            # since only want observed data at USGS comid (not using the predicted percentiles at comid of BMI site), can use below:
-                            by=c("gage_id")) %>%   # n=5843
+# join together selected csci data with ffm alteration status data
+bmi_csci_por <-  inner_join(sel_bmi_coms_final_v2, g_all_alt,
+                            #by=c("comid")) #%>% # n=2688
+                            #by=c("comid", "gage_id_c"="gage_id")) # %>% # n=1550
+                            # since only want observed data at USGS gage:
+                            by=c("gage_id_c"="gage_id")) %>%   # n=7719
   distinct(SampleID, metric, gage_id, .keep_all=TRUE) %>% 
-  rename(comid_bmi = comid.x, comid_ffc = comid.y)
+  rename(comid_bmi = comid.x, comid_ffc = comid.y) # n=7337
 
-# so based on Gages (n=87)
-bmi_csci_por %>% distinct(gage_id) %>% tally()
-# so based on BMI Stations (n=167)
-bmi_csci_por %>% distinct(StationCode) %>% tally()
+# see how many distinct sites
+length(unique(bmi_csci_por$gage_id_c)) #Gages (n=154)
+length(unique(bmi_csci_por$StationCode)) # BMI Stations (n=267)
 
-bmi_csci_por %>% distinct(gage_id, .keep_all=TRUE) %>% group_by(CEFF_type) %>%  tally()
+# how many of each gage type
+bmi_csci_por %>% st_drop_geometry() %>% 
+  dplyr::distinct(ID, .keep_all=TRUE) %>% 
+  group_by(CEFF_type) %>%  tally() # ALT = 116, REF = 38
 
-# make SF geometry fields for GAGE and BMI
+# and originally? : so we lost 6 ref sites :(
+sel_bmi_coms_final_v2 %>% st_drop_geometry() %>% 
+  dplyr::distinct(ID, .keep_all=TRUE) %>% 
+  group_by(CEFF_type) %>%  tally() # ALT = 116, REF = 44
+
+# Make GAGE/BMI geoms -----------------------------------------------------
+
+# make SF geometry fields for BMI
 bmi_csci_por_sf <- bmi_csci_por %>% 
-  st_as_sf(., coords=c("longitude","latitude"), crs = 4326, remove=FALSE) %>% 
-  # rename the geometry col
-  rename("geom_bmi"=geometry)
+    rename("geom_bmi"=geometry) 
 
 # make a USGS geom field
-bmi_csci_por %>% 
+bmi_csci_por_usgs <- bmi_csci_por %>% st_drop_geometry() %>% 
   st_as_sf(., coords=c("LONGITUDE","LATITUDE"), crs = 4326, remove=FALSE) %>% 
   # rename the geometry col
-  rename("geom_usgs"=geometry) %>% 
-  select(geom_usgs) %>% 
-  bind_cols(., bmi_csci_por_sf) %>% 
-  select(StationCode:geom_bmi, geom_usgs)-> bmi_csci_por_sf
-  
-# to switch active geometry, can use st_set_geometry
-st_geometry(bmi_csci_por_sf)
+  rename("geom_usgs"=geometry)
 
-mapview(bmi_csci_por_sf$geom_bmi, col.regions="orange", cex=3.5) + mapview(bmi_csci_por_sf$geom_usgs, col.regions="steelblue")
+# quick view
+mapview(bmi_csci_por_sf, cex=7, col.regions="orange", 
+        layer.name="Selected BMI comids") +
+  mapview(bmi_csci_por_usgs, col.regions="skyblue", cex=4, color="blue2", layer.name="Selected USGS Gages") +
+  mapview(mainstems_all, color="steelblue", cex=3, 
+          layer.name="NHD Flowlines")
 
 
 # Visualize ---------------------------------------------------------------
 
 # function to get data
-stat_box_data <- function(y, upper_limit = max(bmi_csci_por$csci, na.rm = TRUE)) {
+stat_box_data <- function(y, upper_limit = max(bmi_csci_por_sf$csci, na.rm = TRUE)) {
   return( 
     data.frame(
       y = 0.95 * upper_limit,
@@ -194,17 +134,12 @@ ggplot(data=bmi_csci_por, aes(x=status, y=csci)) +
   theme_bw()
 
 
-length(unique(bmi_csci_por$StationCode)) # 196 stations
-length(unique(bmi_csci_por$ID)) # 147 gages
-
-
 # Export Cleaned Data -----------------------------------------------------
 
 # save the bmi_csci_por
 write_rds(bmi_csci_por, path = "data_output/05_selected_bmi_stations_w_csci_ffm_alt_por.rds")
-write_rds(bmi_csci, path = "data_output/05_selected_bmi_stations_w_csci.rds")
-save(bmi_csci_por_sf, bmi_csci_por, file="data_output/05_selected_bmi_csci_por_and_sf.rda")
+
+save(bmi_csci_por_sf, bmi_csci_por_usgs, file="data_output/05_selected_bmi_csci_por_and_sf.rda")
 
 save(g_all_alt, g_all_ffc, file = "data_output/05_all_alt_ffc.rda")
-save(csci, file="data_output/05_all_csci_data.rda")
 
