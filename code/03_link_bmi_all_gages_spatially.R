@@ -19,9 +19,6 @@ library(nhdplusTools)
 
 # 01. Load Data ---------------------------------------------------------------
 
-# FISH REGIONS
-ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
-
 # ALL BMI DATA CLEANED
 load("data_output/00_bmi_cleaned_all.rda") # all data
 
@@ -524,18 +521,20 @@ bmi_coms_dat %>% st_drop_geometry() %>% distinct(SampleID) %>% tally
 # now look at how many unique stations: n=270 stations
 bmi_coms_dat %>% st_drop_geometry() %>% distinct(StationCode) %>% tally
 
+# now look at how many unique gageID: n=160 stations (ALT=116, REF=44)
+bmi_coms_dat %>% st_drop_geometry() %>% distinct(ID, .keep_all=TRUE) %>% count(CEFF_type)
+
 # summary
 summary(bmi_coms_dat)
 hist(bmi_coms_dat$MM) # what months?
-# if trim to summer months how many records do we lose?
+# if trim to summer months how many records do we lose? (15% of data)
 bmi_coms_dat_trim <- bmi_coms_dat %>% filter(MM>4 & MM<10) 
-# lose 56% data if trim Jul - Sep
-# lose 45% data if trim Jun - Sep
 hist(bmi_coms_dat_trim$MM)
 
-# bmi_may <- bmi_coms_dat %>% filter(MM==5)
-# class(bmi_may)
-# mapview(bmi_may)
+# if trimming we lose a few gages: ALT=100, REF=42
+bmi_coms_dat_trim %>% st_drop_geometry() %>% distinct(ID, .keep_all=TRUE) %>% count(CEFF_type)
+
+
 # save out
 save(bmi_coms_dat, bmi_coms_dat_trim, sel_bmi_coms_final_v2, file = "data_output/03_selected_final_bmi_stations_dat_all_gages.rda")
 
