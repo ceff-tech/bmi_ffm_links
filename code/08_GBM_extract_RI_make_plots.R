@@ -14,7 +14,8 @@ library(dismo)
 library(pdp)
 library(rlang)
 extrafont::loadfonts(quiet=TRUE)
-# GBM evaluation
+
+# GBM evaluation of single points of data
 #library(DALEX)
 #library(ingredients)
 
@@ -24,20 +25,23 @@ load("data_output/07_selected_bmi_csci_por_trim_w_huc_region.rda")
 # simple just sites:
 bmi_csci_sites <- bmi_csci_por_trim %>% 
   dplyr::distinct(StationCode, .keep_all = TRUE)
+
 #length(unique(bmi_csci_sites$StationCode)) # n=238
 #length(unique(bmi_csci_sites$ID)) # n=139
 
 # Load Data --------------------------------------------------------------------
 
 ## VARIABLES:
+# "all_ca_ffc_only"
+# "central_valley", "great_basin", "north_coast", "south_coast", 
+
 hydroDat <- "POR" # can be Annual, Lag1, Lag2, POR
-modname <- "all_ca_ffc_only" # model name
+modname <- "south_coast" # model name 
 bmiVar <- quote(csci) # select response var
 
 # make pathnames
 (mod_pathname <- paste0("07_gbm_final_", tolower(bmiVar), "_",tolower(hydroDat), "_",modname))
 (mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-
 
 # get the gbm model:
 (brt <- list.files(path="models/", pattern = paste0("^", mod_pathname,".*\\.rds$")))
@@ -51,9 +55,8 @@ load(paste0("models/",mod_pathname, "_model_data.rda"))
 # rename datasets for plotting:
 gbm_out_train <- data_por_train # NEED TO CHANGE THESE
 #gbm_out_test <- data_por_test
-#gbm_out_test <- na.omit(gbm_out_train) # only 60 records w/ no NAs (out of 300)
 
-ffmetrics <- unique(bmi_csci_por_trim$metric)
+#ffmetrics <- unique(bmi_csci_por_trim$metric)
 
 # 01A. RELATIVE INFLUENCE PLOTS (MSE) ALL VARS -------------------------------------
 
@@ -88,7 +91,7 @@ gbm_fin_RI <- gbm_fin_RI %>%
            position="dodge") +
   coord_flip() +
   geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
-  ylim(c(0,20))+
+  ylim(c(0,30))+
   scale_fill_viridis_d("Flow Component")+
   labs(title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Metrics: ", modname),
        x="", y="Relative Influence (%)", subtitle="MSE Criterion") +
@@ -109,7 +112,7 @@ ggsave(filename=tolower(paste0("models/", mod_savename, "_all_RI_mse.png")), wid
              position="dodge") +
     coord_flip() +
     geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
-    ylim(c(0,20))+
+    ylim(c(0,30))+
     scale_fill_viridis_d("Flow Component")+
     labs(title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Top Metrics: ", modname),
          x="", y="Relative Influence (%)", subtitle="MSE Criterion") +
@@ -151,7 +154,7 @@ gbm_fin_PT <- gbm_fin_PT %>%
              position="dodge") +
     coord_flip() +
     geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
-    ylim(c(0,35))+
+    ylim(c(0,50))+
     scale_fill_viridis_d("Flow Component")+
     labs(title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Metrics: ", modname),
          y="Relative Influence (%) (perm test)", x="",
@@ -174,7 +177,7 @@ ggsave(filename=tolower(paste0("models/", mod_savename, "_all_RI_permtest.png"))
             position="dodge") +
    coord_flip() +
    geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
-   ylim(c(0,35))+
+   ylim(c(0,50))+
    scale_fill_viridis_d("Flow Component")+
    labs(title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Top Metrics: ", modname),
         y="Relative Influence (%) (perm test)", x="",
@@ -186,11 +189,11 @@ ggsave(filename=tolower(paste0("models/", mod_savename, "_top_RI_permtest.png"))
 
 # Plot Side by Side -------------------------------------------------------
 
-library(cowplot)
+# library(cowplot)
 
-(pg1 <- plot_grid(fin_ri_top, fin_pt_top, align = "h", labels=c("A","B")))
-
-cowplot::save_plot(pg1, filename = tolower(paste0("models/08_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_both", ".png")), base_width = 11, units = "in", dpi = 300)
+# (pg1 <- plot_grid(fin_ri_top, fin_pt_top, align = "h", labels=c("A","B")))
+# 
+# cowplot::save_plot(pg1, filename = tolower(paste0("models/08_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_both", ".png")), base_width = 11, units = "in", dpi = 300)
 
 
 # 03. COMBINE RIs AND SAVE -----------------------------------------------------
@@ -231,7 +234,7 @@ library(pdp)
 
 # When the curves have a wide range of intercepts and are consequently “stacked” on each other, heterogeneity in the response variable values due to marginal changes in the predictor variable of interest can be difficult to discern, thus centering can help
 
-varNo <- 1 # single number makes single plot
+varNo <- 3 # single number makes single plot
 
 # RI
 (ice_ri <- gbm_final %>%
@@ -250,6 +253,12 @@ varNo <- 1 # single number makes single plot
 ggsave(filename=paste0("models/", mod_savename, "_pdp_ice_",
                        as.character(bestHydro_ri$var[varNo]),
                        ".png"), width = 11, height = 7, units = "in", dpi=300)
+
+
+
+
+
+
 
 # Z-archive this chunk: USE DALEX ---------------------------------------------------------------
 
