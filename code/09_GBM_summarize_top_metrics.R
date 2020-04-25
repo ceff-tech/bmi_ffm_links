@@ -17,11 +17,13 @@ library(purrr)
 # Load Data ---------------------------------------------------------------
 
 bmi_RI_combined <- readRDS(file = "models/08_gbm_RI_csci_por.rds")
+
 # orig data
-bmi_csci_por <- read_rds("data_output/05_selected_bmi_stations_w_csci_ffm_alt_por.rds")
+load("data_output/07_selected_bmi_csci_por_trim_w_huc_region.rda")
 
-load("data_output/05_selected_mainstems_final.rda") # mainstems_fina
-
+# simple just sites:
+bmi_csci_sites <- bmi_csci_por_trim %>% 
+  dplyr::distinct(StationCode, ID, .keep_all = TRUE)
 
 # Plot & Summarize All RI Combined ----------------------------------------
 
@@ -155,7 +157,7 @@ ggsave(filename = "figs/faceted_RI_by_flowcomp_bmi_LAG2.png", width = 9, height 
 
 library(mapview)
 
-sel_gages_bmi <- read_rds("data_output/02_selected_usgs_h12_all_gages.rds")
+sel_gages_bmi <- read_rds("data_output/03_selected_usgs_h12_all_gages.rds")
 
 # set background basemaps:
 basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap",
@@ -165,17 +167,21 @@ basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap"
 mapviewOptions(basemaps=basemapsList)
 
 # filter data
-unique(bmi_csci_por$metric)
-bmi_peak_5 <- filter(bmi_csci_por, metric=="Peak_5")
-bmi_sp_roc <- filter(bmi_csci_por, metric=="SP_ROC")
+unique(bmi_csci_por_trim$metric)
+bmi_peak_5 <- filter(bmi_csci_por_trim, metric=="Peak_5") %>% 
+  st_drop_geometry() %>% 
+  st_as_sf(., coords=c("longitude", "latitude"), crs=4326, remove=FALSE) 
+bmi_sp_roc <- filter(bmi_csci_por_trim, metric=="SP_ROC") %>% 
+  st_drop_geometry() %>% 
+  st_as_sf(., coords=c("longitude", "latitude"), crs=4326, remove=FALSE)
 
-m1 <- mapview(bmi_peak_5, zcol="status", layer.name="Benthos", alpha=0.8, cex=5, burst=TRUE) #+
+m1 <- mapview(bmi_peak_5, zcol="status_code", layer.name="Benthos", alpha=0.8, cex=5) #+
 
-m2 <- mapview(bmi_sp_roc, zcol="status", layer.name="Benthos", alpha=0.8, cex=5, burst=TRUE) #+
+m1 <- mapview(bmi_sp_roc, zcol="status", layer.name="Benthos", alpha=0.8, cex=5) #+
   #mapview(sel_gages_bmi, col.regions="blue", layer.name="Gages", cex=3, alpha=0.2)
 
 # add measure option  
-m2@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")  
+m1@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")  
     
 # LEAFLET -------------------------------------------------------------------
 
@@ -195,13 +201,13 @@ m <- leaflet() %>% addTiles() %>%
   
   
   # CDEC BMI STATIONS
-  addCircleMarkers(data=bmi_csci_por, group="BMI",
+  addCircleMarkers(data=bmi_csci_por_trim, group="BMI",
                    popup=paste0("<strong>","StationID: ","</strong>", 
-                                bmi_csci_por$StationCode, 
+                                bmi_csci_por_trim$StationCode, 
                                 "<br><strong>", "Lat: ","</strong>", 
-                                bmi_csci_por$latitude, 
+                                bmi_csci_por_trim$latitude, 
                                 "<br><strong>", "Lon: ","</strong>", 
-                                bmi_csci_por$longitude),
+                                bmi_csci_por_trim$longitude),
                    stroke=TRUE, weight=0.6,radius=4,
                    fillOpacity = 0.5, color="gray",
                    fillColor= "maroon") %>%  

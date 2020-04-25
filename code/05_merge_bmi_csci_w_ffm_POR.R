@@ -90,7 +90,7 @@ sel_bmi_coms_final_v2 %>% st_drop_geometry() %>%
 # Make GAGE/BMI geoms -----------------------------------------------------
 
 # make SF geometry fields for BMI
-bmi_csci_por_sf <- bmi_csci_por %>% 
+bmi_csci_por_bmi <- bmi_csci_por %>% 
     rename("geom_bmi"=geometry) 
 
 # make a USGS geom field
@@ -151,9 +151,10 @@ ggsave(filename = "figs/05_csci_scores_by_alteration_status_ceff_type.png", heig
 
 # save the bmi_csci_por
 write_rds(bmi_csci_por, path = "data_output/05_selected_bmi_stations_w_csci_ffm_alt_por.rds")
+
 write_rds(bmi_csci_por_trim, path = "data_output/05_selected_bmi_stations_w_csci_ffm_alt_por_trim.rds")
 
-save(bmi_csci_por_trim, bmi_csci_por_sf, bmi_csci_por_usgs, file="data_output/05_selected_bmi_csci_por_and_sf.rda")
+save(bmi_csci_por_trim, bmi_csci_por_bmi, bmi_csci_por_usgs, file="data_output/05_selected_bmi_csci_por_and_sf.rda")
 
 save(g_all_alt, g_all_ffc, file = "data_output/05_all_alt_ffc.rda")
 
