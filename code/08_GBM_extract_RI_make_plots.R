@@ -36,7 +36,7 @@ bmi_csci_sites <- bmi_csci_por_trim %>%
 # "central_valley", "great_basin", "north_coast", "south_coast", 
 
 hydroDat <- "POR" # can be Annual, Lag1, Lag2, POR
-modname <- "south_coast" # model name 
+modname <- "all_ca_ffc_only" # model name 
 bmiVar <- quote(csci) # select response var
 
 # make pathnames
@@ -57,6 +57,10 @@ gbm_out_train <- data_por_train # NEED TO CHANGE THESE
 #gbm_out_test <- data_por_test
 
 #ffmetrics <- unique(bmi_csci_por_trim$metric)
+
+# % percent explained
+(gbm_final$self.statistics$mean.null - gbm_final$cv.statistics$deviance.mean) / gbm_final$self.statistics$mean.null 
+
 
 # 01A. RELATIVE INFLUENCE PLOTS (MSE) ALL VARS -------------------------------------
 

@@ -1,5 +1,8 @@
 # Make figs for slides:
 
+
+# Load Libraries ----------------------------------------------------------
+
 library(mapview)
 library(tidyverse)
 library(sf)
@@ -8,51 +11,89 @@ library(ggspatial)
 library(viridis)
 library(USAboundaries)
 
+# Load Data ---------------------------------------------------------------
 
-load("data_output/gages2_sf.rda")
-load("data_output/00_bmi_cleaned_stations_distinct_xy.rda")
-load("data_output/02_gages_final_250.rda")
-load("data_output/03_selected_bmi_and_gages.rda")
-load("data_output/03_selected_h12_contain_bmi_gage.rda")
-load("data_output/05_mainstems_us_ds_selected_gages.rda") # all mainstems
-mainstems_all <- mainstems
-# selected mainstems
-load("data_output/07_mainstems_bmi_selected_gages.rda")
+load("data_output/00_bmi_stations_distinct.rda")
+load("data_output/01_usgs_all_gages.rda")
+
+# BMI SITES (final V2)
+load("data_output/03_selected_final_bmi_stations_dat_all_gages.rda")
+
+# BMI
+sel_bmi_gages_csci <- readRDS("data_output/03_selected_bmi_h12_all_gages_csci.rds") # sel_bmi_gages w csci scores
+
+sel_gages_bmi <- readRDS("data_output/03_selected_usgs_h12_all_gages.rds")
+sel_h12_bmi <- readRDS("data_output/03_selected_h12_all_gages.rds")
+load("data_output/03_selected_nhd_mainstems_gages.rda")
+
+# this has usgs and bmi versions of the data
+load("data_output/05_selected_bmi_csci_por_and_sf.rda")
+
+# final sites
+load("data_output/07_selected_bmi_csci_por_trim_w_huc_region.rda")
+
+# simple just sites:
+bmi_csci_sites <- bmi_csci_por_trim %>% 
+  dplyr::distinct(StationCode, .keep_all = TRUE)
+
 load("data_output/major_rivers_dissolved.rda")
 load("data_output/huc12_sf.rda")
 
-# final station list
-load("data_output/07_selected_bmi_stations_w_comids.rda")
 # read in fish regions:
-load("data/07_umbrella_sp_regions.rda")
+ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T) %>% st_transform(4326)
 
 # map of all bug stations statewide
 ca <- USAboundaries::us_states(resolution="low", states = "ca")
 ca_co <- us_counties(states = "ca")
 
-# filter to major rivers
-# crop to CA
-rivs_ca <- st_intersection(rivs, ca)
 
+# Tidy Rivers Data --------------------------------------------------------------
+
+# filter major rivers to only CA
+rivs_ca <- st_intersection(rivs, ca) # crop
+
+# filter to perennial only
 rivs_filt <- filter(rivs, FEATURE_TYPE=="river", FEATURE_CLASS=="perennial")
 #mapview(rivs, zcol="FEATURE_TYPE")
+
 rivs_filt_ca <- st_intersection(rivs_filt, ca)
+
+
+# Get Selected/Not Selected Data ------------------------------------------
+
+# not selected bmi
+bmi_not_selected_v2 <- sel_bmi_gages_csci %>% filter(!as.character(StationCode) %in% sel_bmi_coms_final_v2$StationCode) # n=203
+
+# get all gages selected
+gages_selected_v2 <- bmi_csci_por_usgs %>%
+  filter(ID %in% bmi_csci_por_trim$ID) %>% 
+  distinct(ID, .keep_all = TRUE)
+
+# get the gages not selected
+gages_not_selected_v2 <- sel_gages_bmi %>% 
+  filter(!ID %in% gages_selected_v2$ID)
 
 
 # Quick Mapview -----------------------------------------------------------
 
+# set background basemaps/default options:
+basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap",
+                  "OpenTopoMap", "OpenStreetMap", 
+                  "CartoDB.Positron", "Stamen.TopOSMFeatures")
+mapviewOptions(homebutton = FALSE, basemaps=basemapsList, viewer.suppress = FALSE)
+
 # quick preview
-# mapview(sel_gages_bmi, col.regions="deepskyblue4", cex=7, alpha=0.7, legend=FALSE) +
-#   mapview(mainstems_all, color="darkblue", lwd=0.5, legend=FALSE) +
-#   mapview(mainstems, color="darkblue", lwd=0.6, legend=FALSE) +
-#   mapview(sel_h12_bmi, col.regions="darkslategray4", 
-#           alpha.regions=0.3, lwd=0.8, legend=FALSE) +
-#   # mapview(ca_sp_regions, zcol="huc_region", alpha.regions=0.3,
-#   #         layer.name="CA Regions") +
-#   mapview(sel_bmi_gages, col.regions="gray", cex=4.5, alpha=.7,
-#           layer.name="BMI Stations in H12") +
-#   mapview(bmi_coms, col.regions="orange", cex=5, alpha=.7,
-#           layer.name="Selected BMI")
+mapview(gages_selected_v2, col.regions="deepskyblue4", cex=7, alpha=0.7, legend=FALSE) +
+  mapview(gages_not_selected_v2, col.regions="gray", cex=7, alpha=0.7, legend=FALSE) +
+  mapview(mainstems_all, color="darkblue", lwd=1.8, legend=FALSE) +
+  mapview(sel_h12_bmi, col.regions="darkslategray4",
+          alpha.regions=0.3, lwd=0.8, legend=FALSE) +
+  # mapview(ca_sp_regions, zcol="huc_region", alpha.regions=0.3,
+  #         layer.name="CA Regions") +
+  mapview(sel_bmi_gages_csci, col.regions="gray", cex=4.5, alpha=.7,
+          layer.name="BMI Stations in H12") +
+  mapview(bmi_csci_sites, col.regions="orange", cex=5, alpha=.7,
+          layer.name="Selected BMI")
 
 
 
@@ -78,9 +119,9 @@ map_ca <- tm_shape(ca) + tm_polygons() +
 map_ca  
 
 # then add bug stations by collection method
-(tm_ca_bmi_sites <- map_ca + tm_shape(bmi_clean_stations) +
+(tm_ca_bmi_sites <- map_ca + tm_shape(bmi_stations_distinct) +
     tm_symbols(col="maroon", border.col = "black", size=0.3) +
-    tm_logo(file = "figs/cws_logotextin_websafe.png", position = c("left","bottom"), height = 5) +
+    tm_logo(file = paste0(here::here(),"/figs/logo_cws_websafe.png"), position = c("left","bottom"), height = 5) +
     #tm_facets(by = "collectionmethodcode", nrow = 2,free.coords = FALSE) + 
     tm_layout(legend.show = F, legend.outside = TRUE, 
               title = "BMI Stations \n (n=2,935)", 
@@ -103,9 +144,11 @@ map_ca <- tm_shape(ca) + tm_polygons() +
   tm_layout(frame=FALSE)
 map_ca  
 
+usgs_final_all <- st_intersection(usgs_final_all, ca)
+
 # then add gage stations by ref type
-(tm_ca_usgs <- map_ca + tm_shape(gages2_sf) +
-    tm_symbols(col="CLASS", palette=c("darkblue", "skyblue"),  
+(tm_ca_usgs <- map_ca + tm_shape(usgs_final_all) +
+    tm_symbols(col="CEFF_type", palette=c("darkblue", "skyblue"),  
                border.col = "black", size=0.3) +
     tm_logo(file = "figs/logo_cws_websafe.png", position = c("left","bottom"), height = 5) +
     tm_layout(legend.show = TRUE, 
@@ -224,9 +267,9 @@ map_ca
 
 # then add bug stations by collection method
 (tm_ca_usgs <- map_ca + 
-    tm_shape(sel_gages_bmi) +
+    tm_shape(gages_selected_v2) +
     tm_symbols(col="#31688EFF", border.col = "black", size=1.5) +
-    tm_shape(sel_bmi_gages) +
+    tm_shape(bmi_csci_sites) +
     tm_symbols(col="orange", border.col = "black", size=.55) +
     tm_logo(file = "figs/logo_cws_websafe.png", position = c("left","bottom"), height = 5) +
     tm_add_legend(type = "symbol", 

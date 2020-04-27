@@ -27,8 +27,6 @@ sel_gages_bmi <- readRDS("data_output/03_selected_usgs_h12_all_gages.rds")
 sel_h12_bmi <- readRDS("data_output/03_selected_h12_all_gages.rds")
 load("data_output/03_selected_nhd_mainstems_gages.rda")
 
-ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
-
 # Set up Mapview Basemap --------------------------------------------------
 
 # set background basemaps:
