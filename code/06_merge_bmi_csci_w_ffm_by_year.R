@@ -15,9 +15,13 @@ library(tidylog)
 
 # bmi data:
 ### bmi_coms_dat (all data for selected site pairs), 
-### bmi_coms_final (just coms and id)
+### sel_bmi_coms_final_v2 (just the sites)
 ### bmi_coms_dat_trim (all data for selected site pairs btwn Jun-Sep)
 load("data_output/03_selected_final_bmi_stations_dat_all_gages.rda") 
+
+# POR joined data w huc regions
+#load("data_output/05_selected_bmi_csci_por_trim_w_huc_region.rda")
+#load("data_output/05_selected_bmi_csci_por_w_huc_region.rda")
 
 # FISH REGIONS
 ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
@@ -38,86 +42,105 @@ mapviewOptions(basemaps=basemapsList)
 
 # Make BMI POR FF Dataset -----------------------------------------------
 
-# make gage_id as character for join:
+# make gage_id as character for join, read date and filter to TRIM Months (May-Sep)
 sel_bmi_coms_final_v2 <- sel_bmi_coms_final_v2 %>% 
   mutate(gage_id_c = gsub("^T", "", ID))
 
-# join together selected csci data with ffm alteration status data
-bmi_csci_por <-  inner_join(sel_bmi_coms_final_v2, g_all_alt,
-                            #by=c("comid")) #%>% # n=2688
-                            #by=c("comid", "gage_id_c"="gage_id")) # %>% # n=1550
-                            # since only want observed data at USGS gage:
-                            by=c("gage_id_c"="gage_id")) %>%   # n=7719
-  distinct(SampleID, metric, gage_id, .keep_all=TRUE) %>% 
-  rename(comid_bmi = comid.x, comid_ffc = comid.y) # n=7337
+sel_bmi_coms_final_trimmed <- sel_bmi_coms_final_v2 %>% 
+  mutate(gage_id_c = gsub("^T", "", ID)) %>% 
+  separate(SampleID, into=c("site", "sampledate"), sep = "_", remove = FALSE) %>% 
+  mutate(sampledate = lubridate::mdy(sampledate)) %>% 
+  mutate(sampledate = if_else(is.na(sampledate), lubridate::mdy("06282009"), sampledate)) %>% 
+  select(-site) %>% 
+  filter(lubridate::month(sampledate)>4, lubridate::month(sampledate)<10)
 
-# see how many distinct sites
-length(unique(bmi_csci_por$gage_id_c)) #Gages (n=154)
-length(unique(bmi_csci_por$StationCode)) # BMI Stations (n=267)
+# check the layers above match: 
+bmi_coms_dat_trim %>% st_drop_geometry() %>% distinct(SampleID, ID) %>% dim() # trimmed data (n=300):
+bmi_coms_dat %>% st_drop_geometry() %>% distinct(SampleID, ID) %>% dim() # this should be 349
 
-# how many of each gage type
-bmi_csci_por %>% st_drop_geometry() %>% 
-  dplyr::distinct(ID, .keep_all=TRUE) %>% 
-  group_by(CEFF_type) %>%  tally() # ALT = 116, REF = 38
+# Make ANNUAL Dataset -----------------------------------------------------
 
-# and originally? : so we lost 6 ref sites :(
-sel_bmi_coms_final_v2 %>% st_drop_geometry() %>% 
-  dplyr::distinct(ID, .keep_all=TRUE) %>% 
-  group_by(CEFF_type) %>%  tally() # ALT = 116, REF = 44
+#g_all_ffc %>% group_by(gage_id, Year) %>% distinct() %>% dim()
 
-# Lagged Dataset ----------------------------------------------------------
+# get raw functional flow metrics (for every year)
+ffm <- g_all_ffc %>% mutate(Year=as.integer(Year)) %>% 
+  distinct() # filter out duplication
+
+# make it long not wide for joins:
+ffm <- pivot_longer(ffm, cols= c(DS_Dur_WS:Peak_Fre_5), names_to = "ffm_metric", values_to = "ffm_value") %>% 
+  # drop nas
+  filter(!is.na(ffm_value))
+
+## MAKE UNTRIMMED DATA SET (ALL SAMPLE BMI MONTHS)
+# untrimmed = 349
+bmi_sampleid <- bmi_coms_dat %>% st_drop_geometry() %>% 
+  mutate(gage_id_c = gsub("^T", "", ID)) %>% 
+  dplyr::distinct(SampleID, ID, .keep_all = TRUE)
+
+# join for annual data by GAGE ID, and BMI Sample YEAR = USGS Year
+bmi_csci_ffm_ann <- left_join(bmi_sampleid, ffm, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
 
 
-# make a lagged dataset, need to look for WYs + 1 equal to the actual bmi year:
+# Make LAGGED Dataset -----------------------------------------------------
 
-# this took way too long to figure out
-## LAG 1
-bmi_flow_metrics_lag1 <- bmi_flow_metrics_all %>% 
-  dplyr::filter(YYYY == WYs+1)
+# years -1  -2
+lag_yrs_1 <- unique(bmi_sampleid$YYYY) - 1
+lag_yrs_2 <- unique(bmi_sampleid$YYYY) - 2
 
-## LAG 2
-bmi_flow_metrics_lag2 <- bmi_flow_metrics_all %>% 
-  dplyr::filter(YYYY == WYs+2)
+# make lag data
+ffm_lag1 <- ffm %>% filter(Year %in% lag_yrs_1) %>% 
+  mutate(year_flow = Year-1) # add for labeling purposes
+ffm_lag2 <- ffm %>% filter(Year %in% lag_yrs_2) %>% 
+  mutate(year_flow = Year-2) # add for labeling purposes
 
-# make POR dataset
-bmi_flow_metrics_por <- bmi_flow_metrics_all %>% 
-  dplyr::filter(WYs==1900)
+# rejoin
+bmi_csci_ffm_lag1 <- left_join(bmi_sampleid, ffm_lag1, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
+bmi_csci_ffm_lag2 <- left_join(bmi_sampleid, ffm_lag2, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
 
-# Now add CSCI: but need to regen sampleID for CSCI data (station_YMD_samplemethod_replicate)
-bmi_csci_flow_por <- bmi_csci_flow_por %>% 
-  mutate(SampleID=paste0(StationCode, "_", year(sampledate), sprintf("%02d", month(sampledate)), sprintf("%02d", day(sampledate)), "_", collectionmethodcode, "_", fieldreplicate)) %>% st_drop_geometry()
+# make just sampleID dataset (trimmed = 300)
+bmi_sampleid_trimmed <- bmi_coms_dat_trim %>% st_drop_geometry() %>% 
+  mutate(gage_id_c = gsub("^T", "", ID)) %>% 
+  dplyr::distinct(SampleID, ID, .keep_all = TRUE)
 
-# annual and lagged data
-bmi_csci_flow_yrs <- bmi_csci_flow_yrs %>% 
-  mutate(SampleID=paste0(StationCode, "_", year(sampledate), sprintf("%02d", month(sampledate)), sprintf("%02d", day(sampledate)), "_", collectionmethodcode, "_", fieldreplicate)) 
+# join for annual data by GAGE ID, and BMI Sample YEAR = USGS Year
+bmi_csci_ffm_ann_trimmed <- left_join(bmi_sampleid_trimmed, ffm, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
 
-# make a distinct SampleID list of csci
-csci_only_por <- bmi_csci_flow_por %>% select(SampleID, csci, csci_percentile, mmi, mmi_percentile) %>% 
-  distinct(SampleID, .keep_all = T)
+# years -1  -2
+lag_yrs_1_trim <- unique(bmi_sampleid_trimmed$YYYY) - 1
+lag_yrs_2_trim <- unique(bmi_sampleid_trimmed$YYYY) - 2
 
-# distinct for csci_only_yrs
-csci_only_yrs <- bmi_csci_flow_yrs %>% select(SampleID, csci, csci_percentile, mmi, mmi_percentile) %>% 
-  distinct(SampleID, .keep_all = T)
+# make lag data
+ffm_lag1_trimmed <- ffm %>% filter(Year %in% lag_yrs_1_trim) %>% 
+  mutate(year_flow = Year-1) # add for labeling purposes
+ffm_lag2_trimmed <- ffm %>% filter(Year %in% lag_yrs_2_trim) %>% 
+  mutate(year_flow = Year-2) # add for labeling purposes
 
-# now join
-bmi_flow_metrics_por_csci <- left_join(bmi_flow_metrics_por, csci_only_por)
-bmi_flow_metrics_ann_csci <- left_join(bmi_flow_metrics_annual, csci_only_yrs)
-bmi_flow_metrics_lag1_csci <- left_join(bmi_flow_metrics_lag1, csci_only_yrs)
-bmi_flow_metrics_lag2_csci <- left_join(bmi_flow_metrics_lag2, csci_only_yrs)
+# rejoin
+bmi_csci_ffm_lag1_trim <- left_join(bmi_sampleid_trimmed, ffm_lag1_trimmed, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
+bmi_csci_ffm_lag2_trim <- left_join(bmi_sampleid_trimmed, ffm_lag2_trimmed, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
 
-save(bmi_flow_metrics_por_csci, file="data_output/06_selected_bmi_flow_metrics_w_csci_POR.rda")
-save(bmi_flow_metrics_ann_csci, file="data_output/06_selected_bmi_flow_metrics_w_csci_ANN.rda")
-save(bmi_flow_metrics_lag1_csci, file="data_output/06_selected_bmi_flow_metrics_w_csci_LAG1.rda")
-save(bmi_flow_metrics_lag2_csci, file="data_output/06_selected_bmi_flow_metrics_w_csci_LAG2.rda")
+
+
+# SAVE OUT ----------------------------------------------------------------
+
+
+save(bmi_csci_ffm_ann, file="data_output/06_selected_bmi_csci_ffm_ann.rda")
+save(bmi_csci_ffm_ann_trimmed, file="data_output/06_selected_bmi_csci_ffm_ann_trim.rda")
+save(bmi_csci_ffm_lag1, file="data_output/06_selected_bmi_csci_ffm_lag1.rda")
+save(bmi_csci_ffm_lag1_trim, file="data_output/06_selected_bmi_csci_ffm_lag1_trim.rda")
+save(bmi_csci_ffm_lag2, file="data_output/06_selected_bmi_csci_ffm_lag2.rda")
+save(bmi_csci_ffm_lag2_trim, file="data_output/06_selected_bmi_csci_ffm_lag2_trim.rda")
 
 
 # zz: Calc Bug Metrics --------------------------------------------------------
 
 # only need to do this once, don't rerun, takes a fair bit of time
 # first filter to years of interest
+library(CSCI)
+library(BMIMetrics)
 
-bmi_filt <- bmi_dat %>% st_drop_geometry() %>% 
-  filter(YYYY %in% c(1993:2016))
+bmi_filt <- bmi_coms_dat %>% st_drop_geometry() #%>% 
+  #filter(YYYY %in% c(1993:2017))
 
 library(purrr)
 
@@ -128,6 +151,7 @@ bugs_split <- bmi_filt %>%
 bugs_samp <- bugs_split %>%
   map(~sample(.x)) # subsample to 500 individuals and aggregate
 
+# aggregate across these splits (this takes awhile)
 bugs_agg <- bugs_samp %>%
   map(~aggregate(.x))
 
@@ -136,8 +160,8 @@ bug_metrics <- bugs_agg %>%
   map(~BMIall(.x, effort=1))
 
 # make clean station set:
-bmi_sampleids <- bmi_filt %>% distinct(SampleID, .keep_all = T) %>%
-  select(1:4, 8:24)
+bmi_sampleids <- bmi_filt %>% distinct(SampleID, ID, .keep_all = T) %>%
+  select(StationCode:HUC_12, ID, SampleID:sampledate)
 
 # flatten and rejoin with station data:
 bmi_metrics_df <- bug_metrics %>%
@@ -148,16 +172,9 @@ bmi_metrics_df <- bug_metrics %>%
 # clean workspace, rm old bits
 rm(bugs_agg, bugs_samp, bugs_split, bug_metrics, bmi_filt)
 
-# fix the names and cols, add USGS ID
-bmi_metrics_df <- bmi_metrics_df %>% 
-  select(-c(latitude.x, longitude.x, LONGITUDE, latitude.y, longitude.y)) %>% 
-  # join the USGS station ID back in:
-  left_join(., bmi_coms[,c(1:3,7)], by="StationCode") %>% 
-  select(-geometry)
-
-# all IDs accounted for?
+# all IDs accounted for? (should be equal to total number of rows in dataframe)
 dim(bmi_metrics_df[!is.na(bmi_metrics_df$ID),])[1]
 
 # SAVE IT
-#save(bmi_metrics_df, file="data_output/06_selected_bmi_metrics_at_gage_sites.rda")
+save(bmi_metrics_df, file="data_output/06_selected_bmi_csci_and_bug_metrics.rda")
 

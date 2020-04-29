@@ -47,7 +47,7 @@ load(paste0("models/",mod_pathname, "_model_data.rda"))
 # Get FFC Data and Join ---------------------------------------------------
 
 # load FFC Metrics Data
-load("data_output/05_all_alt_ffc.rda")
+load("data_output/02_usgs_all_ffm_data.rda")
 
 g_all_ffc %>% group_by(gage_id, Year) %>% distinct()
 

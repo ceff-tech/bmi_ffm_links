@@ -21,11 +21,6 @@ set.seed(321) # reproducibility
 
 # 01. Load Data ---------------------------------------------------------------
 
-## If already run Step 01a, comment out these next 3 lines and start at mainstem rivers, and skip 01a
-
-# trimmed (May-Sept) data, and sf layers w geoms for bmi and usgs
-# load("data_output/05_selected_bmi_csci_por_and_sf.rda")
-
 # mainstem rivers
 load("data_output/03_selected_nhd_mainstems_gages.rda") # mainstems_all
 
@@ -33,74 +28,14 @@ load("data_output/03_selected_nhd_mainstems_gages.rda") # mainstems_all
 ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T) %>% st_transform(4326)
 
 # load updated data w HUC_regions:
-load("data_output/07_selected_bmi_csci_por_trim_w_huc_region.rda")
+load("data_output/05_selected_bmi_csci_por_trim_w_huc_region.rda")
+load("data_output/05_selected_bmi_csci_por_w_huc_region.rda")
 
 # set background basemaps/default options:
 basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap",
                   "OpenTopoMap", "OpenStreetMap", 
                   "CartoDB.Positron", "Stamen.TopOSMFeatures")
 mapviewOptions(homebutton = FALSE, basemaps=basemapsList, viewer.suppress = FALSE)
-
-# 01a. Add Regions --------------------------------------------------
-
-# check crs:
-# st_crs(bmi_csci_por_trim)
-# st_crs(ca_sp_regions)
-
-# join with regions and add huc_region, make sure both df are in 4326
-# bmi_csci_por_trim <- st_join(bmi_csci_por_trim, left = TRUE, ca_sp_regions["huc_region"])
-
-# make a simpler layer for just editing:
-# bmi_csci_sites <- bmi_csci_por_trim %>% 
-#   dplyr::distinct(StationCode, ID, .keep_all = TRUE)
-# length(unique(bmi_csci_sites$StationCode))
-
-# view and update w mapedit
-# mapview(bmi_csci_sites, col.regions="orange") + mapview(ca_sp_regions)
-
-# library(mapedit)
-# library(leafpm)
-# library(leaflet)
-# 
-# # use this to select features (returns a list of stationcodes)
-# selectMap(
-#   leaflet() %>%
-#     addTiles() %>%
-#     addPolygons(data=ca_sp_regions, layerId = ~huc_region, color = "orange") %>%
-#     addCircleMarkers(data = bmi_csci_sites, layerId = ~StationCode)
-#   )
-
-## sites to add to central valley
-# cvalley_add <- c("514FC1278", "514RCR001", "534DCC167")
-
-## sites to add to great_basin
-# gbasin_add <- c("603MAM004", "630PS0005")
-
-## sites to add to southcoast
-# scoast_add <- c("628PS1307","628PS1179","719MISSCK","719TRMDSS","719FCA001")
-
-# Amargosa site is "609PS0053" = mojave?
-
-# so 294 NA's
-# summary(as.factor(bmi_csci_por_trim$huc_region))
-
-# use case_when to replace
-# bmi_csci_por_trim <- bmi_csci_por_trim %>% 
-#   mutate(huc_region = case_when(
-#     StationCode %in% cvalley_add ~ "central_valley",
-#     StationCode %in% gbasin_add ~ "great_basin",
-#     StationCode %in% scoast_add ~ "south_coast",
-#     TRUE ~ huc_region))
-# 
-# summary(as.factor(bmi_csci_por_trim$huc_region))
-# table(bmi_csci_por_trim$huc_region)
-# 
-# # map and double check:
-# mapview(bmi_csci_por_trim, zcol="huc_region", layer.name="Selected Sites", viewer.suppress=FALSE) +
-#   mapview(ca_sp_regions, zcol="huc_region", layer.name="HUC Regions", alpha.regions=0.1)
-# 
-# # save back out for later
-# save(bmi_csci_por_trim, file = "data_output/07_selected_bmi_csci_por_trim_w_huc_region.rda")
 
 
 # 02. Select a Region ---------------------------------------------------------
