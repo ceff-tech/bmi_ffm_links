@@ -24,31 +24,8 @@ ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
 # nhd streamlines
 load("data_output/03_selected_nhd_mainstems_gages.rda") # mainstems_all
 
-
-# Get Functional Flow Data ------------------------------------------------
-
-# pulled in 02 code
-
-load("data_output/02_usgs_ref_ffc_alteration.rda") # alteration status: g_alt_ref
-load("data_output/02_usgs_altered_ffc_alteration.rda") # alteration status: g_alt_alt
-load("data_output/02_usgs_altered_ffc_metrics.rda") # ffc altered: g_alt_ffc
-load("data_output/02_usgs_ref_ffc_metrics.rda") # ffc reference: g_ref_ffc
-
-# need to trim out cols we don't need:
-g_alt_ffc <- g_alt_ffc %>% select(names(g_ref_ffc)) 
-
-# then merge
-g_all_ffc <- bind_rows(g_alt_ffc, g_ref_ffc)
-
-# rm old
-rm(g_alt_ffc, g_ref_ffc)
-
-# alteration status metrics (for POR)
-# fix weird numeric vs. character
-g_alt_alt <- g_alt_alt %>% mutate(gage_id = as.character(gage_id))
-g_all_alt <- bind_rows(g_alt_alt, g_alt_ref)
-rm(g_alt_alt, g_alt_ref)
-
+# get all functional flow metric data (percentiles, alt status, ffmetrics)
+load("data_output/02_usgs_all_ffm_data.rda")
 
 # Set Basemaps ------------------------------------------------------------
 

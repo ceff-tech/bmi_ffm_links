@@ -6,43 +6,64 @@
 
 library(tidyverse)
 library(sf)
+library(mapview)
 library(lubridate)
+library(tidyverse)
+library(tidylog)
 
-# Data --------------------------------------------------------------------
+# Load Data ---------------------------------------------------------------
 
-# paired bmi sites w csci data
-bmi_csci <- read_rds("data_output/04_selected_bmi_stations_w_csci.rds")
-load("data_output/04_all_csci_data.rda") # all csci scores
+# bmi data:
+### bmi_coms_dat (all data for selected site pairs), 
+### bmi_coms_final (just coms and id)
+### bmi_coms_dat_trim (all data for selected site pairs btwn Jun-Sep)
+load("data_output/03_selected_final_bmi_stations_dat_all_gages.rda") 
 
-# flow alteration metrics:
-load("data_output/usgs_ref_ffc_metrics.rda")
-load("data_output/usgs_altered_ffc_metrics.rda")
-load("data_output/usgs_ref_ffc_list.rda")
+# FISH REGIONS
+ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
 
-# Make Annual FFM Dataset -------------------------------------------------
+# nhd streamlines
+load("data_output/03_selected_nhd_mainstems_gages.rda") # mainstems_all
 
-# make this: bmi_csci_flow_ffm
-# should have csci, comid, stationid, and a metric status/or metric for each year of a gage (and gage id).
+# get all functional flow metric data (percentiles, alt status, ffmetrics)
+load("data_output/02_usgs_all_ffm_data.rda")
 
-library(ffcAPIClient)
+# Set Basemaps ------------------------------------------------------------
 
-# set/get the token for using the FFC
-ffctoken <- set_token(Sys.getenv("EFLOWS_TOKEN", "")) 
+# set background basemaps:
+basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap",
+                  "OpenTopoMap", "OpenStreetMap", 
+                  "CartoDB.Positron", "Stamen.TopOSMFeatures")
+mapviewOptions(basemaps=basemapsList)
 
-tst <- ffcAPIClient::evaluate_gage_alteration(gage_id = 10255810, 
-                                              token = ffctoken,
-                                              comid = 22595619)
+# Make BMI POR FF Dataset -----------------------------------------------
 
-tst1 <- usgs_ffc_ref[[1]]$ffc_results %>% as_tibble()
-tst2 <- usgs_ffc_ref[[1]]
+# make gage_id as character for join:
+sel_bmi_coms_final_v2 <- sel_bmi_coms_final_v2 %>% 
+  mutate(gage_id_c = gsub("^T", "", ID))
 
-annual_tst <- ffcAPIClient::assess_alteration(
-  percentiles = tst$ffc_results, 
-  predictions = tst$predicted_percentiles,
-  ffc_values = tst$ffc_results, 
-  comid = tst$alteration %>% distinct(comid) %>% as.integer(),
-  annual = TRUE)
+# join together selected csci data with ffm alteration status data
+bmi_csci_por <-  inner_join(sel_bmi_coms_final_v2, g_all_alt,
+                            #by=c("comid")) #%>% # n=2688
+                            #by=c("comid", "gage_id_c"="gage_id")) # %>% # n=1550
+                            # since only want observed data at USGS gage:
+                            by=c("gage_id_c"="gage_id")) %>%   # n=7719
+  distinct(SampleID, metric, gage_id, .keep_all=TRUE) %>% 
+  rename(comid_bmi = comid.x, comid_ffc = comid.y) # n=7337
 
+# see how many distinct sites
+length(unique(bmi_csci_por$gage_id_c)) #Gages (n=154)
+length(unique(bmi_csci_por$StationCode)) # BMI Stations (n=267)
+
+# how many of each gage type
+bmi_csci_por %>% st_drop_geometry() %>% 
+  dplyr::distinct(ID, .keep_all=TRUE) %>% 
+  group_by(CEFF_type) %>%  tally() # ALT = 116, REF = 38
+
+# and originally? : so we lost 6 ref sites :(
+sel_bmi_coms_final_v2 %>% st_drop_geometry() %>% 
+  dplyr::distinct(ID, .keep_all=TRUE) %>% 
+  group_by(CEFF_type) %>%  tally() # ALT = 116, REF = 44
 
 # Lagged Dataset ----------------------------------------------------------
 

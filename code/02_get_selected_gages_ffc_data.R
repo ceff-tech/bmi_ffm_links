@@ -41,13 +41,13 @@ load("data_output/01_usgs_all_gages.rda") # final gages list
 table(usgs_final_all$CEFF_type)
 
 
-# Get Altered -------------------------------------------------------------
+# 00A. Get Altered Gages -------------------------------------------------------------
 
 usgs_alt_list <- usgs_final_all %>% 
   filter(CEFF_type=="ALT") %>% 
   st_drop_geometry()
 
-# Get Reference ---------------------------------------------------------------
+# 00B. Get Reference Gages ---------------------------------------------------------------
 
 usgs_ref_list <- usgs_final_all %>% 
   filter(CEFF_type=="REF") %>% 
@@ -192,3 +192,51 @@ g_ref_wyt_percentiles %>% distinct(gage_id)
 # save 
 save(g_ref_wyt_percentiles, file = "data_output/02_usgs_ref_ffc_wytpercentiles.rda")
 write_csv(g_ref_wyt_percentiles, path="data_output/02_usgs_ref_ffc_wytpercentiles.csv")
+
+
+# 07. COMBINE ALL ---------------------------------------------------------
+
+# * Get Functional Flow Alteration Status ------------------------------------
+
+# pulled in earlier
+
+load("data_output/02_usgs_ref_ffc_alteration.rda") # alteration status: g_alt_ref
+load("data_output/02_usgs_altered_ffc_alteration.rda") # alteration status: g_alt_alt
+load("data_output/02_usgs_altered_ffc_metrics.rda") # ffc altered: g_alt_ffc
+load("data_output/02_usgs_ref_ffc_metrics.rda") # ffc reference: g_ref_ffc
+
+# need to trim out cols we don't need:
+g_alt_ffc <- g_alt_ffc %>% select(names(g_ref_ffc))
+
+# then merge all
+g_all_ffc <- bind_rows(g_alt_ffc, g_ref_ffc) # all FFM raw metrics by Year
+
+
+# * Get Functional Flow Metrics ---------------------------------------------
+
+# fix weird numeric vs. character
+g_alt_alt <- g_alt_alt %>% mutate(gage_id = as.character(gage_id))
+
+# make all
+g_all_alt <- bind_rows(g_alt_alt, g_alt_ref) # all FFM alteration status codes
+
+# rm old
+rm(g_alt_ffc, g_ref_ffc)
+rm(g_alt_alt, g_alt_ref)
+
+# * Get Functional Flow Percentiles ------------------------------------------
+
+# pulled in 02 code
+load("data_output/02_usgs_ref_ffc_percentiles.rda")
+load("data_output/02_usgs_altered_ffc_percentiles.rda")
+
+# combine the two
+g_all_percentiles <- bind_rows(g_alt_percentiles, g_ref_percentiles) %>%
+  select(-source, -observed_years, -alteration)
+
+# rm old layers
+rm(g_alt_percentiles, g_ref_percentiles)
+
+# save all three
+save(g_all_alt, g_all_ffc, g_all_percentiles, file = "data_output/02_usgs_all_ffm_data.rda")
+
