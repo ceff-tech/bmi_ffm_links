@@ -8,6 +8,7 @@ library(purrr)
 library(rlang)
 library(ggthemes)
 library(tidylog)
+library(cowplot)
 
 # Load Data ---------------------------------------------------------------
 
@@ -94,9 +95,11 @@ bmi_ffm_lag2 <- left_join(bmi_sampleid, ffm_lag2, by=c("gage_id_c"="gage_id", "Y
     scale_y_log10() +
     geom_point(pch=21, size=4, show.legend = F) +
     # using a spline here
-    geom_smooth(method = "gam", aes(color=huc_region), formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
+    geom_smooth(method = "gam", color="steelblue", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
    scale_color_colorblind("HUC Region")+
    theme_clean(base_family = "Roboto Condensed") +
+   theme(panel.border = element_blank(),
+         plot.background = element_blank()) +
    labs(x="CSCI", y="log(FFM Value)", title="Peak 5", subtitle="by HUC region") +
    facet_wrap(huc_region~.))
 
@@ -107,16 +110,18 @@ bmi_ffm_lag2 <- left_join(bmi_sampleid, ffm_lag2, by=c("gage_id_c"="gage_id", "Y
     scale_fill_viridis_d("Alt. Status", direction = -1) +
     scale_y_log10() +
     geom_point(pch=21, size=4, show.legend = F) +
-    geom_smooth(method = "lm", aes(color=status), fill="gray",  
+    geom_smooth(method = "lm", color="steelblue", fill="gray",  
                 show.legend = F)+
-    labs(x="CSCI", y="log(FFM Value)", title="Peak 5")+
+    labs(x="CSCI", y="log(FFM Value)", title="Peak 5", subtitle="by alteration status")+
     scale_color_viridis_d("Alt. Status", direction = -1) +
     theme_clean(base_family = "Roboto Condensed") +
+    theme(panel.border = element_blank(),
+          plot.background = element_blank()) +
     facet_grid(.~status))
 
 
-cowplot::plot_grid(gg1, gg1b, nrow=2)
-ggsave("models/10_ffm_vs_top_ri_all_ca_peak_5.png", width = 8, height = 11, dpi=300, units="in")
+cowplot::plot_grid(gg1, gg1b, nrow=1, labels = "AUTO")
+ggsave("models/10_ffm_vs_top_ri_all_ca_peak_5.png", width = 11, height = 7, dpi=300, units="in")
 
 # DS_MAG_50 ---------------------------------------------------------------
 
@@ -132,10 +137,12 @@ ggsave("models/10_ffm_vs_top_ri_all_ca_peak_5.png", width = 8, height = 11, dpi=
    # using a spline here
    #geom_smooth(method = "lm", aes(color=status), fill="gray",  
                #show.legend = F)+
-   geom_smooth(method = "gam", aes(color=huc_region), formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
+   geom_smooth(method = "gam", color="steelblue", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
    scale_color_colorblind("HUC Region")+
    theme_clean(base_family = "Roboto Condensed") +
-   labs(x="CSCI", y="log(FFM Value)", title="DS_Mag_50")+
+   theme(panel.border = element_blank(),
+         plot.background = element_blank()) +
+   labs(x="CSCI", y="log(FFM Value)", title="DS_Mag_50", subtitle="by HUC region")+
    facet_wrap(huc_region~.))
 
 # plot
@@ -145,16 +152,18 @@ ggsave("models/10_ffm_vs_top_ri_all_ca_peak_5.png", width = 8, height = 11, dpi=
     scale_fill_viridis_d("Alt. Status", direction = -1) +
     scale_y_log10() +
     geom_point(pch=21, size=4, show.legend = F) +
-    geom_smooth(method = "lm", aes(color=status), fill="gray",  
+    geom_smooth(method = "lm", color="steelblue", fill="gray",  
                 show.legend = F)+
-    labs(x="CSCI", y="log(FFM Value)", title="DS_Mag_50")+
+    labs(x="CSCI", y="log(FFM Value)", title="DS_Mag_50", subtitle="by alteration status")+
     scale_color_viridis_d("Alt. Status", direction = -1) +
     theme_clean(base_family = "Roboto Condensed") +
+    theme(panel.border = element_blank(),
+          plot.background = element_blank()) +
     facet_wrap(.~status))
 
 
-cowplot::plot_grid(gg2, gg2b, nrow=2)
-ggsave("models/10_ffm_vs_top_ri_all_ca_ds_mag_50.png", width = 8, height = 11, dpi=300, units="in")
+cowplot::plot_grid(gg2, gg2b, nrow=1, labels="AUTO")
+ggsave("models/10_ffm_vs_top_ri_all_ca_ds_mag_50.png", width = 11, height = 7, dpi=300, units="in")
 
 # SP ROC -----------------------------------------------------------------
 
@@ -168,86 +177,70 @@ ggsave("models/10_ffm_vs_top_ri_all_ca_ds_mag_50.png", width = 8, height = 11, d
    #geom_smooth(method = "lm", color="darkgray", fill="gray", show.legend = F)+
    geom_smooth(method = "gam", color="steelblue", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
    scale_color_colorblind("HUC Region")+
-   theme_minimal(base_family = "Roboto Condensed") +
-   labs(x="CSCI", y="log(FFM Value)", title="SP_ROC", subtitle = "by HUC Region") +
+   theme_clean(base_family = "Roboto Condensed") +
+   theme(panel.border = element_blank(),
+         plot.background = element_blank()) +
+   labs(x="CSCI", y="log(FFM Value)", title="SP_ROC", subtitle = "by HUC region") +
    facet_wrap(huc_region~.))
 
 # plot
 (gg3b <- ggplot(data=bmi_ffm_ann %>% 
                   filter(ffm_metric=="SP_ROC", !status=="not_enough_data"),
-                aes(x=csci, y=ffm_value+0.1, fill=status)) + 
+                aes(x=csci, y=ffm_value, fill=status)) + 
+    #scale_fill_colorblind("Alteration Status") +
     scale_fill_viridis_d("Alt. Status", direction = -1) +
     scale_y_log10() +
     geom_point(pch=21, size=4, show.legend = F) +
-    geom_smooth(method = "lm", color="steelblue", fill="gray",  
-                show.legend = F)+
-    labs(x="CSCI", y="log(FFM Value)", title="SP_ROC", subtitle="by Alteration Status")+
+    geom_smooth(method = "gam", color="steelblue", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
+    #geom_smooth(method = "lm", color="steelblue", fill="gray",  
+    #            show.legend = F)+
+    labs(x="CSCI", y="log(FFM Value)", title="SP_ROC", subtitle="by alteration status")+
     scale_color_viridis_d("Alt. Status", direction = -1) +
-    theme_minimal(base_family = "Roboto Condensed") +
+    theme_clean(base_family = "Roboto Condensed") +
+    theme(panel.border = element_blank(),
+          plot.background = element_blank()) +
     facet_grid(.~status))
 
 
-cowplot::plot_grid(gg3, gg3b, nrow=2)
-ggsave("models/10_ffm_vs_top_ri_all_ca_sp_roc.png", width = 8, height = 11, dpi=300, units="in")
+cowplot::plot_grid(gg3, gg3b, nrow=1, labels = "AUTO")
+ggsave("models/10_ffm_vs_top_ri_all_ca_sp_roc.png", width = 11, height = 7, dpi=300, units="in")
 
 
 
-# SP_ROC ------------------------------------------------------------------
+# SP_ROC w LAG ------------------------------------------------------------------
 
 
-(gg3 <- ggplot() + 
-   geom_point(data=bmi_ffm_por %>% filter(metric=="SP_ROC"), 
-              aes(x=csci, y=ffm_value, fill=as.factor(status_code)), 
-              pch=21, size=3) +
-   ggthemes::scale_fill_colorblind("Status Code") +
-   geom_smooth(data=bmi_ffm_ann %>% filter(metric=="SP_ROC"), 
-               aes(x=csci, y=ffm_value), 
-               method = "gam", 
-               #formula = y ~ s(x, bs = "cs"),  
-               color="purple2")+
-   theme_minimal() +
-   labs(title="Spring Recession Rate", y="Spring Recession Rate", x="CSCI"))
+(gg3c <- ggplot(data=bmi_ffm_lag1 %>% 
+                  filter(ffm_metric=="SP_ROC", !status=="not_enough_data"),
+                aes(x=csci, y=ffm_value, fill=status)) + 
+   #scale_fill_viridis_d("Alt. Status", direction = -1) +
+   scale_y_log10() +
+   geom_point(pch=21, size=4, show.legend = F) +
+   geom_smooth(method = "gam", color="gray40", show.legend = FALSE) +
+   labs(x="CSCI", y="log(FFM Value)", title="SP_ROC: Lag 1", subtitle="by alteration status")+
+   scale_fill_colorblind("Alteration Status") +
+   #scale_color_viridis_d("Alt. Status", direction = -1) +
+   theme_clean(base_family = "Roboto Condensed") +
+   theme(panel.border = element_blank(),
+         plot.background = element_blank()) +
+   facet_grid(.~status))
 
-(gg3b <- ggplot() + 
-    geom_point(data=bmi_ffm_ann %>% filter(metric=="SP_ROC"), 
-               aes(x=csci, y=ffm_value, fill=as.factor(status_code)), 
-               pch=21, size=3) +
-    ggthemes::scale_fill_colorblind("Status Code") +
-    geom_smooth(data=bmi_ffm_ann %>% filter(metric=="SP_ROC"), 
-                aes(x=csci, y=ffm_value), 
-                method = "gam", 
-                #formula = y ~ s(x, bs = "cs"),  
-                color="purple4")+
-    theme_minimal() +
-    labs(title="Spring Recession Rate: Ann"))
+(gg3d <- ggplot(data=bmi_ffm_lag2 %>% 
+                  filter(ffm_metric=="SP_ROC", !status=="not_enough_data"),
+                aes(x=csci, y=ffm_value, fill=status)) + 
+    scale_fill_viridis_d("Alt. Status", direction = -1) +
+    scale_y_log10() +
+    geom_point(pch=21, size=4, show.legend = F) +
+    geom_smooth(method = "gam", color="gray40", show.legend = FALSE) +
+    labs(x="CSCI", y="log(FFM Value)", title="SP_ROC: Lag 2", subtitle="by alteration status")+
+    scale_fill_colorblind("Alteration Status") +
+    #scale_color_viridis_d("Alt. Status", direction = -1) +
+    theme_clean(base_family = "Roboto Condensed") +
+    theme(panel.border = element_blank(),
+          plot.background = element_blank()) +
+    facet_grid(.~status))
 
-(gg3c <- ggplot() + 
-    geom_point(data=bmi_ffm_lag1 %>% filter(metric=="SP_ROC"), 
-               aes(x=csci, y=ffm_value, fill=as.factor(status_code)), 
-               pch=21, size=3) +
-    ggthemes::scale_fill_colorblind("Status Code") +
-    geom_smooth(data=bmi_ffm_lag1 %>% filter(metric=="SP_ROC"), 
-                aes(x=csci, y=ffm_value), 
-                method = "gam", 
-                #formula = y ~ s(x, bs = "cs"),  
-                color="purple4")+
-    theme_minimal() +
-    labs(title="Spring Recession Rate: Lag1"))
-
-(gg3d <- ggplot() + 
-    geom_point(data=bmi_ffm_lag2 %>% filter(metric=="SP_ROC"), 
-               aes(x=csci, y=ffm_value, fill=as.factor(status_code)), 
-               pch=21, size=3) +
-    ggthemes::scale_fill_colorblind("Status Code") +
-    geom_smooth(data=bmi_ffm_lag2 %>% filter(metric=="SP_ROC"), 
-                aes(x=csci, y=ffm_value), 
-                method = "gam", 
-                #formula = y ~ s(x, bs = "cs"),  
-                color="purple4")+
-    theme_minimal() +
-    labs(title="Spring Recession Rate: Lag2"))
-
-
+plot_grid(gg3b, gg3c, gg3d, ncol=3)
 
 # FA_MAG ------------------------------------------------------------------
 
