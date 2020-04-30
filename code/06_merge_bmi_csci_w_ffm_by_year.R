@@ -103,7 +103,7 @@ bmi_sampleid_trimmed <- bmi_coms_dat_trim %>% st_drop_geometry() %>%
   dplyr::distinct(SampleID, ID, .keep_all = TRUE)
 
 # join for annual data by GAGE ID, and BMI Sample YEAR = USGS Year
-bmi_csci_ffm_ann_trimmed <- left_join(bmi_sampleid_trimmed, ffm, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
+bmi_csci_ffm_ann_trim <- left_join(bmi_sampleid_trimmed, ffm, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
 
 # years -1  -2
 lag_yrs_1_trim <- unique(bmi_sampleid_trimmed$YYYY) - 1
@@ -120,12 +120,88 @@ bmi_csci_ffm_lag1_trim <- left_join(bmi_sampleid_trimmed, ffm_lag1_trimmed, by=c
 bmi_csci_ffm_lag2_trim <- left_join(bmi_sampleid_trimmed, ffm_lag2_trimmed, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
 
 
+# Add HUC Regions --------------------------------------------------
+
+# make spatial:
+bmi_csci_ffm_ann <- bmi_csci_ffm_ann %>% st_as_sf(coords=c("longitude","latitude"), crs=4326, remove=FALSE)
+bmi_csci_ffm_ann_trim <- bmi_csci_ffm_ann_trim %>% st_as_sf(coords=c("longitude","latitude"), crs=4326, remove=FALSE)
+bmi_csci_ffm_lag1 <- bmi_csci_ffm_lag1 %>% st_as_sf(coords=c("longitude","latitude"), crs=4326, remove=FALSE)
+bmi_csci_ffm_lag1_trim <- bmi_csci_ffm_lag1_trim %>% st_as_sf(coords=c("longitude","latitude"), crs=4326, remove=FALSE)
+bmi_csci_ffm_lag2 <- bmi_csci_ffm_lag2 %>% st_as_sf(coords=c("longitude","latitude"), crs=4326, remove=FALSE)
+bmi_csci_ffm_lag2_trim <- bmi_csci_ffm_lag2_trim %>% st_as_sf(coords=c("longitude","latitude"), crs=4326, remove=FALSE)
+
+# transform to match proj
+ca_sp_regions <- ca_sp_regions %>% st_transform(4326)
+
+# join with regions and add huc_region, make sure both df are in 4326
+bmi_csci_ffm_ann <- st_join(bmi_csci_ffm_ann, left = TRUE, ca_sp_regions["huc_region"])
+bmi_csci_ffm_ann_trim <- st_join(bmi_csci_ffm_ann_trim, left = TRUE, ca_sp_regions["huc_region"])
+bmi_csci_ffm_lag1 <- st_join(bmi_csci_ffm_lag1, left = TRUE, ca_sp_regions["huc_region"])
+bmi_csci_ffm_lag1_trim <- st_join(bmi_csci_ffm_lag1_trim, left = TRUE, ca_sp_regions["huc_region"])
+bmi_csci_ffm_lag2 <- st_join(bmi_csci_ffm_lag2, left = TRUE, ca_sp_regions["huc_region"])
+bmi_csci_ffm_lag2_trim <- st_join(bmi_csci_ffm_lag2_trim, left = TRUE, ca_sp_regions["huc_region"])
+
+## sites to add to central valley
+cvalley_add <- c("514FC1278", "514RCR001", "534DCC167")
+
+## sites to add to great_basin
+gbasin_add <- c("603MAM004", "630PS0005")
+
+## sites to add to southcoast
+scoast_add <- c("628PS1307","628PS1179","719MISSCK","719TRMDSS","719FCA001")
+
+# Amargosa site is "609PS0053" = mojave?
+
+# use case_when to replace: ANN
+bmi_csci_ffm_ann_trim <- bmi_csci_ffm_ann_trim %>%
+  mutate(huc_region = case_when(
+    StationCode %in% cvalley_add ~ "central_valley",
+    StationCode %in% gbasin_add ~ "great_basin",
+    StationCode %in% scoast_add ~ "south_coast",
+    TRUE ~ huc_region))
+
+bmi_csci_ffm_ann <- bmi_csci_ffm_ann %>%
+  mutate(huc_region = case_when(
+    StationCode %in% cvalley_add ~ "central_valley",
+    StationCode %in% gbasin_add ~ "great_basin",
+    StationCode %in% scoast_add ~ "south_coast",
+    TRUE ~ huc_region))
+
+# use case_when to replace: LAG1
+bmi_csci_ffm_lag1_trim <- bmi_csci_ffm_lag1_trim %>%
+  mutate(huc_region = case_when(
+    StationCode %in% cvalley_add ~ "central_valley",
+    StationCode %in% gbasin_add ~ "great_basin",
+    StationCode %in% scoast_add ~ "south_coast",
+    TRUE ~ huc_region))
+
+bmi_csci_ffm_lag1 <- bmi_csci_ffm_lag1 %>%
+  mutate(huc_region = case_when(
+    StationCode %in% cvalley_add ~ "central_valley",
+    StationCode %in% gbasin_add ~ "great_basin",
+    StationCode %in% scoast_add ~ "south_coast",
+    TRUE ~ huc_region))
+
+# use case_when to replace: LAG2
+bmi_csci_ffm_lag2_trim <- bmi_csci_ffm_lag2_trim %>%
+  mutate(huc_region = case_when(
+    StationCode %in% cvalley_add ~ "central_valley",
+    StationCode %in% gbasin_add ~ "great_basin",
+    StationCode %in% scoast_add ~ "south_coast",
+    TRUE ~ huc_region))
+
+bmi_csci_ffm_lag2 <- bmi_csci_ffm_lag2 %>%
+  mutate(huc_region = case_when(
+    StationCode %in% cvalley_add ~ "central_valley",
+    StationCode %in% gbasin_add ~ "great_basin",
+    StationCode %in% scoast_add ~ "south_coast",
+    TRUE ~ huc_region))
 
 # SAVE OUT ----------------------------------------------------------------
 
 
 save(bmi_csci_ffm_ann, file="data_output/06_selected_bmi_csci_ffm_ann.rda")
-save(bmi_csci_ffm_ann_trimmed, file="data_output/06_selected_bmi_csci_ffm_ann_trim.rda")
+save(bmi_csci_ffm_ann_trim, file="data_output/06_selected_bmi_csci_ffm_ann_trim.rda")
 save(bmi_csci_ffm_lag1, file="data_output/06_selected_bmi_csci_ffm_lag1.rda")
 save(bmi_csci_ffm_lag1_trim, file="data_output/06_selected_bmi_csci_ffm_lag1_trim.rda")
 save(bmi_csci_ffm_lag2, file="data_output/06_selected_bmi_csci_ffm_lag2.rda")
