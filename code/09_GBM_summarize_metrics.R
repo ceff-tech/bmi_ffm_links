@@ -1,4 +1,4 @@
-# 11 Identify top RI Flow Metrics
+# Identify top RI Flow Metrics
 # summarize data from all GBMs
 
 # Libraries ---------------------------------------------------------------
@@ -16,6 +16,7 @@ library(purrr)
 load("data_output/07_selected_bmi_csci_por_trim_w_huc_region.rda")
 load("models/09_all_ri_all_regions_csci.rda")
 hydroDat <- "POR"
+plotname <- "All Site Pairs"  #"Central Valley" #"All Site Pairs"
 
 ## ONLY IF YOU NEED MODEL NAMES/DATA
 ## "all_ca_ffc_only", "central_valley", "great_basin", "north_coast", "south_coast", 

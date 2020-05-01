@@ -11,15 +11,15 @@ library(cowplot)
 
 # Load Data ---------------------------------------------------------------
 
-# orig data
-load("data_output/07_selected_bmi_csci_por_trim_w_huc_region.rda")
+# load updated data w HUC_regions:
+load("data_output/05_selected_bmi_csci_por_trim_w_huc_region.rda")
+load("data_output/05_selected_bmi_csci_por_w_huc_region.rda")
+load("models/09_all_ri_all_regions_csci.rda")
 
 # simple just samples:
 bmi_sampleid <- bmi_csci_por_trim %>% st_drop_geometry() %>% 
   dplyr::distinct(SampleID, .keep_all = TRUE) %>% 
   select(StationCode:csci, gage_id_c:median_in_iqr, huc_region)
-
-load("models/09_all_ri_all_regions_csci.rda")
 
 # Load Data --------------------------------------------------------------------
 
@@ -29,6 +29,7 @@ load("models/09_all_ri_all_regions_csci.rda")
 
 hydroDat <- "POR"
 modname <- "all_ca_ffc_only" # model name 
+plotname <- "All Site Pairs"  #"Central Valley" #"All Site Pairs"
 bmiVar <- quote(csci) # select response var
 
 # make pathnames
@@ -63,22 +64,22 @@ ffm <- pivot_longer(ffm, cols= c(DS_Dur_WS:Peak_Fre_5), names_to = "ffm_metric",
 # join for POR
 bmi_ffm_por <- left_join(bmi_csci_por_trim, ffm, by=c("gage_id_c"="gage_id", "metric"="ffm_metric"))
 
-# join for ann data:
-bmi_ffm_ann <- left_join(bmi_sampleid, ffm, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
-
-# years -1  -2
-lag_yrs_1 <- unique(bmi_sampleid$YYYY) - 1
-lag_yrs_2 <- unique(bmi_sampleid$YYYY) - 2
-
-# make lag data
-ffm_lag1 <- ffm %>% filter(Year %in% lag_yrs_1) %>% 
-  mutate(year_flow = Year-1) # add for labeling purposes
-ffm_lag2 <- ffm %>% filter(Year %in% lag_yrs_2) %>% 
-  mutate(year_flow = Year-2) # add for labeling purposes
-
-# rejoin
-bmi_ffm_lag1 <- left_join(bmi_sampleid, ffm_lag1, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
-bmi_ffm_lag2 <- left_join(bmi_sampleid, ffm_lag2, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
+# # join for ann data:
+# bmi_ffm_ann <- left_join(bmi_sampleid, ffm, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
+# 
+# # years -1  -2
+# lag_yrs_1 <- unique(bmi_sampleid$YYYY) - 1
+# lag_yrs_2 <- unique(bmi_sampleid$YYYY) - 2
+# 
+# # make lag data
+# ffm_lag1 <- ffm %>% filter(Year %in% lag_yrs_1) %>% 
+#   mutate(year_flow = Year-1) # add for labeling purposes
+# ffm_lag2 <- ffm %>% filter(Year %in% lag_yrs_2) %>% 
+#   mutate(year_flow = Year-2) # add for labeling purposes
+# 
+# # rejoin
+# bmi_ffm_lag1 <- left_join(bmi_sampleid, ffm_lag1, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
+# bmi_ffm_lag2 <- left_join(bmi_sampleid, ffm_lag2, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
 
 
 # PEAK 5 ------------------------------------------------------------------
@@ -134,14 +135,14 @@ ggsave("models/10_ffm_vs_top_ri_all_ca_peak_5.png", width = 11, height = 7, dpi=
     scale_x_log10(breaks=c(0.1, 10, 100, 1000), labels=c(0.1, 10, 100, 1000)) +
     geom_point(pch=21, size=1.5, alpha=0.5, show.legend = F) +
     #geom_smooth(method = "lm", color="gray50", fill="gray", show.legend = F)+
-    geom_smooth(method = "gam", color="gray50", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
+    geom_smooth(method = "gam", color="gray20", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
     scale_color_colorblind("HUC Region")+
     theme_clean(base_family = "Roboto Condensed") +
     theme(panel.border = element_blank(),
           plot.background = element_blank()) +
-    labs(y="CSCI", x="log(cfs)", title="Wet_BFL_Mag_50", subtitle = "All data"))#
+    labs(y="CSCI", x=" Wet_BFL_Mag_50 (cfs)", title="Wet_BFL_Mag_50", subtitle = plotname))#
 #facet_wrap(huc_region~.))
-ggsave("models/10_ffm_vs_top_ri_all_ca_wet_bfl_mag_50_POR.png", width = 11, height = 7, dpi=300, units="in")
+ggsave("models/10_ffm_vs_top_ri_all_ca_wet_bfl_mag_50_POR_gam.png", width = 11, height = 7, dpi=300, units="in")
 
 
 # now by region
@@ -151,16 +152,16 @@ ggsave("models/10_ffm_vs_top_ri_all_ca_wet_bfl_mag_50_POR.png", width = 11, heig
     scale_fill_colorblind("HUC Region")+
     scale_x_log10(breaks=c(0.1, 10, 100, 1000), labels=c(0.1, 10, 100, 1000)) +
     geom_point(pch=21, size=1.5, alpha=0.5, show.legend = F) +
-    geom_smooth(method = "lm", color="gray50", fill="gray", show.legend = F)+
-    #geom_smooth(method = "gam", color="gray50", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
+    #geom_smooth(method = "lm", color="gray20", fill="gray", show.legend = F)+
+    geom_smooth(method = "gam", color="gray20", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
     scale_color_colorblind("HUC Region")+
     theme_clean(base_family = "Roboto Condensed") +
     theme(panel.border = element_blank(),
           plot.background = element_blank()) +
-    labs(y="CSCI", x="log(cfs)", title="Wet_BFL_Mag_50", subtitle = "by HUC region") +
+    labs(y="CSCI", x="Wet_BFL_Mag_50 (cfs)", title="Wet_BFL_Mag_50", subtitle = "by HUC region") +
     facet_wrap(huc_region~.))
-ggsave("models/10_ffm_vs_top_ri_all_ca_wet_bfl_mag_50_POR_by_huc_region.png", width = 11, height = 7, dpi=300, units="in")
-ggsave("models/10_ffm_vs_top_ri_all_ca_wet_bfl_mag_50_POR_by_huc_region_linear.png", width = 11, height = 7, dpi=300, units="in")
+#ggsave("models/10_ffm_vs_top_ri_all_ca_wet_bfl_mag_50_POR_by_huc_region.png", width = 11, height = 7, dpi=300, units="in")
+ggsave("models/10_ffm_vs_top_ri_all_ca_wet_bfl_mag_50_POR_by_huc_region_gam.png", width = 11, height = 7, dpi=300, units="in")
 
 # plot
 (gg2 <- ggplot(data=bmi_ffm_ann %>% filter(ffm_metric=="DS_Mag_90", 
@@ -203,9 +204,6 @@ ggsave("models/10_ffm_vs_top_ri_all_ca_ds_mag_50.png", width = 11, height = 7, d
 
 # DS_MAG_90 ---------------------------------------------------------------
 
-Wet_BFL_Mag_50
-#bmi_ffm_ann %>% filter(metric=="DS_Mag_50") %>% view()
-
 # POR by region
 (gg2a <- ggplot(data=bmi_ffm_por %>% filter(metric=="DS_Mag_90", 
                                             !is.na(huc_region), ffm_value>0), 
@@ -214,30 +212,30 @@ Wet_BFL_Mag_50
    scale_x_log10(breaks=c(0.1, 10, 100, 1000), labels=c(0.1, 10, 100, 1000)) +
    geom_point(pch=21, size=1.5, alpha=0.5, show.legend = F) +
    #geom_smooth(method = "lm", color="gray50", fill="gray", show.legend = F)+
-   geom_smooth(method = "gam", color="gray50", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
+   geom_smooth(method = "gam", color="gray20", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
    scale_color_colorblind("HUC Region")+
    theme_clean(base_family = "Roboto Condensed") +
    theme(panel.border = element_blank(),
          plot.background = element_blank()) +
-   labs(y="CSCI", x="log(cfs)", title="DS_Mag_90", subtitle = "All data"))#
+   labs(y="CSCI", x=" DS_MAG_90 (cfs)", title="DS_Mag_90", subtitle = plotname))#
 #facet_wrap(huc_region~.))
-ggsave("models/10_ffm_vs_top_ri_all_ca_ds_mag_90_POR.png", width = 11, height = 7, dpi=300, units="in")
+ggsave("models/10_ffm_vs_top_ri_all_ca_ds_mag_90_POR_gam.png", width = 11, height = 7, dpi=300, units="in")
 
-(gg2a <- ggplot(data=bmi_ffm_por %>% filter(metric=="DS_Mag_90", 
+(gg2b <- ggplot(data=bmi_ffm_por %>% filter(metric=="DS_Mag_90", 
                                             !is.na(huc_region), ffm_value>0), 
                 aes(y=csci, x=ffm_value, fill=huc_region)) + 
     scale_fill_colorblind("HUC Region")+
     scale_x_log10(breaks=c(0.1, 10, 100, 1000), labels=c(0.1, 10, 100, 1000)) +
     geom_point(pch=21, size=1.5, alpha=0.5, show.legend = F) +
     #geom_smooth(method = "lm", color="gray50", fill="gray", show.legend = F)+
-    geom_smooth(method = "gam", color="gray50", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
+    geom_smooth(method = "gam", color="gray20", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
     scale_color_colorblind("HUC Region")+
     theme_clean(base_family = "Roboto Condensed") +
     theme(panel.border = element_blank(),
           plot.background = element_blank()) +
-    labs(y="CSCI", x="log(cfs)", title="DS_Mag_90", subtitle = "by HUC region") +
+    labs(y="CSCI", x="DS_Mag_90 (cfs)", title="DS_Mag_90", subtitle = "by HUC region") +
     facet_wrap(huc_region~.))
-ggsave("models/10_ffm_vs_top_ri_all_ca_ds_mag_90_POR_by_huc_region.png", width = 11, height = 7, dpi=300, units="in")
+ggsave("models/10_ffm_vs_top_ri_all_ca_ds_mag_90_POR_by_huc_region_gam.png", width = 11, height = 7, dpi=300, units="in")
 
 
 # plot
@@ -280,7 +278,6 @@ ggsave("models/10_ffm_vs_top_ri_all_ca_ds_mag_50.png", width = 11, height = 7, d
 
 # SP ROC -----------------------------------------------------------------
 
-
 # POR by region
 (gg3a <- ggplot(data=bmi_ffm_por %>% filter(metric=="SP_ROC", 
                                             !is.na(huc_region)), 
@@ -288,32 +285,32 @@ ggsave("models/10_ffm_vs_top_ri_all_ca_ds_mag_50.png", width = 11, height = 7, d
    scale_fill_colorblind("HUC Region")+
    scale_x_log10() +
    geom_point(pch=21, size=1.5, alpha=0.5, show.legend = F) +
-   geom_smooth(method = "lm", color="gray", fill="gray80", show.legend = F)+
-   #geom_smooth(method = "gam", color="gray50", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
+   #geom_smooth(method = "lm", color="gray", fill="gray80", show.legend = F)+
+   geom_smooth(method = "gam", color="gray20", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
    scale_color_colorblind("HUC Region")+
    theme_clean(base_family = "Roboto Condensed") +
    theme(panel.border = element_blank(),
          plot.background = element_blank()) +
-   labs(y="CSCI", x="log(ROC)", title="SP_ROC", subtitle = "All data"))#
+   labs(y="CSCI", x="SP_ROC", title="SP_ROC", subtitle = plotname))#
    #facet_wrap(huc_region~.))
-ggsave("models/10_ffm_vs_top_ri_all_ca_sp_roc_POR.png", width = 11, height = 7, dpi=300, units="in")
+ggsave("models/10_ffm_vs_top_ri_all_ca_sp_roc_POR_gam.png", width = 11, height = 7, dpi=300, units="in")
 
-(gg3a <- ggplot(data=bmi_ffm_por %>% filter(metric=="SP_ROC", 
+(gg3b <- ggplot(data=bmi_ffm_por %>% filter(metric=="SP_ROC", 
                                             !is.na(huc_region)), 
                 aes(y=csci, x=ffm_value, fill=huc_region)) + 
     scale_fill_colorblind("HUC Region")+
     scale_x_log10() +
     geom_point(pch=21, size=1.5, alpha=0.5, show.legend = F) +
-    geom_smooth(method = "lm", color="gray", fill="gray80", show.legend = F)+
-    #geom_smooth(method = "gam", color="gray50", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
+    #geom_smooth(method = "lm", color="gray", fill="gray80", show.legend = F)+
+    geom_smooth(method = "gam", color="gray20", formula = y ~ s(x, bs = "cs"), fill="gray", show.legend = FALSE) +
     scale_color_colorblind("HUC Region")+
     theme_clean(base_family = "Roboto Condensed") +
     theme(panel.border = element_blank(),
           plot.background = element_blank()) +
-    labs(y="CSCI", x="log(ROC)", title="SP_ROC", subtitle = "by HUC region")+
+    labs(y="CSCI", x="SP_ROC", title="SP_ROC", subtitle = "by HUC region")+
 facet_wrap(huc_region~.))
 
-ggsave("models/10_ffm_vs_top_ri_all_ca_sp_roc_POR_by_huc_region.png", width = 11, height = 7, dpi=300, units="in")
+ggsave("models/10_ffm_vs_top_ri_all_ca_sp_roc_POR_by_huc_region_gam.png", width = 11, height = 7, dpi=300, units="in")
 
 # plot by Region
 (gg3b <- ggplot(data=bmi_ffm_ann %>% filter(ffm_metric=="SP_ROC", 

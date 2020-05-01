@@ -36,7 +36,8 @@ bmi_csci_sites <- bmi_csci_por_trim %>%
 # "central_valley", "great_basin", "north_coast", "south_coast", 
 
 hydroDat <- "POR" # can be Annual, Lag1, Lag2, POR
-modname <- "all_ca_ffc_only" # model name 
+modname <- "south_coast" # model name 
+plotname <- "South Coast"  #"Central Valley" #"All Site Pairs"
 bmiVar <- quote(csci) # select response var
 
 # make pathnames
@@ -97,8 +98,10 @@ gbm_fin_RI <- gbm_fin_RI %>%
   geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
   ylim(c(0,30))+
   scale_fill_viridis_d("Flow Component")+
-  labs(title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Metrics: ", modname),
-       x="", y="Relative Influence (%)", subtitle="MSE Criterion") +
+  labs(title = plotname,
+       #title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Metrics: ", modname),
+       #subtitle="MSE Criterion",
+       x="", y="Relative Influence (%)") +
   theme_classic(base_family = "Roboto Condensed")) 
 
 # save out
