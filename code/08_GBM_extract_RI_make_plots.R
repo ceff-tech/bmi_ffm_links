@@ -13,14 +13,15 @@ library(gbm) # boosted regression trees
 library(dismo)
 library(pdp)
 library(rlang)
-extrafont::loadfonts(quiet=TRUE)
+#extrafont::loadfonts(quiet=TRUE)
 
 # GBM evaluation of single points of data
 #library(DALEX)
 #library(ingredients)
 
-# orig data
-load("data_output/07_selected_bmi_csci_por_trim_w_huc_region.rda")
+# load updated data w HUC_regions:
+load("data_output/05_selected_bmi_csci_por_trim_w_huc_region.rda")
+load("data_output/05_selected_bmi_csci_por_w_huc_region.rda")
 
 # simple just sites:
 bmi_csci_sites <- bmi_csci_por_trim %>% 
@@ -36,8 +37,8 @@ bmi_csci_sites <- bmi_csci_por_trim %>%
 # "central_valley", "great_basin", "north_coast", "south_coast", 
 
 hydroDat <- "POR" # can be Annual, Lag1, Lag2, POR
-modname <- "south_coast" # model name 
-plotname <- "South Coast"  #"Central Valley" #"All Site Pairs"
+modname <- "all_ca_ffc_only" # model name 
+plotname <- "All Site Pairs"  #"Central Valley" #"All Site Pairs"
 bmiVar <- quote(csci) # select response var
 
 # make pathnames
@@ -55,13 +56,9 @@ load(paste0("models/",mod_pathname, "_model_data.rda"))
 
 # rename datasets for plotting:
 gbm_out_train <- data_por_train # NEED TO CHANGE THESE
-#gbm_out_test <- data_por_test
-
-#ffmetrics <- unique(bmi_csci_por_trim$metric)
 
 # % percent explained
 (gbm_final$self.statistics$mean.null - gbm_final$cv.statistics$deviance.mean) / gbm_final$self.statistics$mean.null 
-
 
 # 01A. RELATIVE INFLUENCE PLOTS (MSE) ALL VARS -------------------------------------
 
@@ -89,6 +86,7 @@ gbm_fin_RI <- gbm_fin_RI %>%
 ## Now Plot ALL
 (fin_ri <- gbm_fin_RI %>% 
   arrange(desc(RI)) %>% 
+  #filter(RI > 3) %>% #View()
   filter(flow_component!="General") %>% 
   ggplot(.) +
   geom_col(aes(x=var,

@@ -12,11 +12,22 @@ library(purrr)
 
 # Load Data ---------------------------------------------------------------
 
-# orig data
-load("data_output/07_selected_bmi_csci_por_trim_w_huc_region.rda")
+# load updated data w HUC_regions:
+load("data_output/05_selected_bmi_csci_por_trim_w_huc_region.rda")
+load("data_output/05_selected_bmi_csci_por_w_huc_region.rda")
+
 load("models/09_all_ri_all_regions_csci.rda")
 hydroDat <- "POR"
 plotname <- "All Site Pairs"  #"Central Valley" #"All Site Pairs"
+
+## ONLY IF YOU NEED MODEL NAMES/DATA
+## "all_ca_ffc_only", "central_valley", "great_basin", "north_coast", "south_coast", 
+modname <- "all_ca" # model name 
+bmiVar <- quote(csci) # select response var
+# make pathnames
+(plot_savename <- tolower(paste0("09_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+
+# make regional Ri --------------------------------------------------------
 
 ## ONLY IF YOU NEED MODEL NAMES/DATA
 ## "all_ca_ffc_only", "central_valley", "great_basin", "north_coast", "south_coast", 
@@ -134,20 +145,78 @@ ri_table %>%
 # Summary Plot ALL CA ------------------------------------------------------------
 
 # Faceted by hydrodat and flow metrics:
-ri_table %>% group_by(flowdat, var, flow_component) %>% 
-  summarize(meanRI = mean(RI)) %>% 
-  #top_n(5) %>% 
-  arrange(desc(meanRI)) %>% 
-  filter(flow_component!="General") %>% 
-  ggplot(.) +
-  geom_col(aes(x=var,#x=forcats::fct_reorder2(var, flow_component, var),
-               y=meanRI, fill=flow_component), color="gray20", lwd=.1,
-           position="dodge") +
+ri_table %>% 
+  filter(model=="all_ca", 
+         method=="mse") %>% 
+  mutate(Flow.Metric.Name = as.factor(Flow.Metric.Name),
+         Flow.Metric.Name = forcats::fct_reorder2(Flow.Metric.Name, var, flow_component),
+         model=as.factor(model)) %>% 
+  ggplot() +
+  #geom_hline(yintercept = 5, color="gray40", lwd=0.8, lty=2, alpha=0.5)+
+  geom_linerange(aes(x=Flow.Metric.Name, ymax=RI, ymin=0, group=model, color=flow_component), 
+                 lwd=.5, show.legend = F, alpha=0.7, lty=1)+
+  geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, fill=flow_component, size=RI), 
+             #size=4, 
+             show.legend = TRUE, pch=21) +
+  scale_fill_viridis_d("Flow Component") +
+  scale_color_viridis_d("Flow Component") +
+  scale_size_area("", guide=FALSE) +
+  #scale_shape_manual("Method", values=c("mse"=16, "permtest"=17))+
   coord_flip() +
-  scale_fill_viridis_d("Flow Component")+
-  labs(x="", y="Mean Relative Inf (%)", subtitle="Top Flow Metrics across all BMI Metrics") +
-  theme_classic(base_family = "Roboto Condensed") +
-  facet_grid(.~flowdat)
+  ylim(c(0,25))+
+  labs(title = plotname,
+       x="", y="Relative Influence (%)") +
+  guides(fill = guide_legend(override.aes = list(size = 4))) +
+  theme_minimal(base_family = "Roboto Condensed") +
+  theme(legend.position = c(0.8, 0.8),
+        legend.background = element_rect(color="white"))
+
+# save out
+ggsave(filename=tolower(paste0("models/", plot_savename, "_all_ri_sized_points_w_lines.png")), width = 9, height = 7, units = "in", dpi = 300)
+
+# Summary Plot Regions ------------------------------------------------------------
+
+# Faceted by hydrodat and flow metrics:
+ri_table %>% 
+  filter(model!="all_ca", 
+    method=="mse") %>% 
+  mutate(Flow.Metric.Name = as.factor(Flow.Metric.Name),
+         model=as.factor(model),
+  Flow.Metric.Name = forcats::fct_reorder2(Flow.Metric.Name, var, flow_component)) %>%
+  ggplot() +
+  #geom_hline(yintercept = 5, color="gray40", lwd=0.7, lty=2, alpha=0.5)+
+  geom_linerange(aes(x=Flow.Metric.Name, ymax=RI, ymin=0, group=model, color=flow_component), 
+                 lwd=.5, show.legend = F, alpha=0.7, lty=1)+
+  geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, fill=flow_component, size=RI), 
+             #size=4, 
+             show.legend = TRUE, pch=21) +
+  scale_fill_viridis_d("Flow Component") +
+  scale_color_viridis_d("Flow Component") +
+  scale_size_area("", guide=FALSE) +
+  #scale_shape_manual("Method", values=c("mse"=16, "permtest"=17))+
+  coord_flip() +
+  ylim(c(0,30))+
+  labs(title = "Regional",
+       x="", y="Relative Influence (%)") +
+  #theme_bw(base_family = "Roboto Condensed")
+  theme_minimal(base_family = "Roboto Condensed") +
+  #theme(legend.position = "bottom", legend.box = "horizontal")+
+  guides(fill = guide_legend(override.aes = list(size = 4), 
+                             title.position = "top")) +
+  facet_grid(cols = vars(model), labeller = labeller(model=c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="N. Coast", "south_coast"="S. Coast")))
+
+
+
+# save out
+plot_savename2 <- "09_gbm_csci_por_regional"
+ggsave(filename=tolower(paste0("models/", plot_savename2, "_all_ri_points_w_lines.png")), width = 9, height = 7, units = "in", dpi = 300)
+
+
+
+
+# Other Plots -------------------------------------------------------------
+
+
 
 #ggsave(filename = "figs/09_faceted_RI_by_flowcomp_hydrodat.png", width = 9, height = 6, units = "in", dpi = 300)
 
