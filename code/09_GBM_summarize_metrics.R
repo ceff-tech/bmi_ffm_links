@@ -67,11 +67,27 @@ ri_table <- left_join(ri_all_regions, ff_defs, by=c("var"="Flow.Metric.Code"))
 ri_table <- ri_table %>% 
   mutate(flow_component=forcats::fct_drop(flow_component),
          var = as.factor(var),
-         var = fct_reorder2(var, flow_component, var))
+         var = fct_reorder2(var, flow_component, var),
+         model=as.factor(model),
+         Flow.Metric.Name = as.factor(Flow.Metric.Name),
+         Flow.Metric.Name = forcats::fct_reorder2(Flow.Metric.Name, model, RI)) 
 
 levels(ri_table$var)
 levels(ri_table$flow_component)
 summary(ri_table)
+
+# generate order by CA wide RI for flow metrics:
+forder <- ri_table %>% 
+  filter(model=="all_ca", 
+         method=="mse") %>% 
+  mutate(model=as.factor(model),
+         Flow.Metric.Name = as.factor(Flow.Metric.Name),
+         Flow.Metric.Name = forcats::fct_reorder2(Flow.Metric.Name, model, RI)) %>% 
+  group_by(model) %>% 
+  arrange(desc(model, RI)) %>% 
+  mutate(id = row_number()) %>% 
+  ungroup() %>% arrange(id) %>% 
+  select(Flow.Metric.Name, id) # get the just the names for ordering things
 
 # Plot & Summarize All RI Combined ----------------------------------------
 
@@ -148,12 +164,9 @@ ri_table %>%
 ri_table %>% 
   filter(model=="all_ca", 
          method=="mse") %>% 
-  mutate(Flow.Metric.Name = as.factor(Flow.Metric.Name),
-         Flow.Metric.Name = forcats::fct_reorder2(Flow.Metric.Name, var, flow_component),
-         model=as.factor(model)) %>% 
   ggplot() +
   #geom_hline(yintercept = 5, color="gray40", lwd=0.8, lty=2, alpha=0.5)+
-  geom_linerange(aes(x=Flow.Metric.Name, ymax=RI, ymin=0, group=model, color=flow_component), 
+  geom_linerange(aes(x=reorder(Flow.Metric.Name, RI), ymax=RI, ymin=0, group=model, color=flow_component), 
                  lwd=.5, show.legend = F, alpha=0.7, lty=1)+
   geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, fill=flow_component, size=RI), 
              #size=4, 
@@ -168,50 +181,49 @@ ri_table %>%
        x="", y="Relative Influence (%)") +
   guides(fill = guide_legend(override.aes = list(size = 4))) +
   theme_minimal(base_family = "Roboto Condensed") +
-  theme(legend.position = c(0.8, 0.8),
+  theme(legend.position = c(0.8, 0.3),
         legend.background = element_rect(color="white"))
 
 # save out
-ggsave(filename=tolower(paste0("models/", plot_savename, "_all_ri_sized_points_w_lines.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(paste0("models/", plot_savename, "_all_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 # Summary Plot Regions ------------------------------------------------------------
 
-# Faceted by hydrodat and flow metrics:
+# now plot w facets (but use same ordering for ALL CA)
 ri_table %>% 
-  filter(model!="all_ca", 
-    method=="mse") %>% 
-  mutate(Flow.Metric.Name = as.factor(Flow.Metric.Name),
-         model=as.factor(model),
-  Flow.Metric.Name = forcats::fct_reorder2(Flow.Metric.Name, var, flow_component)) %>%
+  filter(#model!="all_ca", 
+         method=="mse") %>% 
+  left_join(., forder, by="Flow.Metric.Name") %>% 
+  arrange(id) %>% #View() 
   ggplot() +
-  #geom_hline(yintercept = 5, color="gray40", lwd=0.7, lty=2, alpha=0.5)+
-  geom_linerange(aes(x=Flow.Metric.Name, ymax=RI, ymin=0, group=model, color=flow_component), 
-                 lwd=.5, show.legend = F, alpha=0.7, lty=1)+
-  geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, fill=flow_component, size=RI), 
+  facet_grid(cols = vars(model), labeller = labeller(model=c("all_ca"="All CA", "central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="N. Coast", "south_coast"="S. Coast"))) +
+  geom_linerange(aes(x=reorder(Flow.Metric.Name, desc(id)), ymax=RI, ymin=0, color=flow_component, group=model), 
+                  lwd=.5, show.legend = F, alpha=0.7, lty=1)+
+  geom_point(aes(x=reorder(Flow.Metric.Name, desc(id)), y=RI, fill=flow_component, size=RI, group=model), 
              #size=4, 
              show.legend = TRUE, pch=21) +
+  #scale_x_continuous(breaks=forder$id, labels=forder$Flow.Metric.Name) +
   scale_fill_viridis_d("Flow Component") +
   scale_color_viridis_d("Flow Component") +
   scale_size_area("", guide=FALSE) +
-  #scale_shape_manual("Method", values=c("mse"=16, "permtest"=17))+
   coord_flip() +
   ylim(c(0,30))+
   labs(title = "Regional",
        x="", y="Relative Influence (%)") +
   #theme_bw(base_family = "Roboto Condensed")
   theme_minimal(base_family = "Roboto Condensed") +
-  #theme(legend.position = "bottom", legend.box = "horizontal")+
+  theme(legend.position = "bottom", legend.box = "horizontal")+
   guides(fill = guide_legend(override.aes = list(size = 4), 
-                             title.position = "top")) +
-  facet_grid(cols = vars(model), labeller = labeller(model=c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="N. Coast", "south_coast"="S. Coast")))
-
-
+                             title.position = "top"))
+  #facet_grid(cols = vars(model), labeller = labeller(model=c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="N. Coast", "south_coast"="S. Coast")))
 
 # save out
 plot_savename2 <- "09_gbm_csci_por_regional"
-ggsave(filename=tolower(paste0("models/", plot_savename2, "_all_ri_points_w_lines.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(paste0("models/", plot_savename2, "_ri_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 
+# all 5
+ggsave(filename=tolower(paste0("models/", plot_savename2, "_all_regions_ri_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 
 # Other Plots -------------------------------------------------------------
