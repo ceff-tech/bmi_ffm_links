@@ -20,3 +20,4 @@ docs/*.xlsx
 data/usgs/*.xlsx
 data/usgs/gages_ref_nhdflowline_us.rda
 data_output/z-archive/*
+/Users/ryanpeek/Documents/github/bmi_ffm_links/.secrets

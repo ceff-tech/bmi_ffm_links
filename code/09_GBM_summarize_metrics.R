@@ -205,10 +205,10 @@ ri_table %>%
   #scale_x_continuous(breaks=forder$id, labels=forder$Flow.Metric.Name) +
   scale_fill_viridis_d("Flow Component") +
   scale_color_viridis_d("Flow Component") +
-  scale_size_area("", guide=FALSE) +
+  scale_size_binned("", guide=FALSE, range=c(0.5, 6.5)) +
   coord_flip() +
   ylim(c(0,30))+
-  labs(title = "Regional",
+  labs(subtitle = "CSCI Models",
        x="", y="Relative Influence (%)") +
   #theme_bw(base_family = "Roboto Condensed")
   theme_minimal(base_family = "Roboto Condensed") +
