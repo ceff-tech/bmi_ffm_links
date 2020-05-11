@@ -16,7 +16,7 @@ library(USAboundaries)
 load("data_output/00_bmi_stations_distinct.rda")
 load("data_output/01_usgs_all_gages.rda")
 
-# BMI SITES (final V2)
+# BMI SITES (final V2) (bmi_coms_dat_trim)
 load("data_output/03_selected_final_bmi_stations_dat_all_gages.rda")
 
 # BMI
@@ -30,7 +30,7 @@ load("data_output/03_selected_nhd_mainstems_gages.rda")
 load("data_output/05_selected_bmi_csci_por_and_sf.rda")
 
 # final sites
-load("data_output/07_selected_bmi_csci_por_trim_w_huc_region.rda")
+load("data_output/05_selected_bmi_csci_por_trim_w_huc_region.rda")
 
 # simple just sites:
 bmi_csci_sites <- bmi_csci_por_trim %>% 
@@ -65,7 +65,7 @@ rivs_filt_ca <- st_intersection(rivs_filt, ca)
 bmi_not_selected_v2 <- sel_bmi_gages_csci %>% filter(!as.character(StationCode) %in% sel_bmi_coms_final_v2$StationCode) # n=203
 
 # get all gages selected
-gages_selected_v2 <- bmi_csci_por_usgs %>%
+gages_selected_v2 <- bmi_csci_por_trim %>%
   filter(ID %in% bmi_csci_por_trim$ID) %>% 
   distinct(ID, .keep_all = TRUE)
 
