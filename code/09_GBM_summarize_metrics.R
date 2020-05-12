@@ -89,6 +89,9 @@ forder <- ri_table %>%
   ungroup() %>% arrange(id) %>% 
   select(Flow.Metric.Name, id) # get the just the names for ordering things
 
+
+
+
 # Plot & Summarize All RI Combined ----------------------------------------
 
 # most common hydrometric by flowdata type?
@@ -160,6 +163,15 @@ ri_table %>%
 
 # Summary Plot ALL CA ------------------------------------------------------------
 
+# color palette 
+flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" = "#56B4E9",
+                          "Peak flow" = "#0072B2", "Spring recession flow" = "#009E73", 
+                          "Dry-season baseflow" = "#D55E00")
+
+flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" = "#56B4E9",
+                          "Peak flow" = "#404788FF", "Spring recession flow" = "#009E73", 
+                          "Dry-season baseflow" = "#D55E00")
+
 # Faceted by hydrodat and flow metrics:
 ri_table %>% 
   filter(model=="all_ca", 
@@ -171,8 +183,8 @@ ri_table %>%
   geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, fill=flow_component, size=RI), 
              #size=4, 
              show.legend = TRUE, pch=21) +
-  scale_fill_viridis_d("Flow Component") +
-  scale_color_viridis_d("Flow Component") +
+  scale_fill_manual("Flow Component", values=flowcomponent_colors) +
+  scale_color_manual("Flow Component", values=flowcomponent_colors) +
   scale_size_area("", guide=FALSE) +
   #scale_shape_manual("Method", values=c("mse"=16, "permtest"=17))+
   coord_flip() +
@@ -191,7 +203,7 @@ ggsave(filename=tolower(paste0("models/", plot_savename, "_all_ri_sized_points_w
 
 # now plot w facets (but use same ordering for ALL CA)
 ri_table %>% 
-  filter(#model!="all_ca", 
+  filter(model!="all_ca", 
          method=="mse") %>% 
   left_join(., forder, by="Flow.Metric.Name") %>% 
   arrange(id) %>% #View() 
@@ -203,8 +215,8 @@ ri_table %>%
              #size=4, 
              show.legend = TRUE, pch=21) +
   #scale_x_continuous(breaks=forder$id, labels=forder$Flow.Metric.Name) +
-  scale_fill_viridis_d("Flow Component") +
-  scale_color_viridis_d("Flow Component") +
+  scale_fill_manual("Flow Component", values=flowcomponent_colors) +
+  scale_color_manual("Flow Component", values=flowcomponent_colors) +
   scale_size_binned("", guide=FALSE, range=c(0.5, 6.5)) +
   coord_flip() +
   ylim(c(0,30))+

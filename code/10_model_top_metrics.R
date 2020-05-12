@@ -142,14 +142,18 @@ plotdat <- bmi_ffm_por %>%
     #geom_point(data=plotdat, aes(x=p10, y=csci), color="gray80", pch=22, size=1.5, alpha=0.9, show.legend = F) +
     #geom_point(data=plotdat, aes(x=p90, y=csci), color="steelblue", pch=22, size=1.5, alpha=0.9, show.legend = F) +
     # add the CSCI biological/stream condition thresholds (Mazor et al 2016)
-    geom_rect(aes(xmin=0.01, xmax=0.5, ymin=0, ymax=0.63), fill="maroon", alpha=0.2) +
-    geom_rect(aes(xmin=0.01, xmax=0.5, ymin=0.63, ymax=0.79), fill="orange2", alpha=0.2) +
-    geom_rect(aes(xmin=0.01, xmax=0.5, ymin=0.79, ymax=0.92), fill="yellow2", alpha=0.2)+
-    geom_rect(aes(xmin=0.01,xmax=0.5, ymin=0.92, ymax=1.35), fill="seagreen", alpha=0.2)+
-    annotate(geom = "text", label="Very likely altered", color="gray50", x=0.015, y=0.58) +
-    annotate(geom = "text", label="Likely altered", color="gray50", x=0.015, y=0.71) +
-    annotate(geom = "text", label="Possibly altered", color="gray50", x=0.015, y=0.85) +
-    annotate(geom = "text", label="Likely intact", color="gray50", x=0.015, y=1) +
+    # geom_rect(aes(xmin=0.01, xmax=0.5, ymin=0, ymax=0.63), fill="maroon", alpha=0.2) +
+    # geom_rect(aes(xmin=0.01, xmax=0.5, ymin=0.63, ymax=0.79), fill="orange2", alpha=0.2) +
+    # geom_rect(aes(xmin=0.01, xmax=0.5, ymin=0.79, ymax=0.92), fill="yellow2", alpha=0.2)+
+    # geom_rect(aes(xmin=0.01,xmax=0.5, ymin=0.92, ymax=1.35), fill="seagreen", alpha=0.2)+
+    annotate(geom = "text", label="Very likely altered", color="gray50", 
+             x=0.011, y=0.58, hjust=0, size=4) +
+    annotate(geom = "text", label="Likely altered", color="gray50", 
+             x=0.011, y=0.71, hjust=0, size=4) +
+    annotate(geom = "text", label="Possibly altered", color="gray50", 
+             x=0.011, y=0.85, hjust=0, size=4) +
+    annotate(geom = "text", label="Likely intact", color="gray50", 
+             x=0.011, y=1, hjust=0, size=4) +
     
     # data points
     geom_point(data=plotdat, aes(x=p50, y=csci), fill="gray10", pch=21, size=2.5, alpha=0.85, show.legend = FALSE) +
@@ -169,50 +173,88 @@ plotdat <- bmi_ffm_por %>%
          #title = "Period of Record",
          subtitle = "Period of Record (50th percentile)"))
 
-ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_shading.png"), width = 11, height = 7, dpi=300, units="in")
-ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_shading.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam.png"), width = 11, height = 7, dpi=300, units="in")
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
 
 
-# SP_ROC: HUC REGIONS -----------------------------------------------------------------
+# SP_ROC: HUC REGIONS FACETED -----------------------------------------------------------------
 
-(gg1b <- 
+# FACETED
+(gg1b_faceted <- 
    ggplot() +
-   geom_rect(data = data.frame(xmin=0.01, xmax=0.5, ymin=0, ymax=0.63),
-             aes(xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax), fill="maroon", alpha=0.2) +
-   geom_rect(data = data.frame(xmin=0.01, xmax=0.5, ymin=0.63, ymax=0.79), 
-             aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax), fill="orange2", alpha=0.2) +
-   geom_rect(data = data.frame(xmin=0.01, xmax=0.5, ymin=0.79, ymax=0.92),
-             aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax), fill="yellow2", alpha=0.2) +
-   geom_rect(data = data.frame(xmin=0.01,xmax=0.5, ymin=0.92, ymax=1.35), 
-             aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax),fill="seagreen", alpha=0.2)+
-   annotate(geom = "text", label="Very likely altered", color="gray50", x=0.017, y=0.57, size=3) +
-   annotate(geom = "text", label="Likely altered", color="gray50", x=0.015, y=0.71, size=3) +
-   annotate(geom = "text", label="Possibly altered", color="gray50", x=0.016, y=0.85, size=3) +
-   annotate(geom = "text", label="Likely intact", color="gray50", x=0.015, y=1, size=3) +
+   annotate(geom = "text", label="Very likely altered", color="gray50", x=0.011, y=0.57, size=3.5, hjust=0) +
+   annotate(geom = "text", label="Likely altered", color="gray50", x=0.011, y=0.71, size=3.5,  hjust=0) +
+   annotate(geom = "text", label="Possibly altered", color="gray50", x=0.011, y=0.85, size=3.5,  hjust=0) +
+   annotate(geom = "text", label="Likely intact", color="gray50", x=0.011, y=1, size=3.5,  hjust=0) +
    
-   # data points
-   geom_point(data=plotdat, aes(x=p50, y=csci, shape=huc_region), 
-              size=3, alpha=0.9, show.legend = FALSE) +
-
-   # the smooth line
-   stat_smooth(data=plotdat, aes(x=p50, y=csci), method = "gam", formula = y ~ s(x, bs = "cs"), color="gray40", fill="gray80", show.legend = F) +
+   # for faceted
+   geom_point(data=plotdat , aes(x=p50, y=csci, group=huc_region, shape=huc_region, color=huc_region),
+              size=3, alpha=0.85, show.legend = FALSE) +
+   stat_smooth(data=plotdat %>% filter(huc_region!="great_basin"),
+               aes(x=p50, y=csci, group=huc_region, color=huc_region),
+               method = "gam", formula = y ~ s(x, bs = "cs"), show.legend = F, se = FALSE) +
+   facet_wrap(huc_region~., labeller = labeller(huc_region=c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))) +
+   theme(panel.border = element_blank(),
+         plot.background = element_blank()) +
 
    # all the other stuff
-  # scale_fill_colorblind("HUC Region") +
+   scale_color_colorblind("HUC Region", labels = c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))+
+   scale_shape_discrete("HUC Region", labels = c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))+
    scale_y_continuous(breaks=c(0, 0.63, 0.79, 0.92), limits=c(0, 1.35))+
    scale_x_log10(expand=c(0.01,0.01), limits=c(0.01, 0.5)) +
    theme_clean(base_family = "Roboto Condensed") +
-   theme(panel.border = element_blank(),
-         plot.background = element_blank()) +
    labs(y="CSCI Score", 
         x=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
         title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
-        #title = "Period of Record",
-        subtitle = "Period of Record (50th percentile)") +
-   facet_wrap(huc_region~., labeller = labeller(huc_region=c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))))
+        subtitle = "Period of Record (50th percentile)"))
 
-ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_shading_by_huc_region.png"), width = 11, height = 7, dpi=300, units="in")
-ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_shading_by_huc_region.png"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_faceted_by_huc_region.png"), width = 11, height = 7, dpi=300, units="in")
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_faceted_by_huc_region.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
+
+
+
+# SP_ROC: HUC REGIONS UNFACETED -------------------------------------------
+
+(gg1b_unfaceted <- 
+    ggplot() +
+    # geom_rect(data = data.frame(xmin=0.01, xmax=0.5, ymin=0, ymax=0.63),
+    #           aes(xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax), fill="maroon", alpha=0.2) +
+    # geom_rect(data = data.frame(xmin=0.01, xmax=0.5, ymin=0.63, ymax=0.79), 
+    #           aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax), fill="orange2", alpha=0.2) +
+    # geom_rect(data = data.frame(xmin=0.01, xmax=0.5, ymin=0.79, ymax=0.92),
+    #           aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax), fill="yellow2", alpha=0.2) +
+    # geom_rect(data = data.frame(xmin=0.01,xmax=0.5, ymin=0.92, ymax=1.35), 
+    #           aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax),fill="seagreen", alpha=0.2)+
+    annotate(geom = "text", label="Very likely altered", color="gray50", x=0.011, y=0.57, size=3.5, hjust=0) +
+    annotate(geom = "text", label="Likely altered", color="gray50", x=0.011, y=0.71, size=3.5,  hjust=0) +
+    annotate(geom = "text", label="Possibly altered", color="gray50", x=0.011, y=0.85, size=3.5,  hjust=0) +
+    annotate(geom = "text", label="Likely intact", color="gray50", x=0.011, y=1, size=3.5,  hjust=0) +
+    
+    # for all points (unfaceted)
+    geom_point(data=plotdat , aes(x=p50, y=csci, group=huc_region, shape=huc_region, color=huc_region),
+               size=2.5, alpha=0.7, show.legend = FALSE) + # switch to size 3 and 0.85 for all
+    stat_smooth(data=plotdat %>% filter(huc_region!="great_basin"),
+                aes(x=p50, y=csci, group=huc_region, color=huc_region), method = "gam",
+                formula = y ~ s(x, bs = "cs"), show.legend = T, se = FALSE) +
+   
+    # all the other stuff
+    scale_color_colorblind("HUC Region", labels = c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))+
+    scale_shape_discrete("HUC Region", labels = c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))+
+    scale_y_continuous(breaks=c(0, 0.63, 0.79, 0.92), limits=c(0, 1.35))+
+    scale_x_log10(expand=c(0.01,0.01), limits=c(0.01, 0.5)) +
+    theme_clean(base_family = "Roboto Condensed") +
+   theme(panel.border = element_blank(),
+         plot.background = element_blank(),
+         legend.position = c(0.88,0.88)) +
+   
+    labs(y="CSCI Score", 
+         x=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
+         title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
+         subtitle = "Period of Record (50th percentile)"))
+
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_huc_region.png"), width = 11, height = 7, dpi=300, units="in")
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_huc_region.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
+
 
 # DS_MAG_90: ALL SITES -----------------------------------------------------------------
 
@@ -232,24 +274,22 @@ plotdat <- bmi_ffm_por %>%
 # PLOT
 (gg2a <- 
     ggplot() +
-    # 10/90 percentile pts
-    #geom_point(data=plotdat, aes(x=p10, y=csci), color="gray80", pch=22, size=1.5, alpha=0.9, show.legend = F) +
-    #geom_point(data=plotdat, aes(x=p90, y=csci), color="steelblue", pch=22, size=1.5, alpha=0.9, show.legend = F) +
     # add the CSCI biological/stream condition thresholds (Mazor et al 2016)
-    geom_rect(aes(xmin=0.01, xmax=5500, ymin=0, ymax=0.63), fill="maroon", alpha=0.2) +
-    geom_rect(aes(xmin=0.01, xmax=5500, ymin=0.63, ymax=0.79), fill="orange2", alpha=0.2) +
-    geom_rect(aes(xmin=0.01, xmax=5500, ymin=0.79, ymax=0.92), fill="yellow2", alpha=0.2)+
-    geom_rect(aes(xmin=0.01, xmax=5500, ymin=0.92, ymax=1.35), fill="seagreen", alpha=0.2)+
-    annotate(geom = "text", label="Very likely altered", color="gray50", x=0.06, y=0.55) +
-    annotate(geom = "text", label="Likely altered", color="gray50", x=0.05, y=0.72) +
-    annotate(geom = "text", label="Possibly altered", color="gray50", x=0.05, y=0.86) +
-    annotate(geom = "text", label="Likely intact", color="gray50", x=0.05, y=1) +
+    # geom_rect(aes(xmin=0.01, xmax=5500, ymin=0, ymax=0.63), fill="maroon", alpha=0.2) +
+    # geom_rect(aes(xmin=0.01, xmax=5500, ymin=0.63, ymax=0.79), fill="orange2", alpha=0.2) +
+    # geom_rect(aes(xmin=0.01, xmax=5500, ymin=0.79, ymax=0.92), fill="yellow2", alpha=0.2)+
+    # geom_rect(aes(xmin=0.01, xmax=5500, ymin=0.92, ymax=1.35), fill="seagreen", alpha=0.2)+
+    annotate(geom = "text", label="Very likely altered", color="gray50", 
+             x=0.02, y=0.55, size=4.5, hjust=0) +
+    annotate(geom = "text", label="Likely altered", color="gray50", 
+             x=0.02, y=0.72,  size=4.5, hjust=0) +
+    annotate(geom = "text", label="Possibly altered", color="gray50", 
+             x=0.02, y=0.86,  size=4.5, hjust=0) +
+    annotate(geom = "text", label="Likely intact", color="gray50", 
+             x=0.02, y=1,  size=4.5, hjust=0) +
     
     # data points
     geom_point(data=plotdat, aes(x=p50, y=csci), fill="gray10", pch=21, size=2.5, alpha=0.85, show.legend = FALSE) +
-    
-    # loess smooth
-    #stat_smooth(data=plotdat, aes(x=p50, y=csci), method = "loess", span=.75, lty=2, color="gray40",se = FALSE, fill="gray80", show.legend = F)+
     # gam smooth
     stat_smooth(data=plotdat, aes(x=p50, y=csci), method = "gam", formula = y ~ s(x, bs = "cs"), color="gray40", fill="gray80", show.legend = F)+
     # all the other stuff
@@ -263,57 +303,90 @@ plotdat <- bmi_ffm_por %>%
     labs(y="CSCI Score", 
          x=paste0(unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), " (cfs)"), 
          title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
-         #title = "Period of Record",
          subtitle = "Period of Record (50th percentile)"))
 
-ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_shading.png"), width = 11, height = 7, dpi=300, units="in")
-ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_shading.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam.png"), width = 11, height = 7, dpi=300, units="in")
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
 
-# DS_MAG_90: HUC REGION --------------------------------------------------------
+# DS_MAG_90: HUC REGIONS FACETED --------------------------------------------------------
 
 # PLOT
-(gg2b <- 
+(gg2b_faceted <- 
    ggplot() +
-   geom_rect(data = data.frame(xmin=0.01, xmax=5500, ymin=0, ymax=0.63),
-             aes(xmin=xmin, xmax=xmax, ymax=ymax, ymin=ymin), fill="maroon", alpha=0.2) +
-   geom_rect(data = data.frame(xmin=0.01, xmax=5500, ymin=0.63, ymax=0.79),
-             aes(xmin=xmin, xmax=xmax, ymax=ymax, ymin=ymin), fill="orange2", alpha=0.2) +
-   geom_rect(data = data.frame(xmin=0.01, xmax=5500, ymin=0.79, ymax=0.92),
-             aes(xmin=xmin, xmax=xmax, ymax=ymax, ymin=ymin), fill="yellow2", alpha=0.2)+
-   geom_rect(data = data.frame(xmin=0.01, xmax=5500, ymin=0.92, ymax=1.35),
-             aes(xmin=xmin, xmax=xmax, ymax=ymax, ymin=ymin), fill="seagreen", alpha=0.2) +
-   annotate(geom = "text", label="Very likely altered", color="gray50", x=0.07, y=0.55, size=3) +
-   annotate(geom = "text", label="Likely altered", color="gray50", x=0.05, y=0.72, size=3) +
-   annotate(geom = "text", label="Possibly altered", color="gray50", x=0.065, y=0.86, size=3) +
-   annotate(geom = "text", label="Likely intact", color="gray50", x=0.05, y=1, size=3) +
+   annotate(geom = "text", label="Very likely altered", color="gray50", 
+            x = 0.02, y=0.55, size=4, hjust=0) +
+   annotate(geom = "text", label="Likely altered", color="gray50", 
+            x=0.02, y=0.72,  size=4, hjust=0) +
+   annotate(geom = "text", label="Possibly altered", color="gray50", 
+            x=0.02, y=0.86,  size=4, hjust=0) +
+   annotate(geom = "text", label="Likely intact", color="gray50", 
+            x=0.02, y=1,  size=4, hjust=0) +
    
-   # data points
-   geom_point(data=plotdat, aes(x=p50, y=csci), fill="gray10", pch=21, size=2.5, alpha=0.85, show.legend = FALSE) +
+   # data points w no fill
+   geom_point(data=plotdat, aes(x=p50, y=csci, group=huc_region, shape=huc_region, color=huc_region),
+              size=3, alpha=0.85, show.legend = FALSE) +
    
-   # loess smooth
-   #stat_smooth(data=plotdat, aes(x=p50, y=csci), method = "loess", span=.75, lty=2, color="gray40",se = FALSE, fill="gray80", show.legend = F)+
    # gam smooth
-   stat_smooth(data=plotdat, aes(x=p50, y=csci), method = "gam", formula = y ~ s(x, bs = "cs"), color="gray40", fill="gray80", show.legend = F)+
+   stat_smooth(data=plotdat, aes(x=p50, y=csci, color=huc_region), method = "gam", formula = y ~ s(x, bs = "cs"), show.legend = FALSE, se = FALSE ) +
+
+   facet_wrap(huc_region~., labeller = labeller(huc_region=c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))) +
+
    # all the other stuff
    scale_y_continuous(breaks=c(0, 0.63, 0.79, 0.92), limits=c(0, 1.35))+
    scale_x_log10(breaks=c(0.01, 0.1, 1, 10, 100, 1000), limits=c(0.01, 5500),
                  labels=c(0.01, 0.1, 1, 10, 100, 1000), expand=c(0.02, 0.02)) +
-   scale_color_colorblind("HUC Region")+
+   scale_color_colorblind("HUC Region", labels = c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))+
+   scale_shape_discrete("HUC Region", labels = c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))+
    theme_clean(base_family = "Roboto Condensed") +
    theme(panel.border = element_blank(),
-         plot.background = element_blank()) +
+         plot.background = element_blank())+
    labs(y="CSCI Score", 
         x=paste0(unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), " (cfs)"), 
         title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
-        #title = "Period of Record",
-        subtitle = "Period of Record (50th percentile)") +
-   facet_wrap(huc_region~., labeller = labeller(huc_region=c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))))
+        subtitle = "Period of Record (50th percentile)"))
  
-ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_shading_by_huc_region.png"), width = 11, height = 7, dpi=300, units="in")
-ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_shading_by_huc_region.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_faceted_by_huc_region.png"), width = 11, height = 7, dpi=300, units="in")
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_faceted_by_huc_region.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
 
 
+# DS_MAG_90: HUC REGIONS UNFACETED ------------------------------------------------------
 
+# PLOT
+(gg2b_unfaceted <- 
+    ggplot() +
+    annotate(geom = "text", label="Very likely altered", color="gray50", 
+             x = 0.02, y=0.55, size=4, hjust=0) +
+    annotate(geom = "text", label="Likely altered", color="gray50", 
+             x=0.02, y=0.72,  size=4, hjust=0) +
+    annotate(geom = "text", label="Possibly altered", color="gray50", 
+             x=0.02, y=0.86,  size=4, hjust=0) +
+    annotate(geom = "text", label="Likely intact", color="gray50", 
+             x=0.02, y=1,  size=4, hjust=0) +
+    
+    # data points w no fill
+    geom_point(data=plotdat, aes(x=p50, y=csci, group=huc_region, shape=huc_region, color=huc_region),
+               size=2.5, alpha=0.7, show.legend = FALSE) +
+    
+    # gam smooth
+    stat_smooth(data=plotdat, aes(x=p50, y=csci, color=huc_region), method = "gam", formula = y ~ s(x, bs = "cs"), show.legend = TRUE, se = FALSE ) +
+    
+    # all the other stuff
+    scale_y_continuous(breaks=c(0, 0.63, 0.79, 0.92), limits=c(0, 1.35))+
+    scale_x_log10(breaks=c(0.01, 0.1, 1, 10, 100, 1000), limits=c(0.01, 5500),
+                  labels=c(0.01, 0.1, 1, 10, 100, 1000), expand=c(0.02, 0.02)) +
+    scale_color_colorblind("HUC Region", labels = c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))+
+    scale_shape_discrete("HUC Region", labels = c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))+
+    theme_clean(base_family = "Roboto Condensed") +
+    theme(panel.border = element_blank(),
+          plot.background = element_blank(),
+          legend.position = c(0.88,0.88)) +
+    labs(y="CSCI Score", 
+         x=paste0(unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), " (cfs)"), 
+         title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
+         subtitle = "Period of Record (50th percentile)"))
+
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_huc_region.png"), width = 11, height = 7, dpi=300, units="in")
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_huc_region.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
 
 
 # WET_BFL_MAG_50: ALL SITES -----------------------------------------------------------------
@@ -334,24 +407,24 @@ plotdat <- bmi_ffm_por %>%
 # PLOT
 (gg3a <- 
     ggplot() +
-    # 10/90 percentile pts
-    #geom_point(data=plotdat, aes(x=p10, y=csci), color="gray80", pch=22, size=1.5, alpha=0.9, show.legend = F) +
-    #geom_point(data=plotdat, aes(x=p90, y=csci), color="steelblue", pch=22, size=1.5, alpha=0.9, show.legend = F) +
+
     # add the CSCI biological/stream condition thresholds (Mazor et al 2016)
-    geom_rect(aes(xmin=0.01, xmax=5500, ymin=0, ymax=0.63), fill="maroon", alpha=0.2) +
-    geom_rect(aes(xmin=0.01, xmax=5500, ymin=0.63, ymax=0.79), fill="orange2", alpha=0.2) +
-    geom_rect(aes(xmin=0.01, xmax=5500, ymin=0.79, ymax=0.92), fill="yellow2", alpha=0.2)+
-    geom_rect(aes(xmin=0.01, xmax=5500, ymin=0.92, ymax=1.35), fill="seagreen", alpha=0.2)+
-    annotate(geom = "text", label="Very likely altered", color="gray50", x=0.06, y=0.55) +
-    annotate(geom = "text", label="Likely altered", color="gray50", x=0.05, y=0.72) +
-    annotate(geom = "text", label="Possibly altered", color="gray50", x=0.05, y=0.86) +
-    annotate(geom = "text", label="Likely intact", color="gray50", x=0.05, y=1) +
+    # geom_rect(aes(xmin=0.01, xmax=5500, ymin=0, ymax=0.63), fill="maroon", alpha=0.2) +
+    # geom_rect(aes(xmin=0.01, xmax=5500, ymin=0.63, ymax=0.79), fill="orange2", alpha=0.2) +
+    # geom_rect(aes(xmin=0.01, xmax=5500, ymin=0.79, ymax=0.92), fill="yellow2", alpha=0.2)+
+    # geom_rect(aes(xmin=0.01, xmax=5500, ymin=0.92, ymax=1.35), fill="seagreen", alpha=0.2)+
+    annotate(geom = "text", label="Very likely altered", color="gray50", 
+             x=0.02, y=0.55, size=4, hjust=0) +
+    annotate(geom = "text", label="Likely altered", color="gray50", 
+             x=0.02, y=0.72, size=4, hjust=0) +
+    annotate(geom = "text", label="Possibly altered", color="gray50", 
+             x=0.02, y=0.86, size=4, hjust=0) +
+    annotate(geom = "text", label="Likely intact", color="gray50", 
+             x=0.02, y=1, size=4, hjust=0) +
     
     # data points
     geom_point(data=plotdat, aes(x=p50, y=csci), fill="gray10", pch=21, size=2.5, alpha=0.85, show.legend = FALSE) +
     
-    # loess smooth
-    #stat_smooth(data=plotdat, aes(x=p50, y=csci), method = "loess", span=.75, lty=2, color="gray40",se = FALSE, fill="gray80", show.legend = F)+
     # gam smooth
     stat_smooth(data=plotdat, aes(x=p50, y=csci), method = "gam", formula = y ~ s(x, bs = "cs"), color="gray40", fill="gray80", show.legend = F)+
     # all the other stuff
@@ -365,37 +438,34 @@ plotdat <- bmi_ffm_por %>%
     labs(y="CSCI Score", 
          x=paste0(unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), " (cfs)"), 
          title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
-         #title = "Period of Record",
          subtitle = "Period of Record (50th percentile)"))
 
-#ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_shading.png"), width = 11, height = 7, dpi=300, units="in")
-#ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_shading.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam.png"), width = 11, height = 7, dpi=300, units="in")
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
 
-# DS_MAG_90: HUC REGION --------------------------------------------------------
+# DS_MAG_90: HUC REGIONS FACETED --------------------------------------------------------
 
 # PLOT
-(gg3b <- 
+(gg3b_faceted <- 
    ggplot() +
-   geom_rect(data = data.frame(xmin=0.01, xmax=5500, ymin=0, ymax=0.63),
-             aes(xmin=xmin, xmax=xmax, ymax=ymax, ymin=ymin), fill="maroon", alpha=0.2) +
-   geom_rect(data = data.frame(xmin=0.01, xmax=5500, ymin=0.63, ymax=0.79),
-             aes(xmin=xmin, xmax=xmax, ymax=ymax, ymin=ymin), fill="orange2", alpha=0.2) +
-   geom_rect(data = data.frame(xmin=0.01, xmax=5500, ymin=0.79, ymax=0.92),
-             aes(xmin=xmin, xmax=xmax, ymax=ymax, ymin=ymin), fill="yellow2", alpha=0.2)+
-   geom_rect(data = data.frame(xmin=0.01, xmax=5500, ymin=0.92, ymax=1.35),
-             aes(xmin=xmin, xmax=xmax, ymax=ymax, ymin=ymin), fill="seagreen", alpha=0.2) +
-   annotate(geom = "text", label="Very likely altered", color="gray50", x=0.07, y=0.55, size=3) +
-   annotate(geom = "text", label="Likely altered", color="gray50", x=0.05, y=0.72, size=3) +
-   annotate(geom = "text", label="Possibly altered", color="gray50", x=0.065, y=0.86, size=3) +
-   annotate(geom = "text", label="Likely intact", color="gray50", x=0.05, y=1, size=3) +
+
+   annotate(geom = "text", label="Very likely altered", color="gray50", 
+            x=0.02, y=0.55, size=4, hjust=0) +
+   annotate(geom = "text", label="Likely altered", color="gray50", 
+            x=0.02, y=0.72, size=4, hjust=0) +
+   annotate(geom = "text", label="Possibly altered", color="gray50", 
+            x=0.02, y=0.86, size=4, hjust=0) +
+   annotate(geom = "text", label="Likely intact", color="gray50", 
+            x=0.02, y=1, size=4, hjust=0) +
    
    # data points
-   geom_point(data=plotdat, aes(x=p50, y=csci), fill="gray10", pch=21, size=2.5, alpha=0.85, show.legend = FALSE) +
+   geom_point(data=plotdat, aes(x=p50, y=csci, group=huc_region, shape=huc_region, color=huc_region), size=3, alpha=0.8, show.legend = FALSE) +
    
-   # loess smooth
-   #stat_smooth(data=plotdat, aes(x=p50, y=csci), method = "loess", span=.75, lty=2, color="gray40",se = FALSE, fill="gray80", show.legend = F)+
    # gam smooth
-   stat_smooth(data=plotdat, aes(x=p50, y=csci), method = "gam", formula = y ~ s(x, bs = "cs"), color="gray40", fill="gray80", show.legend = F)+
+   stat_smooth(data=plotdat, aes(x=p50, y=csci, color=huc_region), method = "gam", formula = y ~ s(x, bs = "cs"), show.legend = FALSE, se = FALSE ) +
+   
+   facet_wrap(huc_region~., labeller = labeller(huc_region=c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))) +
+   
    # all the other stuff
    scale_y_continuous(breaks=c(0, 0.63, 0.79, 0.92), limits=c(0, 1.35))+
    scale_x_log10(breaks=c(0.01, 0.1, 1, 10, 100, 1000), limits=c(0.01, 5500),
@@ -407,12 +477,51 @@ plotdat <- bmi_ffm_por %>%
    labs(y="CSCI Score", 
         x=paste0(unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), " (cfs)"), 
         title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
-        #title = "Period of Record",
-        subtitle = "Period of Record (50th percentile)") +
-   facet_wrap(huc_region~., labeller = labeller(huc_region=c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))))
+        subtitle = "Period of Record (50th percentile)"))
 
-ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_shading_by_huc_region.png"), width = 11, height = 7, dpi=300, units="in")
-ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_shading_by_huc_region.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_faceted_by_huc_region.png"), width = 11, height = 7, dpi=300, units="in")
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_faceted_by_huc_region.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
+
+# DS_MAG_90: HUC REGIONS UNFACETED --------------------------------------------------------
+
+# PLOT
+(gg3b_unfaceted <- 
+   ggplot() +
+   
+   annotate(geom = "text", label="Very likely altered", color="gray50", 
+            x=0.02, y=0.55, size=4, hjust=0) +
+   annotate(geom = "text", label="Likely altered", color="gray50", 
+            x=0.02, y=0.72, size=4, hjust=0) +
+   annotate(geom = "text", label="Possibly altered", color="gray50", 
+            x=0.02, y=0.86, size=4, hjust=0) +
+   annotate(geom = "text", label="Likely intact", color="gray50", 
+            x=0.02, y=1, size=4, hjust=0) +
+   
+   # data points
+   geom_point(data=plotdat, aes(x=p50, y=csci, group=huc_region, shape=huc_region, color=huc_region), size=2.5, alpha=0.7, show.legend = TRUE) +
+   
+   # gam smooth
+   stat_smooth(data=plotdat, aes(x=p50, y=csci, color=huc_region), method = "gam", formula = y ~ s(x, bs = "cs"), show.legend = TRUE, se = FALSE ) +
+   
+   # all the other stuff
+   scale_y_continuous(breaks=c(0, 0.63, 0.79, 0.92), limits=c(0, 1.35))+
+   scale_x_log10(breaks=c(0.01, 0.1, 1, 10, 100, 1000), limits=c(0.01, 5500),
+                 labels=c(0.01, 0.1, 1, 10, 100, 1000), expand=c(0.02, 0.02)) +
+
+   scale_color_colorblind("HUC Region", labels = c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))+
+   scale_shape_discrete("HUC Region", labels = c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))+
+   
+   theme_clean(base_family = "Roboto Condensed") +
+   theme(panel.border = element_blank(),
+         plot.background = element_blank(),
+         legend.position = c(0.88,0.88)) +
+   labs(y="CSCI Score", 
+        x=paste0(unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), " (cfs)"), 
+        title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
+        subtitle = "Period of Record (50th percentile)"))
+
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_by_huc_region.png"), width = 11, height = 7, dpi=300, units="in")
+ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_by_huc_region.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
 
 
 
