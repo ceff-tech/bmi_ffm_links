@@ -36,6 +36,8 @@ f_remove_empty <- function(x){
 
 # Prep Data ------------------------------------------------------------
 
+# view gage list
+
 # all gage data
 load("data_output/01_usgs_all_gages.rda") # final gages list
 table(usgs_final_all$CEFF_type)

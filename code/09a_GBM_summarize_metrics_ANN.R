@@ -13,46 +13,42 @@ library(purrr)
 # Load Data ---------------------------------------------------------------
 
 # load updated data w HUC_regions:
-load("data_output/05_selected_bmi_csci_por_trim_w_huc_region.rda")
-load("data_output/05_selected_bmi_csci_por_w_huc_region.rda")
+load("data_output/06_selected_bmi_csci_ffm_ann_trim.rda")
+load("data_output/06_selected_bmi_csci_ffm_ann.rda")
 
-load("models/09_csci_ann_all_ca_ffc_only_all_ri_all_regions.rda")
-hydroDat <- "POR"
+# set names
+hydroDat <- "ANN"
 plotname <- "All Site Pairs"  #"Central Valley" #"All Site Pairs"
-
-## ONLY IF YOU NEED MODEL NAMES/DATA
-## "all_ca_ffc_only", "central_valley", "great_basin", "north_coast", "south_coast", 
 modname <- "all_ca" # model name 
 bmiVar <- quote(csci) # select response var
 # make pathnames
 (plot_savename <- tolower(paste0("09_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
 
-# make regional Ri --------------------------------------------------------
+# make all/regional Ri --------------------------------------------------------
 
-## ONLY IF YOU NEED MODEL NAMES/DATA
 ## "all_ca_ffc_only", "central_valley", "great_basin", "north_coast", "south_coast", 
-# modname <- "great_basin" # model name 
-# bmiVar <- quote(csci) # select response var
+modname <- "all_ca_ffc_only" # model name 
 
 # make pathnames
-# (mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
 
 # get the gbm model:
-# (top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-# top_ris <- read_rds(path=paste0("models/", top_ri))
+(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+top_ris <- read_rds(path=paste0("models/", top_ri))
 
 # make sep and combine
-# ri_all_ca <- top_ris %>% mutate(model="all_ca")
+ri_all_ca <- top_ris %>% mutate(model="all_ca")
 # ri_gbasin <- top_ris %>% mutate(model="great_basin")
 # ri_scoast <- top_ris %>% mutate(model="south_coast")
 # ri_ncoast <- top_ris %>% mutate(model="north_coast")
 # ri_cvalley <- top_ris %>% mutate(model="central_valley")
 # 
-# # bind 
+# bind 
 # ri_all_regions <- bind_rows(ri_all_ca, ri_gbasin, ri_cvalley, ri_ncoast, ri_scoast)
-# 
-# #save out for later
-# save(ri_all_regions, file = tolower(glue::glue("models/09_{bmiVar}_{hydroDat}_{modname}_all_ri_all_regions.rda")))
+ri_all_regions <- ri_all_ca 
+
+# save out for later
+save(ri_all_regions, file = tolower(glue::glue("models/09_{bmiVar}_{hydroDat}_{modname}_all_ri_all_regions.rda", )))
 
 
 # Make a Table of RI's ----------------------------------------------------
