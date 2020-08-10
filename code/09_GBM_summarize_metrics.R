@@ -16,7 +16,7 @@ library(purrr)
 load("data_output/05_selected_bmi_csci_por_trim_w_huc_region.rda")
 load("data_output/05_selected_bmi_csci_por_w_huc_region.rda")
 
-load("models/09_csci_ann_all_ca_ffc_only_all_ri_all_regions.rda")
+load("models/09_csci_por_all_ca_ffc_only_all_ri_all_regions.rda")
 hydroDat <- "POR"
 plotname <- "All Site Pairs"  #"Central Valley" #"All Site Pairs"
 
@@ -90,8 +90,6 @@ forder <- ri_table %>%
   select(Flow.Metric.Name, id) # get the just the names for ordering things
 
 
-
-
 # Plot & Summarize All RI Combined ----------------------------------------
 
 # most common hydrometric by flowdata type?
@@ -148,9 +146,9 @@ model_name <- "HUC Regions"
 ri_table %>%
   dplyr::filter(!model=="all_ca", method=="mse") %>%
   dplyr::select(-c(Ymetric, flowdat, flow_component, method, Flow.Characteristic)) %>%
-  pivot_wider(names_from = model, values_from = RI) %>% #View()
+  pivot_wider(names_from = model, values_from = RI) %>% # View()
   dplyr::select(Flow.Component, var, Flow.Metric.Name:Unit, great_basin:south_coast) %>%
-  arrange(Flow.Component, var) %>% #View() 
+  arrange(Flow.Component, var) %>% # View() 
   gt() %>%
   tab_header(
     title = "Relative Influence of Functional Flow Metrics on CSCI",
@@ -189,7 +187,7 @@ ri_table %>%
   #scale_shape_manual("Method", values=c("mse"=16, "permtest"=17))+
   coord_flip() +
   ylim(c(0,25))+
-  labs(title = plotname,
+  labs(title = glue::glue('{plotname}: {hydroDat}'),
        x="", y="Relative Influence (%)") +
   guides(fill = guide_legend(override.aes = list(size = 4))) +
   theme_minimal(base_family = "Roboto Condensed") +
@@ -203,7 +201,8 @@ ggsave(filename=tolower(paste0("models/", plot_savename, "_all_ri_sized_points_w
 
 # now plot w facets (but use same ordering for ALL CA)
 ri_table %>% 
-  filter(model!="all_ca", 
+  filter(#model!="all_ca", 
+         model=="all_ca", 
          method=="mse") %>% 
   left_join(., forder, by="Flow.Metric.Name") %>% 
   arrange(id) %>% #View() 
