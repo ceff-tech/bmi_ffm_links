@@ -5,6 +5,7 @@
 
 library(tidyverse)
 library(sf)
+library(glue)
 library(leaflet)
 library(mapview)
 library(viridis) # colors
@@ -37,22 +38,23 @@ length(unique(bmi_csci_sites$ID)) # n=113
 # "central_valley", "great_basin", "north_coast", "south_coast", 
 
 hydroDat <- "ANN" # can be Annual, Lag1, Lag2, POR
-modname <- "all_ca_ffc_only" # model name 
-plotname <- "All Site Pairs"  #"Central Valley" #"All Site Pairs"
+modname <- "south_coast" # model name 
+plotname <- "South Coast"  #"Central Valley" #"All Site Pairs"
 bmiVar <- quote(csci) # select response var
 
 # make pathnames
-(mod_pathname <- paste0("07_gbm_final_", tolower(bmiVar), "_",tolower(hydroDat), "_",modname))
-(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+(mod_pathname <- glue("07_gbm_final_{tolower(bmiVar)}_{tolower(hydroDat)}_{modname}"))
+
+(mod_savename <- tolower(glue("08_gbm_{as_name(bmiVar)}_{hydroDat}_{modname}")))
 
 # get the gbm model:
-(brt <- list.files(path="models/", pattern = paste0("^", mod_pathname,".*\\.rds$")))
+(brt <- list.files(path="models/", pattern = glue("^{mod_pathname}.*\\.rds$")))
 
-gbm_final <- read_rds(path=paste0("models/", brt))
-class(gbm_final)
+gbm_final <- read_rds(path=glue("models/{brt}"))
+#class(gbm_final)
 
 # get model datasets (for PDPs)
-load(paste0("models/",mod_pathname, "_model_data.rda"))
+load(glue("models/{mod_pathname}_model_data.rda"))
 
 # rename datasets for plotting:
 gbm_out_train <- data_ann_train # NEED TO CHANGE THESE
@@ -94,7 +96,7 @@ gbm_fin_RI <- gbm_fin_RI %>%
            position="dodge") +
   coord_flip() +
   geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
-  ylim(c(0,30))+
+  #ylim(c(0,30))+
   scale_fill_viridis_d("Flow Component")+
   labs(title = glue::glue('{plotname}: {hydroDat}'),
        #title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Metrics: ", modname),
@@ -103,7 +105,7 @@ gbm_fin_RI <- gbm_fin_RI %>%
   theme_classic(base_family = "Roboto Condensed")) 
 
 # save out
-ggsave(filename=tolower(paste0("models/", mod_savename, "_all_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(glue("models/{mod_savename}_all_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 # 01B. RELATIVE INFLUENCE PLOTS (MSE) TOP VARS -------------------------------------
 
@@ -117,14 +119,14 @@ ggsave(filename=tolower(paste0("models/", mod_savename, "_all_RI_mse.png")), wid
              position="dodge") +
     coord_flip() +
     geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
-    ylim(c(0,30))+
+    #ylim(c(0,30))+
     scale_fill_viridis_d("Flow Component")+
     labs(title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Top Metrics: ", modname),
          x="", y="Relative Influence (%)", subtitle="MSE Criterion") +
     theme_classic(base_family = "Roboto Condensed")) 
 
 # save out
-ggsave(filename=tolower(paste0("models/", mod_savename, "_top_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(glue("models/{mod_savename}_top_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 
 # 02A. RI PERMUTATION TEST PLOTS ALL VARS ------------------------------------------------
@@ -159,7 +161,7 @@ gbm_fin_PT <- gbm_fin_PT %>%
              position="dodge") +
     coord_flip() +
     geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
-    ylim(c(0,50))+
+    #ylim(c(0,50))+
     scale_fill_viridis_d("Flow Component")+
     labs(title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Metrics: ", modname),
          y="Relative Influence (%) (perm test)", x="",
@@ -182,7 +184,7 @@ gbm_fin_PT <- gbm_fin_PT %>%
             position="dodge") +
    coord_flip() +
    geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
-   ylim(c(0,50))+
+   #ylim(c(0,50))+
    scale_fill_viridis_d("Flow Component")+
    labs(title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Top Metrics: ", modname),
         y="Relative Influence (%) (perm test)", x="",
@@ -204,34 +206,34 @@ gbm_fin_PT <- gbm_fin_PT %>%
 # 03. COMBINE RIs AND SAVE -----------------------------------------------------
 
 # reassign names for RI outputs and save:
-assign(x = tolower(paste0(as_name(bmiVar),"_",hydroDat,"_RI")), value=bind_rows(gbm_fin_PT, gbm_fin_RI))
+assign(x = tolower(glue("{as_name(bmiVar)}_{hydroDat}_RI")), value=bind_rows(gbm_fin_PT, gbm_fin_RI))
 
-filepattern <- ls(pattern = paste0("^",tolower(as_name(bmiVar))))
+filepattern <- ls(pattern = glue("^{tolower(as_name(bmiVar))}"))
 
-write_rds(x = get(filepattern), path = paste0("models/", mod_savename, "_RI_combined.rds"))
+write_rds(x = get(filepattern), path = glue("models/{mod_savename}_RI_combined.rds"))
 
 # 04. MARGINAL FX Plots ----------------------------------------------
 
 # MARGINAL FX:: partial dependency or marginal effect plots (ALL)
 
-pdf(file=paste0("models/", mod_savename,"_partial_depend_plots.pdf"),
+pdf(file=glue("models/{mod_savename}_partial_depend_plots.pdf"),
     width = 11, height = 8)
                 
 gbm.plot(gbm_final, rug = T, n.plots = 8, show.contrib = T, 
          smooth=T, write.title = F, common.scale = T,
          y.label = as_name(bmiVar), plot.layout = c(2,4))
-title(main=paste0("Flow Data: ", hydroDat, "_", modname), outer = T, line = -1.5)
+title(main=glue("Flow Data: {hydroDat}_{modname}"), outer = T, line = -1.5)
 dev.off()
 
 # 05. ICE PLOTS -----------------------------------------
 
 ## displays avg change in predicted Y VAR as we vary an X VAR while holding everything else constant
 
-library(pdp)
-
-# get top var
-(bestHydro_ri <- gbm_fin_RI %>% top_n(n = 3, RI))
-(bestHydro_pt <- gbm_fin_PT %>% top_n(n = 3, RI))
+# library(pdp)
+# 
+# # get top var
+# (bestHydro_ri <- gbm_fin_RI %>% top_n(n = 3, RI))
+# (bestHydro_pt <- gbm_fin_PT %>% top_n(n = 3, RI))
 
 ## ICE (Individual conditional expectation) plots: rather than plot the average marginal effect on the response variable, we plot the change in the predicted response variable for each observation as we vary each predictor variable.
 
@@ -239,54 +241,50 @@ library(pdp)
 
 # When the curves have a wide range of intercepts and are consequently “stacked” on each other, heterogeneity in the response variable values due to marginal changes in the predictor variable of interest can be difficult to discern, thus centering can help
 
-varNo <- 3 # single number makes single plot
-
-# RI
-(ice_ri <- gbm_final %>%
-  partial(
-    pred.var = as.character(bestHydro_ri$var[varNo]), 
-    n.trees = gbm_final$n.trees, train=gbm_out_train,
-    grid.resolution = 100,
-    ice = TRUE
-  ) %>%
-  autoplot(rug = TRUE, train = gbm_out_train, alpha = .1, center = TRUE) +
-    labs(subtitle = paste0("ICE Centered (RI): ", bestHydro_ri$var[varNo], " for ", hydroDat),
-         y=paste0("Predicted ", as_name(bmiVar))) +
-  ggdark::dark_theme_classic(base_family = "Roboto Condensed"))
-
-# RI save:
-ggsave(filename=paste0("models/", mod_savename, "_pdp_ice_",
-                       as.character(bestHydro_ri$var[varNo]),
-                       ".png"), width = 11, height = 7, units = "in", dpi=300)
-
-
-
-
+# varNo <- 1 # single number makes single plot
+# 
+# # RI
+# (ice_ri <- gbm_final %>%
+#   partial(
+#     pred.var = as.character(bestHydro_ri$var[varNo]), 
+#     n.trees = gbm_final$n.trees, train=gbm_out_train,
+#     grid.resolution = 100,
+#     ice = TRUE
+#   ) %>%
+#   autoplot(rug = TRUE, train = gbm_out_train, alpha = .1, center = TRUE) +
+#     labs(subtitle = paste0("ICE Centered (RI): ", bestHydro_ri$var[varNo], " for ", hydroDat),
+#          y=paste0("Predicted ", as_name(bmiVar))) +
+#   ggdark::dark_theme_classic(base_family = "Roboto Condensed"))
+# 
+# # RI save:
+# ggsave(filename=paste0("models/", mod_savename, "_pdp_ice_",
+#                        as.character(bestHydro_ri$var[varNo]),
+#                        ".png"), width = 11, height = 7, units = "in", dpi=300)
 
 
 
 # Z-archive this chunk: USE DALEX ---------------------------------------------------------------
 
-gbm_explain <- explain(gbm_final, data=gbm_out_train[,-1], y=gbm_out_train$csci)
-gbm_explain_tst <- explain(gbm_final, data=gbm_out_test[,-1], y=gbm_out_test$csci)
-
-# feature importance
-gbm_feat <- feature_importance(gbm_explain)
-plot(gbm_feat, max_vars=12)
-
-gbm_feat_tst <- feature_importance(gbm_explain_tst)
-plot(gbm_feat_tst, max_vars=12)
-
-# look at explained variance for a specific observation(s)
-library(iBreakDown)
-gbm_breakdown <- break_down(gbm_explain, new_observation = gm_out_test[,-1], keep_distributions=TRUE)
-gbm_shap <- shap(gbm_explain, gbm_out_test[,-1])
-plot(gbm_breakdown, baseline=0)
-plot(gbm_shap)
-
-# describe a bit more
-describe(gbm_breakdown)
-describe(gbm_shap)
+# gbm_explain <- explain(gbm_final, data=gbm_out_train[,-1], y=gbm_out_train$csci)
+# gbm_explain_tst <- explain(gbm_final, data=gbm_out_test[,-1], y=gbm_out_test$csci)
+# 
+# # feature importance
+# gbm_feat <- feature_importance(gbm_explain)
+# plot(gbm_feat, max_vars=12)
+# 
+# gbm_feat_tst <- feature_importance(gbm_explain_tst)
+# plot(gbm_feat_tst, max_vars=12)
+# 
+# # look at explained variance for a specific observation(s)
+# library(iBreakDown)
+# gbm_breakdown <- break_down(gbm_explain, new_observation = gm_out_test[,-1], keep_distributions=TRUE)
+# gbm_shap <- shap(gbm_explain, gbm_out_test[,-1])
+# plot(gbm_breakdown, baseline=0)
+# plot(gbm_shap)
+# 
+# # describe a bit more
+# describe(gbm_breakdown)
+# describe(gbm_shap)
 
 
 # partial dependency using ingredients (only works w/ no NAs)
@@ -300,7 +298,7 @@ describe(gbm_shap)
 # plot(gbm_cp_pg)
 
 # predict values for test data
-pred <- predict(gbm_final, n.trees = gbm_final$n.trees, gm_out_test)
+# pred <- predict(gbm_final, n.trees = gbm_final$n.trees, gm_out_test)
 
 # results
-caret::RMSE(pred, gm_out_train[,1])
+# caret::RMSE(pred, gm_out_train[,1])
