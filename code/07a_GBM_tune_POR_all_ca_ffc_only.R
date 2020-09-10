@@ -93,6 +93,10 @@ setdiff(data_names, names(data_por))
 
 # seems SP_Dur is largely NA
 
+# remove rows that have more than 70% NA
+data_por <- data_por[which(rowMeans(!is.na(data_por))>0.7),]
+dim(data_ann)
+
 # 05. Split Train/Test Data -------------------------------------------------------------------
 
 # make sure data is randomized:
@@ -148,9 +152,12 @@ gbm_fit_step <- function(
   )
   
   # Compute the Deviance Explained: (total dev - cv dev) / total dev
-  (m_step$self.statistics$mean.null - m_step$cv.statistics$deviance.mean) /
-    m_step$self.statistics$mean.null
-  
+  if(!is.null(m_step)){ # this helps if there's an error above
+    (m_step$self.statistics$mean.null - m_step$cv.statistics$deviance.mean) /
+      m_step$self.statistics$mean.null
+  } else { 
+    return(NA)
+  }
 }
 
 # 07. RUN GBM.STEP WITH PURRR ---------------------------------------------
