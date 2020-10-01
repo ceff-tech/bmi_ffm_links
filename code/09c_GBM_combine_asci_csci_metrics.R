@@ -8,6 +8,7 @@ library(tidyverse)
 library(sf)
 library(viridis) # colors
 library(rlang)
+library(glue)
 library(purrr)
 
 # Load CSCI Data ---------------------------------------------------------------
@@ -25,7 +26,7 @@ plotname <- "All Site Pairs"  #"Central Valley" #"All Site Pairs"
 modname <- "all_ca" # model name 
 bmiVar <- quote(csci) # select response var
 # make pathnames
-(plot_savename <- tolower(paste0("09_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+(plot_savename <- tolower(glue("09_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
 
 # rename objects for brevity
 csci_por <- bmi_csci_por
@@ -59,7 +60,12 @@ save(asci_por, asci_por_trim, asci_ri_all, csci_por, csci_por_trim, csci_ri_all,
 
 # Merge ASCI/CSCI DATA ----------------------------------------------------
 
+# add specific ASCI vs CSCI col
+asci_ri_all <- asci_ri_all %>% mutate(index="ASCI")
+csci_ri_all <- csci_ri_all %>% mutate(index="CSCI")
 
+# combine
+ri_all <- bind_rows(asci_ri_all, csci_ri_all)
 
 # Make a Table of RI's ----------------------------------------------------
 
@@ -69,7 +75,7 @@ ff_defs <- readxl::read_xlsx("docs/Functional_Flow_Metrics_List_and_Definitions_
 # 
 
 # join with the full RI table
-ri_table <- left_join(ri_all_regions, ff_defs, by=c("var"="Flow.Metric.Code"))
+ri_table <- left_join(ri_all, ff_defs, by=c("var"="Flow.Metric.Code"))
 
 # drop unused factors in flow component:
 ri_table <- ri_table %>% 
@@ -91,7 +97,7 @@ forder <- ri_table %>%
   mutate(model=as.factor(model),
          Flow.Metric.Name = as.factor(Flow.Metric.Name),
          Flow.Metric.Name = forcats::fct_reorder2(Flow.Metric.Name, model, RI)) %>% 
-  group_by(model) %>% 
+  group_by(model, index) %>% 
   arrange(desc(model, RI)) %>% 
   mutate(id = row_number()) %>% 
   ungroup() %>% arrange(id) %>% 
@@ -108,12 +114,13 @@ ri_table %>% group_by(flowdat, var) %>%
   arrange(flowdat, desc(meanRI))
 
 # so best hydrometric across model?
-ri_table %>% group_by(model, var) %>% 
+ri_table %>% group_by(model, index, var) %>% 
   summarize(meanRI = mean(RI),
             medianRI = median(RI),
             maxRI = max(RI),
             SD = sd(RI)) %>% 
-  top_n(5) %>% group_by(var) %>% tally() %>% arrange(desc(n))
+  top_n(5) %>% group_by(var, index) %>% tally() %>% arrange(desc(index, n)) %>% 
+  View()
 
 # top metrics based on frequency across regions
 # Wet_BFL_Mag_50     5
