@@ -1,0 +1,25 @@
+---
+title: "updated_ffm_data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Updated FFM Data
+
+The R API package has been updated, with additional documentation. See here: https://ceff-tech.github.io/ffc_api_client/index.html.
+
+The newly updated FFM data lives in CEFF Google Drive Folder [here.](https://drive.google.com/drive/u/1/folders/12y_-6k3ZY4gqkBk1GtW62_uxAMj0GRuF)
+
+Altered USGS gages have been re-run, using 2000+ gages in CA with daily flow data and:
+
+ - Pull only gages with 10+ years of data post 1980 (n=935)
+ - Run those through the FFC, a subset returned FFM data (n=748).
+ - The gages that didn't work have missing data gaps within years:
+    - the R package filters out any year that has more than 7 non-contiguous days of missing data
+    - and filters out any year that has more than 2 consecutive missing days.
+    
+    
+    
