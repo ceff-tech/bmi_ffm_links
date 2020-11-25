@@ -12,6 +12,7 @@ data_output/gbms/*
 data_output/selected_nhd/*
 phab-rafi-15apr19.csv.7z
 data/geomorph/*
+code/sandbox/*
 figs/*.pptx
 docs/*.zip
 docs/*.pptx
