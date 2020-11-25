@@ -119,8 +119,8 @@ ri_table %>% group_by(model, index, var) %>%
             medianRI = median(RI),
             maxRI = max(RI),
             SD = sd(RI)) %>% 
-  top_n(5) %>% group_by(var, index) %>% tally() %>% arrange(desc(index, n)) %>% 
-  View()
+  top_n(5) %>% group_by(var, index) %>% tally() %>% arrange(desc(index, n)) #%>% 
+  #View()
 
 # top metrics based on frequency across regions
 # Wet_BFL_Mag_50     5
@@ -191,20 +191,33 @@ ri_table %>%
          method=="mse") %>% 
   ggplot() +
   #geom_hline(yintercept = 5, color="gray40", lwd=0.8, lty=2, alpha=0.5)+
-  geom_linerange(aes(x=reorder(Flow.Metric.Name, RI), ymax=RI, ymin=0, group=model, color=flow_component), 
+  geom_linerange(aes(x=reorder(Flow.Metric.Name, RI),
+                     ymax=RI, ymin=0, group=model, color=flow_component), 
                  lwd=.5, show.legend = F, alpha=0.7, lty=1)+
-  geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, fill=flow_component, size=RI), 
-             #size=4, 
-             show.legend = TRUE, pch=21) +
-  scale_fill_manual("Flow Component", values=flowcomponent_colors) +
+  geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, 
+                 shape=index, 
+                 color=flow_component,
+                 fill=flow_component,
+                 size=RI)) +
+  geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, 
+                 shape=index, size=RI), 
+             color="black", show.legend = FALSE, alpha=0.8) +
+  scale_shape_manual("Index", values=c("ASCI"=23, "CSCI"=21))+
   scale_color_manual("Flow Component", values=flowcomponent_colors) +
+  scale_fill_manual("Flow Component", values=flowcomponent_colors, guide=FALSE) +
   scale_size_area("", guide=FALSE) +
   #scale_shape_manual("Method", values=c("mse"=16, "permtest"=17))+
   coord_flip() +
   ylim(c(0,25))+
   labs(title = glue::glue('{plotname}: {hydroDat}'),
        x="", y="Relative Influence (%)") +
-  guides(fill = guide_legend(override.aes = list(size = 4))) +
+  # fix legend
+  guides(color = guide_legend(override.aes = list(size = 4, pch=21, 
+                                                  fill=flowcomponent_colors, color="gray40"),
+                              order = 1),
+         shape = guide_legend(override.aes = list(size = 4),
+                              order = 2),
+         size= "none") +
   theme_minimal(base_family = "Roboto Condensed") +
   theme(legend.position = c(0.8, 0.3),
         legend.background = element_rect(color="white"))
