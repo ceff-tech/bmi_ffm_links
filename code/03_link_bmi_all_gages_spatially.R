@@ -15,7 +15,6 @@ library(lubridate)
 
 #devtools::install_github("USGS-R/nhdplusTools")
 library(nhdplusTools)
-#library(tmap)
 
 # 01. Load Data ---------------------------------------------------------------
 
@@ -29,7 +28,17 @@ load("data_output/00_bmi_samples_distinct_csci.rda")
 load("data_output/00_bmi_stations_distinct.rda") # distinct bmi stations
 
 # ALL GAGES W FFC DATA
-load("data_output/01_usgs_all_gages.rda") # final gages list
+# read from ffm_comparison repo: https://github.com/ryanpeek/ffm_comparison
+
+gages_ffc <- read_rds(file = url("https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_alteration.rds")) %>% 
+  distinct(gageid, .keep_all=TRUE) # n=959
+
+# get all gages and merge for sf
+gages_sf <- read_rds(file = url("https://github.com/ryanpeek/ffm_comparison/raw/main/data/usgs_ca_all_dv_gages.rds"))
+
+ffc_gages <- inner_join(gages_sf, gages_ffc, by=c("site_id"="gageid")) %>% 
+  select(-c(metric:median_in_iqr)) %>% 
+  st_transform(4326)
 
 # HUC12s
 load("data_output/huc12_sf.rda") # CA h12s
@@ -49,66 +58,59 @@ bmi_samples_distinct_csci <- bmi_samples_distinct_csci %>%
 bmi_stations_distinct <- bmi_stations_distinct %>% 
   st_transform(4326)
 
-gages <- usgs_final_all %>% st_transform(4326)
-rm(usgs_final_all)
-
-ca_sp_regions <- ca_sp_regions %>% st_transform(4326)
-
 # check projs are same
 st_crs(bmi_clean)
 st_crs(bmi_stations_distinct)
-st_crs(gages)
+st_crs(ffc_gages)
 st_crs(h12)
-st_crs(ca_sp_regions)
 
-# 03. FILTER-Gages in Same Time As BMI -----------------------------------
 
-# Filter to same temporal scale as BMI data, years must be post 1994 (n=483 remaining)
-gages_all_filt <- gages %>% filter(end_yr > 1994)
+# 03. FILTER-Intersect BMI/Gages by H12 -----------------------------------
 
-table(gages_all_filt$CEFF_type) # ALT=353, REF=130
-
-# 04. FILTER-Intersect BMI/Gages by H12 -----------------------------------
-
-# Add H12 to points to BMI and Gages (adds ATTRIBUTES, retains ALL pts if left=TRUE), using BMI DISTINCT STATIONS
+# Add H12 to BMI and Gages (adds ATTRIBUTES, retains ALL pts if left=TRUE), using BMI DISTINCT STATIONS
 bmi_h12 <- st_join(bmi_stations_distinct, left = TRUE, h12[c("HUC_12")])
 
-# Add H12 to all gages
-gages_h12 <- st_join(gages_all_filt, left=TRUE, h12[c("HUC_12")]) %>%
+# Add H12 to gages
+gages_h12 <- st_join(ffc_gages, left=TRUE, h12[c("HUC_12")]) %>%
   st_drop_geometry()
 
-# now join based on H12: what BMI stations share same H12 as USGS gage? (N=1000)
+# now join based on H12: what BMI stations share same H12 as USGS gage? (N=1921)
 sel_bmi_gages <- inner_join(bmi_h12, gages_h12, by="HUC_12") %>% 
-  distinct(StationCode, ID, .keep_all = T) # n=1000
+  distinct(StationCode, site_id, .keep_all = T) # n=1000
 
-# number of unique?
-length(unique(factor(sel_bmi_gages$HUC_12))) # h12=208
-length(unique(sel_bmi_gages$ID)) # gages=266
-length(unique(sel_bmi_gages$StationCode)) # BMI Stations=747
+# number of unique HUC12
+length(unique(factor(sel_bmi_gages$HUC_12))) # h12=312
 
-# make sure these have CSCI scores: of those in same H12, how many have CSCI scores? N=552
+# number of unique gages
+length(unique(sel_bmi_gages$site_id)) # gages=510
+
+# number of unique bmi stations
+length(unique(sel_bmi_gages$StationCode)) # BMI Stations=1117
+
+# make sure these have CSCI scores: of those in same H12, how many have CSCI scores? N=1041
 sel_bmi_gages_csci <- left_join(sel_bmi_gages, st_drop_geometry(bmi_samples_distinct_csci)[,c(1:2,5,12:14)], by="StationCode") %>% 
   filter(!is.na(csci)) %>% 
-  distinct(StationCode, ID, .keep_all=TRUE)
+  distinct(StationCode, site_id, .keep_all=TRUE)
 
 # number of unique?
-length(unique(factor(sel_bmi_gages_csci$HUC_12))) # h12=163
-length(unique(sel_bmi_gages_csci$ID)) # gages=207
-length(unique(sel_bmi_gages_csci$StationCode)) # BMI Stations=419
+length(unique(factor(sel_bmi_gages_csci$HUC_12))) # h12=251
+length(unique(sel_bmi_gages_csci$site_id)) # gages=416
+length(unique(sel_bmi_gages_csci$StationCode)) # BMI Stations=635
 
-# Get Selected Gages ONLY:  # n=207 (that have CSCI scores)
-sel_gages_bmi <- gages_all_filt %>% 
-  filter(ID %in% sel_bmi_gages_csci$ID) %>% 
-  distinct(ID, .keep_all = T)
+# Get Selected Gages ONLY:  # n=416 (that have CSCI scores)
+sel_gages_bmi <- ffc_gages %>% 
+  filter(site_id %in% sel_bmi_gages_csci$site_id) %>% 
+  distinct(site_id, .keep_all = T)
 
 # select H12s that have points inside: # n=163
-sel_h12_bmi <- h12[sel_bmi_gages_csci, ]
-sel_h12_gages <- h12[gages_all_filt, ]
+sel_h12_bmi <- h12[sel_bmi_gages_csci, ] # 251
+sel_h12_gages <- h12[ffc_gages, ] # 597
 
 # * Map of Filtered Gages ------------------------------------------------------
 
 # set background basemaps:
-basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap",
+basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery",
+                  "Esri.NatGeoWorldMap",
                   "OpenTopoMap", "OpenStreetMap", 
                   "CartoDB.Positron", "Stamen.TopOSMFeatures")
 
@@ -116,14 +118,12 @@ mapviewOptions(basemaps=basemapsList)
 
 # a map of all gages and BMI stations that fall within the same H12
 
-# get the gages not selected
-gages_not_selected <- gages_all_filt %>% 
-  filter(!ID %in% sel_bmi_gages_csci$ID)
+# get the gages not selected (n=543)
+gages_not_selected <- ffc_gages %>% 
+  filter(!site_id %in% sel_bmi_gages_csci$site_id)
+# can compare with types (alt vs. ref) later
 
-table(sel_gages_bmi$CEFF_type) # ALT=151  REF=56
-table(gages_not_selected$CEFF_type) # ALT=194  REF=74
-
-# get bmi NOT selected with CSCI
+# get bmi NOT selected with CSCI (n=1090)
 bmi_not_selected <- bmi_samples_distinct_csci %>% 
   filter(!is.na(csci)) %>% 
   filter(!StationCode %in% sel_bmi_gages_csci$StationCode) %>% 
@@ -158,12 +158,12 @@ m1@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
 # * Save Out -----------------------------------------------------------------
 
 # save out
-write_rds(sel_h12_bmi, path="data_output/03_selected_h12_all_gages.rds")
-write_rds(sel_gages_bmi, path="data_output/03_selected_usgs_h12_all_gages.rds")
-write_rds(sel_bmi_gages_csci, path="data_output/03_selected_bmi_h12_all_gages_csci.rds")
-write_rds(sel_bmi_gages, path="data_output/03_selected_bmi_h12_all_gages.rds")
+write_rds(sel_h12_bmi, file="data_output/03_selected_h12_all_gages.rds")
+write_rds(sel_gages_bmi, file="data_output/03_selected_usgs_h12_all_gages.rds")
+write_rds(sel_bmi_gages_csci, file="data_output/03_selected_bmi_h12_all_gages_csci.rds")
+write_rds(sel_bmi_gages, file="data_output/03_selected_bmi_h12_all_gages.rds")
 
-# 05. BMI COMIDS: GET NEW/MISSING COMIDS --------------------------
+# 04. BMI COMIDS: GET NEW/MISSING COMIDS --------------------------
 
 # IF NEEDED
 
@@ -210,40 +210,8 @@ write_rds(sel_bmi_gages, path="data_output/03_selected_bmi_h12_all_gages.rds")
 
 #write_rds(sel_bmi_gages, path="data_output/03_selected_bmi_h12_all_gages.rds")
 
-# 06. GET GAGE COMIDS --------------------------------------------------
 
-# if any comids missing use code below
-
-## TRANSFORM TO UTM datum for flowlines
-# sel_bmi_gages <- st_transform(sel_bmi_gages, crs=3310) # use CA Teale albs metric
-# sel_gages_bmi <- st_transform(sel_gages_bmi, crs=3310)
-# 
-# # get the COMID for each gage in list
-# usgs_segs <- sel_gages_bmi %>% split(.$site_id) %>%
-#   map(~discover_nhdplus_id(.x$geometry))
-# 
-# # now have a list of all the missing COMIDs, check for dups
-# usgs_segs %>% 
-#   purrr::map_lgl(~ length(.x)>1) %>% 
-#   #table() # 3 are FALSE
-#   .[.==TRUE] # get values that are TRUE
-# 
-# # view comids
-# usgs_segs["11186000"]
-# 
-# # fix 326 and 327 which pull two segs
-# usgs_segs["11186000"] <- 14971709
-# usgs_segs["11186001"] <- 14971711
-# usgs_segs["11404240"] <- 2775510
-# 
-# # double check again:
-# usgs_segs %>% 
-#   purrr::map_lgl(~ length(.x)>1) %>% table() # all FALSE
-# 
-# save the USGS station COMIDs file:
-# write_rds(usgs_segs, path="data_output/02_selected_usgs_gages_comids.rds")
-
-# 07. GET UPSTREAM FLOWLINES FROM GAGE --------------------------------------------------
+# 05. GET UPSTREAM FLOWLINES FROM GAGE --------------------------------------------------
 
 ## TRANSFORM TO UTM datum for flowlines
 sel_bmi_gages_csci <- st_transform(sel_bmi_gages_csci, crs=3310) # use CA Teale albs metric
@@ -290,10 +258,10 @@ save(mainstems_us, file = "data_output/03_selected_nhd_mainstems_gages_us_ds.rda
 ### ADD ADDITIONAL SITES?
 # T11206500, T11208000, T11152050
 
-gages_to_add <- sel_gages_bmi %>% filter(ID %in% c("T11206500", "T11208000", "T11152050", "T11153650"))
+gages_to_add <- sel_gages_bmi %>% filter(site_id %in% c("T11206500", "T11208000", "T11152050", "T11153650"))
 
 # double check?
-missing_segs <- gages_to_add %>% split(.$ID) %>%
+missing_segs <- gages_to_add %>% split(.$site_id) %>%
   map(~discover_nhdplus_id(.x$geometry))
 
 gages_to_list <- map(gages_to_add$NHDV1_COMID, ~list(featureSource = "comid", featureID=.x))
@@ -310,13 +278,13 @@ mainstemsUS_miss %>%
   purrr::map_lgl(~ length(.x)>1) %>% table()
 
 mainstems_miss_us <- mainstemsUS_miss %>%
-  set_names(., gages_to_add$ID) %>%
-  map2(gages_to_add$ID, ~mutate(.x, gageID=.y))
+  set_names(., gages_to_add$site_id) %>%
+  map2(gages_to_add$site_id, ~mutate(.x, gageID=.y))
 mainstems_miss_us <- sf::st_as_sf(data.table::rbindlist(mainstems_miss_us, use.names = TRUE, fill = TRUE))
 
 mapview(mainstems_miss_us)
 
-# 08. GET DOWNSTREAM FLOWLINES FROM GAGE ------------------------------------------------
+# 06. GET DOWNSTREAM FLOWLINES FROM GAGE ------------------------------------------------
 
 # get NHD segments downstream of selected USGS gages, 10 km buffer
 mainstemsDS <- map(coms_list, ~navigate_nldi(nldi_feature = .x,
@@ -348,7 +316,7 @@ save(mainstems_us, mainstems_ds, file = "data_output/03_selected_nhd_mainstems_g
 # bind all mainstems
 mainstems_all <- rbind(mainstems_us, mainstems_ds)
 
-# 09. SAVE OUT STREAMLINES FOR GAGES ------------------------------------------
+# 07. SAVE OUT STREAMLINES FOR GAGES ------------------------------------------
 
 save(mainstems_all, file="data_output/03_selected_nhd_mainstems_gages.rda")
 
@@ -368,7 +336,7 @@ save(mainstems_all, file="data_output/03_selected_nhd_mainstems_gages.rda")
 #   add_sf(data = st_transform(sel_bmi_gages_csci, 4326), fill_colour="#EE7600", radius=500, tooltip="StationCode",
 #          layer_id="BMI Sites")
 
-# 10. FILTER TO BMI SITES IN USGS MAINSTEM COMIDS -----------------------------
+# 08. FILTER TO BMI SITES IN USGS MAINSTEM COMIDS -----------------------------
 
 # reload sites/data here
 sel_bmi_gages_csci <- readRDS("data_output/03_selected_bmi_h12_all_gages_csci.rds")
@@ -386,15 +354,15 @@ sel_bmi_coms_final <- sel_bmi_gages_csci %>%
 
 # distinct comid/station/gages combinations:
 sel_bmi_coms_final %>% st_drop_geometry() %>% 
-  distinct(StationCode, ID) %>% tally() # n=353
+  distinct(StationCode, site_id) %>% tally() # n=353
 
 # distinct BMI COMIDs
 sel_bmi_coms_final %>% st_drop_geometry() %>% distinct(comid) %>% tally() # 220
 
 # distinct GAGES COMIDS
-sel_bmi_coms_final %>% st_drop_geometry() %>% distinct(ID) %>% tally() # 156
+sel_bmi_coms_final %>% st_drop_geometry() %>% distinct(site_id) %>% tally() # 156
 
-# 11. FINAL MAP -------------------------------------------------------
+# 09. FINAL MAP -------------------------------------------------------
 
 # create a final map of selected gages and bmi + huc12 + flowlines
 
@@ -469,7 +437,7 @@ sel_bmi_coms_final_v2 <- st_drop_geometry(sel_bmi_coms_final) %>% bind_rows(
   # now filter out the stuff we don't want (n=21)
   filter(!StationCode %in% c("801RB8593", "412LARSCO", "LALT501", "901ATCTCx", "901TCSMP1",
                              "403FCA038", "403STC019"), 
-         !ID %in% c("T11087020")) 
+         !site_id %in% c("T11087020")) 
 
 # re-make the geom
 sel_bmi_coms_final_v2 <- st_as_sf(sel_bmi_coms_final_v2, coords=c("longitude", "latitude"), crs=4326, remove=FALSE)
@@ -481,11 +449,11 @@ bmi_not_selected_v2 <- sel_bmi_gages_csci %>% filter(!as.character(StationCode) 
 
 # get all gages selected (n=160)
 gages_selected_v2 <- sel_gages_bmi %>% 
-  filter(ID %in% sel_bmi_coms_final_v2$ID)
+  filter(site_id %in% sel_bmi_coms_final_v2$site_id)
 
 # get the gages not selected (n=47)
 gages_not_selected_v2 <- sel_gages_bmi %>% 
-  filter(!ID %in% sel_bmi_coms_final_v2$ID)
+  filter(!site_id %in% sel_bmi_coms_final_v2$site_id)
 
 table(gages_selected_v2$CEFF_type) # ALT=116  REF=44
 
@@ -522,7 +490,7 @@ bmi_coms_dat %>% st_drop_geometry() %>% distinct(SampleID) %>% tally
 bmi_coms_dat %>% st_drop_geometry() %>% distinct(StationCode) %>% tally
 
 # now look at how many unique gageID: n=160 stations (ALT=116, REF=44)
-bmi_coms_dat %>% st_drop_geometry() %>% distinct(ID, .keep_all=TRUE) %>% count(CEFF_type)
+bmi_coms_dat %>% st_drop_geometry() %>% distinct(site_id, .keep_all=TRUE) %>% count(CEFF_type)
 
 # summary
 summary(bmi_coms_dat)
@@ -532,7 +500,7 @@ bmi_coms_dat_trim <- bmi_coms_dat %>% filter(MM>4 & MM<10)
 hist(bmi_coms_dat_trim$MM)
 
 # if trimming we lose a few gages: ALT=100, REF=42
-bmi_coms_dat_trim %>% st_drop_geometry() %>% distinct(ID, .keep_all=TRUE) %>% count(CEFF_type)
+bmi_coms_dat_trim %>% st_drop_geometry() %>% distinct(site_id, .keep_all=TRUE) %>% count(CEFF_type)
 
 
 # save out
