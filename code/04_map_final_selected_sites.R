@@ -10,7 +10,8 @@ library(tidylog)
 library(sf)
 library(mapview)
 library(lubridate)
-
+library(tmap)
+library(tmaptools)
 
 # Load Data ---------------------------------------------------------------
 
@@ -32,18 +33,24 @@ load("data_output/03_selected_nhd_mainstems_gages.rda")
 
 
 # not selected bmi
-bmi_not_selected_v2 <- sel_bmi_gages_csci %>% filter(!as.character(StationCode) %in% sel_bmi_coms_final_v2$StationCode) # n=203
+bmi_not_selected_v2 <- sel_bmi_gages_csci %>% filter(!StationCode %in% sel_bmi_coms_final_v2$StationCode) # n=303
 
-# get all gages selected (n=160)
+# get all gages selected (n=326)
 gages_selected_v2 <- sel_gages_bmi %>% 
-  filter(ID %in% sel_bmi_coms_final_v2$ID)
+  filter(site_id %in% sel_bmi_coms_final_v2$site_id)
 
-# get the gages not selected (n=47)
+# get the gages not selected (n=89)
 gages_not_selected_v2 <- sel_gages_bmi %>% 
-  filter(!ID %in% sel_bmi_coms_final_v2$ID)
+  filter(!site_id %in% sel_bmi_coms_final_v2$site_id)
 
-table(gages_selected_v2$CEFF_type) # ALT=116  REF=44
+# get hucs selected (n=205)
+hucs_selected_v2 <- sel_h12_bmi %>% 
+  filter(HUC_12 %in% sel_bmi_coms_final_v2$HUC_12)
 
+bmi_coms_dat %>% 
+  st_drop_geometry() %>% 
+  distinct(site_id, .keep_all=TRUE) %>% 
+  group_by(CEFF_type) %>% tally()
 
 # Set up Mapview Basemap --------------------------------------------------
 
@@ -88,8 +95,7 @@ rivs_ca <- st_intersection(rivs, ca) %>%
 # first make CA map with no border
 (map_ca <- tm_shape(ca) + tm_polygons(border.alpha = 0.3) +
   tm_shape(rivs_ca) + tm_lines(col="darkblue", lwd = .7, alpha = 0.8) +
-  tm_layout(frame=FALSE, o))
-
+  tm_layout(frame=FALSE))
 
 # BMI stations TMAP --------------------------------------------------------------
 
@@ -118,20 +124,23 @@ tmap::tmap_save(tm = map_bmi,
                 filename = "figs/04_tmap_bmi_sites_all.png", width = 8, height = 11, units = "in", dpi = 300)  
 
 
-
 # GAGES MAP ---------------------------------------------------------------
 
-# get all gages list
-load("data_output/01_usgs_all_gages.rda")
-usgs_final_all <- st_intersection(usgs_final_all, ca)
+# get all possible FFC DV gages
+ref_gages <- read_csv("https://raw.githubusercontent.com/ryanpeek/ffm_comparison/main/output/usgs_ref_gages_list.csv") %>% mutate(CEFF_type="REF", site_id=as.character(site_id)) 
+alt_gages <- read_csv("https://raw.githubusercontent.com/ryanpeek/ffm_comparison/main/output/usgs_alt_gages_list.csv") %>% mutate(CEFF_type="ALT")
+
+usgs_gages <- bind_rows(ref_gages, alt_gages) %>% 
+  select(-geometry) %>% 
+  st_as_sf(coords=c("lon", "lat"), remove=FALSE, crs=4326)
 
 # then add gage stations by ref type
 (map_usgs <- map_ca + 
-    tm_shape(usgs_final_all) +
+    tm_shape(usgs_gages) +
     tm_symbols(col= "steelblue",  border.col = "black",
                size=0.1, border.alpha = 0.8) +
     # tm_logo(file = "figs/logo_cws_websafe.png", position = c("left","bottom"), height = 5) +
-    tm_layout(title = "USGS Sites \n(n=799)", 
+    tm_layout(title = "USGS Sites \n(n=2,316)", 
               fontfamily = "Roboto Condensed",title.size = 0.8,
               legend.outside = FALSE, attr.outside = FALSE,
               inner.margins = 0.01, outer.margins = (0.01),
@@ -180,10 +189,10 @@ tmap::tmap_save(tm = final_triptych,
 # any NA's?
 bmi_coms_dat %>% st_drop_geometry %>% filter(is.na(StationCode)) # nope
 
-# now look at how many unique samples are avail: n=270 unique samples
+# now look at how many unique samples are avail: n=437 unique samples
 bmi_coms_dat %>% st_drop_geometry %>% distinct(SampleID) %>% tally
-# total distinct stations 270
+bmi_coms_dat %>% st_drop_geometry %>% distinct(StationCode) %>% tally
 
-# how many unique USGS gages? n=160 (ALT=116, REF=44)
-bmi_coms_dat %>% st_drop_geometry %>% distinct(ID, .keep_all=TRUE) %>% count(CEFF_type)
+# how many unique USGS gages? n=326 (ALT=245, REF=81)
+bmi_coms_dat %>% st_drop_geometry %>% distinct(site_id, .keep_all=TRUE) %>% count(CEFF_type)
 
