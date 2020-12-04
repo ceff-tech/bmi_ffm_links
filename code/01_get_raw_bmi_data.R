@@ -117,7 +117,7 @@ write_csv(bmi_samples_distinct, file = "data_output/bmi_sample_list_for_csci.csv
 
 # Make a Distinct Station List  ---------------------------------------------
 
-bmi_stations_distinct <- bmi_clean %>%  # get distinct station locations
+bmi_stations_distinct <- bmi_clean %>%  # get distinct station locations (n=2935)
   distinct(StationCode, longitude, latitude) %>% 
   st_as_sf(coords=c("longitude", "latitude"), crs=4326, remove=F) # make spatial
 
@@ -158,14 +158,16 @@ csci <- csci %>%
   filter(!is.na(csci)) %>% # drop NAs
   distinct(SampleID, .keep_all=TRUE) # remove duplicates
 # check
-summary(csci)
-length(unique(csci$SampleID)) # n=4031
+summary(csci) # distinct csci values n=4031
+length(unique(csci$SampleID))
 
 # match against existing samples:
 bmi_samples_distinct_csci <- inner_join(bmi_samples_distinct, csci, by=c("SampleID")) # n=2925
 
 # see how many CSCI missing? # n=2737 (48% of data)
-bmi_samples_distinct %>% filter(!SampleID %in% bmi_samples_distinct_csci$SampleID) %>% tally() 
+bmi_samples_distinct %>% 
+  filter(!SampleID %in% bmi_samples_distinct_csci$SampleID) %>% 
+  tally() 
 
 # save out
 save(bmi_samples_distinct_csci, file = "data_output/01_bmi_samples_distinct_csci.rda")
@@ -209,8 +211,6 @@ ggplot() +
 ggsave(filename = "figs/01_raw_csci_score_by_year.png", width = 9, height = 6, units = "in", dpi=300)
 
 ## Plot CSCI Data by Month ----------------------------------------------
-
-library(ggtext)
 
 # look at distrib through months
 ggplot() + 
