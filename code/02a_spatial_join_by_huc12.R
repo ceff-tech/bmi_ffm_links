@@ -1,4 +1,4 @@
-# 03a Spatially Linking BMI & selected USGS Gages within HUC12s
+# 02a Spatially Linking BMI & selected USGS Gages within HUC12s
 ## R. Peek 2020
 
 ## Spatially link the BMI station data with the USGS gage list if they occur in same H12
@@ -176,53 +176,9 @@ m1@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
 # 04. Save Out -----------------------------------------------------------------
 
 # save out
-write_rds(sel_h12_bmi, file="data_output/02a_h12_w_bmi_csci.rds")
-write_rds(sel_h12_gages, file="data_output/02a_h12_w_ffc_gages.rds")
-write_rds(sel_gages_bmi, file="data_output/02a_selected_ffc_gages_by_h12.rds")
-write_rds(sel_bmi_gages_csci, file="data_output/02a_selected_bmi_station_csci_by_h12.rds")
-write_rds(sel_bmi_station_gages_h12, file="data_output/02a_selected_bmi_station_h12.rds")
-
-# z05. BMI COMIDS: GET NEW/MISSING COMIDS --------------------------
-
-# no NA's
-summary(sel_bmi_gages_csci$COMID)
-
-# IF NEEDED
-
-library(nhdplusTools)
-#  
-# ## TRANSFORM TO SAME DATUM
-sel_bmi_station_gages_h12 <- st_transform(sel_bmi_station_gages_h12, crs = 3310) # use CA Teale albs metric
-sel_gages_bmi <- st_transform(sel_gages_bmi, crs=3310)
-  
-# Create dataframe for looking up COMIDS (here use all stations)
-bmi_segs <- sel_bmi_station_gages_h12 %>%
-  select(StationCode, longitude, latitude, COMID) %>%
-  filter(is.na(COMID))
- 
-# use nhdtools to get comids
-bmi_all_coms <- bmi_segs %>%
-  group_split(StationCode) %>%
-  set_names(., bmi_segs$StationCode) %>%
-  map(~discover_nhdplus_id(.x$geometry))
-  
-# flatten into single dataframe instead of list
-bmi_segs_df <-bmi_all_coms %>% flatten_dfc() %>% t() %>%
-  as.data.frame() %>%
-  rename("COMID"=V1) %>% rownames_to_column(var = "StationCode")
-  
-# rm COMIDs starting with "V"
-bmi_comids <- bmi_segs_df %>% filter(!grepl("^V", StationCode))
- 
-# bind with existing bmi_comids:
-bmi_coms <- readRDS("data_output/03_bmi_all_stations_comids.rds")
-
-# bind
-bmi_comids <- bind_rows(bmi_coms, bmi_comids)
-
-# write back out
-write_rds(bmi_comids, file="data_output/03_bmi_all_stations_comids.rds")
- 
-# clean up
-rm(bmi_all_coms, bmi_segs_df, bmi_segs, bmi_coms)
+write_rds(sel_h12_bmi, file="data_output/02a_sel_h12_w_bmi_csci.rds")
+write_rds(sel_h12_gages, file="data_output/02a_sel_h12_w_ffc_gages.rds")
+write_rds(sel_gages_bmi, file="data_output/02a_sel_ffc_gages_by_h12.rds")
+write_rds(sel_bmi_gages_csci, file="data_output/02a_sel_bmi_stations_csci_by_h12.rds")
+write_rds(sel_bmi_station_gages_h12, file="data_output/02a_sel_bmi_stations_h12.rds")
 

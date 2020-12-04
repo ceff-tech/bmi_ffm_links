@@ -1,9 +1,7 @@
-# 03 Spatially Linking BMI with ALL GAGES
+# 02b Spatially Linking BMI & selected USGS Gages by NHD Flowlines
 ## R. Peek 2020
 
-## Spatially link the BMI station data with the USGS gage data using multiple spatial filters
-
-# For only map, start at Step 10.
+## Spatially link the BMI station data with the USGS FFC gages that occur in same flowline and h12
 
 # Load Libraries ----------------------------------------------------------
 
@@ -11,212 +9,78 @@ library(tidyverse)
 library(tidylog)
 library(sf)
 library(mapview)
+library(glue)
+library(here)
 library(lubridate)
+library(beepr) # to tell us when stuff is done
+
 
 #devtools::install_github("USGS-R/nhdplusTools")
 library(nhdplusTools)
 
 # 01. Load Data ---------------------------------------------------------------
 
-# ALL BMI DATA CLEANED
-load("data_output/00_bmi_cleaned_all.rda") # all data
+# selected HUC12s
+sel_h12_bmi <- read_rds("data_output/02a_sel_h12_w_bmi_csci.rds")
+sel_h12_gages <- read_rds("data_output/02a_sel_h12_w_ffc_gages.rds")
 
-# ALL BMI SAMPLES W CSCI SCORES
-load("data_output/00_bmi_samples_distinct_csci.rda")
+# selected bmi and gages
+sel_gages_bmi <- read_rds("data_output/02a_sel_ffc_gages_by_h12.rds")
+sel_bmi_gages_csci <- read_rds("data_output/02a_sel_bmi_stations_csci_by_h12.rds")
+sel_bmi_station_gages_h12 <- read_rds("data_output/02a_sel_bmi_stations_h12.rds")
 
-# ALL BMI DISTINCT STATIONS
-load("data_output/00_bmi_stations_distinct.rda") # distinct bmi stations
+# BMI COMIDs (from Section 02)
+bmi_comids <- readRDS("data_output/02b_bmi_stations_comids.rds")
 
-# ALL GAGES W FFC DATA
-# read from ffm_comparison repo: https://github.com/ryanpeek/ffm_comparison
+# z02. BMI COMIDS: GET NEW/MISSING COMIDS --------------------------
 
-gages_ffc <- read_rds(file = url("https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_alteration.rds")) %>% 
-  distinct(gageid, .keep_all=TRUE) # n=959
+# check/update the COMID for each BMI site (run once)
+# ADD COMID (comid=USGS gage, COMID=bmi)
 
-# get all gages and merge for sf
-gages_sf <- read_rds(file = url("https://github.com/ryanpeek/ffm_comparison/raw/main/data/usgs_ca_all_dv_gages.rds"))
-
-ffc_gages <- inner_join(gages_sf, gages_ffc, by=c("site_id"="gageid")) %>% 
-  select(-c(metric:median_in_iqr)) %>% 
-  st_transform(4326) %>% 
-  # drop San Pablo Bay Gage: (11182030)
-  filter(!site_id=="11182030")
-
-# HUC12s
-load("data_output/huc12_sf.rda") # CA h12s
-
-# BMI COMIDs (from Section 04)
-bmi_comids <- readRDS("data_output/03_bmi_all_stations_comids.rds")
-
-# 02. Make Data Spatial -------------------------------------------------------
-
-# make spatial
-bmi_clean <- bmi_clean %>% 
-  st_as_sf(coords=c("longitude", "latitude"), crs=4326, remove=F)
-
-bmi_samples_distinct_csci <- bmi_samples_distinct_csci %>% 
-  st_as_sf(coords=c("longitude", "latitude"), crs=4326, remove=F)
-
-bmi_stations_distinct <- bmi_stations_distinct %>% 
-  st_transform(4326)
-
-# check projs are same
-st_crs(bmi_clean)
-st_crs(bmi_stations_distinct)
-st_crs(ffc_gages)
-st_crs(h12)
-
-# join COMIDs for BMI sites
-bmi_samples_distinct_csci <- left_join(bmi_samples_distinct_csci, bmi_comids, by=c("StationCode"))
-summary(bmi_samples_distinct_csci$COMID)
-
-bmi_stations_distinct <- left_join(bmi_stations_distinct, bmi_comids, by=c("StationCode"))
-summary(bmi_stations_distinct$COMID)
-
-# 03. INTERSECT BMI & Gages by H12 -----------------------------------
-
-# Add H12 to BMI and Gages (adds ATTRIBUTES, retains ALL pts if left=TRUE), using BMI DISTINCT STATIONS
-bmi_h12 <- st_join(bmi_stations_distinct, left = TRUE, h12[c("HUC_12")])
-
-# Add H12 to gages
-gages_h12 <- st_join(ffc_gages, left=TRUE, h12[c("HUC_12")]) %>%
-  st_drop_geometry()
-
-# now join based on H12: what BMI stations share same H12 as USGS gage? (N=1915)
-sel_bmi_gages <- inner_join(bmi_h12, gages_h12, by="HUC_12") %>% 
-  distinct(StationCode, site_id, .keep_all = T) # n=1000
-
-# number of unique HUC12
-length(unique(factor(sel_bmi_gages$HUC_12))) # h12=312
-
-# number of unique gages
-length(unique(sel_bmi_gages$site_id)) # gages=509
-
-# number of unique bmi stations
-length(unique(sel_bmi_gages$StationCode)) # BMI Stations=1117
-
-# make sure these have CSCI scores: of those in same H12, how many have CSCI scores? N=1040
-sel_bmi_gages_csci <- left_join(sel_bmi_gages, st_drop_geometry(bmi_samples_distinct_csci)[,c(1:2,5,12:14)], by="StationCode") %>% 
-  filter(!is.na(csci)) %>% 
-  distinct(StationCode, site_id, .keep_all=TRUE)
-
-# number of unique?
-length(unique(factor(sel_bmi_gages_csci$HUC_12))) # h12=251
-length(unique(sel_bmi_gages_csci$site_id)) # gages=416
-length(unique(sel_bmi_gages_csci$StationCode)) # BMI Stations=635
-
-# Get Selected Gages ONLY:  # n=415 (that have CSCI scores)
-sel_gages_bmi <- ffc_gages %>% 
-  filter(site_id %in% sel_bmi_gages_csci$site_id) %>% 
-  distinct(site_id, .keep_all = T)
-
-# select H12s that have points inside: # n=163
-sel_h12_bmi <- h12[sel_bmi_gages_csci, ] # 251
-sel_h12_gages <- h12[ffc_gages, ] # 597
-
-# * Map of Filtered BMI & Gages  ------------------------------------------------------
-
-# set background basemaps:
-basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery",
-                  "Esri.NatGeoWorldMap",
-                  "OpenTopoMap", "OpenStreetMap", 
-                  "CartoDB.Positron", "Stamen.TopOSMFeatures")
-
-mapviewOptions(basemaps=basemapsList)
-
-# a map of all gages and BMI stations that fall within the same H12
-
-# get the gages not selected (n=543)
-gages_not_selected <- ffc_gages %>% 
-  filter(!site_id %in% sel_bmi_gages_csci$site_id)
-# can compare with types (alt vs. ref) later
-
-# get bmi NOT selected with CSCI (n=1090)
-bmi_not_selected <- bmi_samples_distinct_csci %>% 
-  filter(!is.na(csci)) %>% 
-  filter(!StationCode %in% sel_bmi_gages_csci$StationCode) %>% 
-  distinct(StationCode, .keep_all=TRUE)
-
-# this map of all sites selected U/S and D/S
-m1 <- mapview(sel_bmi_gages_csci, cex=6, col.regions="orange", 
-              layer.name="Selected BMI Stations") +  
-  mapview(sel_gages_bmi, col.regions="skyblue", cex=7, color="blue2",
-          layer.name="Selected USGS Gages") + 
-  # these are all bmi or gages in same H12 but not selected
-  mapview(gages_not_selected, col.regions="slateblue", color="gray20",
-          cex=3.2, layer.name="Other USGS Gages") + 
-  mapview(bmi_not_selected, col.regions="gold2", color="gray20", cex=3.2, 
-          layer.name="Other BMI Sites w CSCI Scores") + 
-  mapview(bmi_stations_distinct, col.regions="gray", color="gray20", cex=3, 
-          layer.name="All BMI Sites") + 
-  mapview(sel_h12_bmi, col.regions="dodgerblue", alpha.region=0.1, 
-          color="darkblue", legend=FALSE, layer.name="HUC12") + 
-  mapview(sel_h12_gages, col.regions="gray50", alpha.region=0.1, 
-          color="darkblue", legend=FALSE, layer.name="HUC12 Gages")
-
-m1@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
-
-
-
-# * Save Out -----------------------------------------------------------------
-
-# save out
-write_rds(sel_h12_bmi, file="data_output/03_selected_h12_all_gages.rds")
-write_rds(sel_gages_bmi, file="data_output/03_selected_usgs_h12_all_gages.rds")
-write_rds(sel_bmi_gages_csci, file="data_output/03_selected_bmi_h12_all_gages_csci.rds")
-write_rds(sel_bmi_gages, file="data_output/03_selected_bmi_h12_all_gages.rds")
-
-# 04. BMI COMIDS: GET NEW/MISSING COMIDS --------------------------
-
-# no NA's
-summary(sel_bmi_gages_csci$COMID)
-
-# IF NEEDED
-
-library(nhdplusTools)
+# transform to same datum/crs
+# sel_bmi_station_gages_h12 <- st_transform(sel_bmi_station_gages_h12, crs = 3310) # use CA Teale albs metric
+# sel_bmi_gages_csci <- st_transform(sel_bmi_gages_csci, crs = 3310) # use CA Teale albs metric
+# sel_gages_bmi <- st_transform(sel_gages_bmi, crs=3310)
+#   
+# # Create dataframe for looking up COMIDS (here use all stations)
+# bmi_segs <- sel_bmi_station_gages_h12 %>%
+#   select(StationCode, longitude, latitude) %>%
+#   distinct(StationCode, .keep_all = TRUE) %>% 
+#   mutate(COMID = NA)
 #  
-# ## TRANSFORM TO SAME DATUM
-sel_bmi_gages <- st_transform(sel_bmi_gages, crs = 3310) # use CA Teale albs metric
-sel_gages_bmi <- st_transform(sel_gages_bmi, crs=3310)
-  
-# Create dataframe for looking up COMIDS (here use all stations)
-bmi_segs <- sel_bmi_gages %>%
-  select(StationCode, longitude, latitude, COMID) %>%
-  filter(is.na(COMID))
- 
-# use nhdtools to get comids
-bmi_all_coms <- bmi_segs %>%
-  group_split(StationCode) %>%
-  set_names(., bmi_segs$StationCode) %>%
-  map(~discover_nhdplus_id(.x$geometry))
-  
-# flatten into single dataframe instead of list
-bmi_segs_df <-bmi_all_coms %>% flatten_dfc() %>% t() %>%
-  as.data.frame() %>%
-  rename("COMID"=V1) %>% rownames_to_column(var = "StationCode")
-  
-# rm COMIDs starting with "V"
-bmi_comids <- bmi_segs_df %>% filter(!grepl("^V", StationCode))
- 
-# bind with existing bmi_comids:
-bmi_coms <- readRDS("data_output/03_bmi_all_stations_comids.rds")
+# # use nhdtools to get comids
+# bmi_all_coms <- bmi_segs %>%
+#   group_split(StationCode) %>%
+#   set_names(bmi_segs$StationCode) %>%
+#   map(~discover_nhdplus_id(.x$geometry))
+#   
+# # flatten into single dataframe instead of list
+# bmi_segs_df <-bmi_all_coms %>% flatten_dfc() %>% t() %>%
+#   as.data.frame() %>%
+#   rename("COMID"=V1) %>% rownames_to_column(var = "StationCode")
+#   
+# # rm COMIDs starting with "V"
+# bmi_comids <- bmi_segs_df %>% filter(!grepl("^V", StationCode))
+#  
+# # bind with existing bmi_comids:
+# #bmi_coms <- readRDS("data_output/02b_bmi_all_stations_comids.rds")
+# # bind
+# #bmi_comids <- bind_rows(bmi_coms, bmi_comids)
+# 
+# # write back out
+# write_rds(bmi_comids, file="data_output/02b_bmi_stations_comids.rds")
+#  
+# # clean up
+# rm(bmi_all_coms, bmi_segs_df, bmi_segs, bmi_coms)
 
-# bind
-bmi_comids <- bind_rows(bmi_coms, bmi_comids)
+# 03. GET UPSTREAM FLOWLINES FROM GAGE --------------------------------------------------
 
-# write back out
-write_rds(bmi_comids, file="data_output/03_bmi_all_stations_comids.rds")
- 
-# clean up
-rm(bmi_all_coms, bmi_segs_df, bmi_segs, bmi_coms)
+# use list of gage NHD comids to make a list to pass to nhdplusTools to get flowlines
+# pull data from 10 km upstream
 
-# 05. GET UPSTREAM FLOWLINES FROM GAGE --------------------------------------------------
-
-## TRANSFORM TO UTM datum for flowlines
+## transform datum for flowlines
 sel_bmi_gages_csci <- st_transform(sel_bmi_gages_csci, crs=3310) # use CA Teale albs metric
 sel_gages_bmi <- st_transform(sel_gages_bmi, crs=3310)
-
-# use a list of comids to make a list to pass to the nhdplusTools function
 
 # check for missing comids?
 summary(sel_bmi_gages_csci$comid) # gage sites
@@ -226,8 +90,6 @@ coms_list <- map(sel_gages_bmi$comid, ~list(featureSource = "comid", featureID=.
 
 # check
 coms_list[[200]] # should list feature source and featureID
-
-library(beepr)
 
 # Get upstream mainstem streamlines (10 km limit) from gages
 mainstemsUS <- map(coms_list, ~navigate_nldi(nldi_feature = .x, 
@@ -257,6 +119,8 @@ mainstems_us <- mainstems_us %>%
 # rm temp files
 rm(mainstems_flat_us, mainstemsUS)
 
+## Map and Save ---------------------------------
+
 # preview
 mapview(mainstems_us) + 
   mapview(sel_bmi_gages_csci, cex=6, col.regions="orange", 
@@ -264,15 +128,15 @@ mapview(mainstems_us) +
   mapview(sel_gages_bmi, col.regions="skyblue", cex=7, color="blue2",
           layer.name="Selected USGS Gages")
 
-# save as both for now
-#save(mainstems_us, file = "data_output/03_selected_nhd_mainstems_gages_us.rda")
+# save 
+write_rds(mainstems_us, file = "data_output/02b_sel_gage_mainstems_us.rda")
 
-# 06. GET DOWNSTREAM FLOWLINES FROM GAGE ------------------------------------------------
+# 04. GET DOWNSTREAM MAIN FLOWLINES FROM GAGE ------------------------------------------------
 
-# get NHD segments downstream of selected USGS gages, 20 km buffer
+# get NHD segments downstream of selected USGS gages, 10 km buffer
 mainstemsDS <- map(coms_list, ~navigate_nldi(nldi_feature = .x,
                                            mode="downstreamMain",
-                                           distance_km = 20))
+                                           distance_km = 10))
 beep(2)
 
 # check length (for NAs?)
@@ -293,17 +157,25 @@ mainstems_ds <- mainstems_ds %>%
 
 rm(mainstems_flat_ds, mainstemsDS)
 
-mapview(mainstems_us, color="yellow") + mapview(mainstems_ds, color="blue") +
+## Map and Save ------------------------
+
+mapview(mainstems_ds, color="yellow3") +
+  mapview(mainstems_us, color="darkgreen") +
   mapview(sel_bmi_gages_csci, cex=6, col.regions="orange", 
           layer.name="Selected BMI Stations") +  
   mapview(sel_gages_bmi, col.regions="skyblue", cex=7, color="blue2",
           layer.name="Selected USGS Gages")
 
+# save 
+write_rds(mainstems_ds, file = "data_output/02b_sel_gage_mainstems_ds.rds")
+
+
+# 05. GET DOWNSTREAM DIVERSION MAIN FLOWLINES FROM GAGE ------------------------------------------------
 
 # get diversions
 mainstemsDD <- map(coms_list, ~navigate_nldi(nldi_feature = .x,
                                              mode="downstreamDiversions",
-                                             distance_km = 20))
+                                             distance_km = 10))
 beep(2)
 
 # check length (for NAs?)
@@ -322,10 +194,9 @@ mainstems_dd <- sf::st_as_sf(data.table::rbindlist(mainstems_flat_dd, use.names 
 mainstems_dd <- mainstems_dd %>% 
   mutate(from_gage = "DD")
 
-rm(mainstems_flat_ds, mainstemsDS, mainstemsDD, mainstems_flat_dd)
+rm(mainstemsDD, mainstems_flat_dd)
 
-# save each
-save(mainstems_us, mainstems_ds, mainstems_dd, file = "data_output/03_selected_nhd_mainstems_gages_us_ds.rda")
+## Map and Save ------------------------
 
 # mapview
 mapview(mainstems_us, color="yellow") + mapview(mainstems_ds, color="blue") +
@@ -335,23 +206,16 @@ mapview(mainstems_us, color="yellow") + mapview(mainstems_ds, color="blue") +
   mapview(sel_gages_bmi, col.regions="skyblue", cex=7, color="blue2",
           layer.name="Selected USGS Gages")
 
+write_rds(mainstems_dd, file = "data_output/02b_sel_gage_mainstems_dd.rds")
+
 # bind all mainstems
 mainstems_all <- rbind(mainstems_us, mainstems_ds, mainstems_dd)
-
-# 07. SAVE OUT STREAMLINES FOR GAGES ------------------------------------------
-
-save(mainstems_all, file="data_output/03_selected_nhd_mainstems_gages.rda")
-
-# preview
-mapview(mainstems_all, zcol="from_gage") + 
-  mapview(sel_bmi_gages_csci, cex=6, col.regions="orange", 
-          layer.name="Selected BMI Stations") +  
-  mapview(sel_gages_bmi, col.regions="skyblue", cex=7, color="blue2",
-          layer.name="Selected USGS Gages") +
-  mapview(sel_h12_bmi, col.regions="slateblue", alpha.regions=0.4)
+save(mainstems_all, file="data_output/02b_sel_gage_mainstems_all.rda")
 
 
-# 08. FILTER TO BMI SITES IN USGS MAINSTEM COMIDS -----------------------------
+# 06. FILTER TO BMI SITES IN USGS MAINSTEM COMIDS -----------------------------
+
+### LEFT OFF HERE
 
 # reload sites/data here
 sel_bmi_gages_csci <- readRDS("data_output/03_selected_bmi_h12_all_gages_csci.rds")
