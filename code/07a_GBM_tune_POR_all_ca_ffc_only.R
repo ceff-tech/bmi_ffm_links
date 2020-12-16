@@ -7,6 +7,7 @@
 
 library(purrr) # for working with lists/loops
 library(tidylog)
+library(glue)
 library(tidyverse) # all the things
 library(viridis) # colors
 library(sf) # spatial operations
@@ -21,63 +22,38 @@ set.seed(321) # reproducibility
 
 # 01. Load Data ---------------------------------------------------------------
 
-# mainstem rivers
-load("data_output/03_selected_nhd_mainstems_gages.rda") # mainstems_all
-
-# ca regions
-ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T) %>% st_transform(4326)
-
-# load updated data w HUC_regions:
-load("data_output/05_selected_bmi_csci_por_trim_w_huc_region.rda")
-load("data_output/05_selected_bmi_csci_por_w_huc_region.rda")
+# load updated data:
+bmi_csci_por_trim <- read_rds("data_output/04_selected_csci_ffm_por_trim.rds")
 
 # set background basemaps/default options:
-basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap",
+basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery",
                   "OpenTopoMap", "OpenStreetMap", 
-                  "CartoDB.Positron", "Stamen.TopOSMFeatures")
-mapviewOptions(homebutton = FALSE, basemaps=basemapsList, viewer.suppress = FALSE)
+                  "CartoDB.Positron")
 
+mapviewOptions(homebutton = FALSE, 
+               basemaps=basemapsList, 
+               viewer.suppress = FALSE,
+               fgb = TRUE)
 
-# 02. Select a Region ---------------------------------------------------------
-
-## KEEP ALL REGIONS
-
-# make a simpler layer for mapping
-bmi_csci_sites <- bmi_csci_por_trim %>% 
-  dplyr::distinct(StationCode, ID, .keep_all = TRUE)
-
-# if selecting by a specific region use region select
-# list regions ("central_valley", "great_basin", "north_coast", "south_coast")
-table(bmi_csci_sites$huc_region)
-
-modname <- "all_ca_ffc_only"
-#Hregions <- c(modname) # set a region or regions
-Hregions <- c("central_valley", "great_basin", "north_coast", "south_coast")
-
-# now filter data to region(s) of interest
-region_sel <- bmi_csci_por_trim %>% filter(huc_region %in% Hregions)
-
-#mapview(region_sel, zcol="huc_region", viewer.suppress=FALSE)
-
-# 03. Select BMI Response Variable for GBM ------------------------------
+# 02. Select BMI Response Variable for GBM ------------------------------
 
 # get metrics
 bmi.metrics<-c("csci") # response var for model
 hydroDat <- "POR" # dataset, can be Annual, Lag1, Lag2, POR
 bmiVar <- quote(csci) # select response var from list above
 
-# 04. Setup POR Data for Model ----------------------------------------------------------------
+# 03. Setup POR Data for Model ----------------------------------------------------------------
 
 # need to select and spread data: 
-data_por <- region_sel %>% st_drop_geometry() %>% 
-  dplyr::select(StationCode, SampleID, HUC_12, ID, comid_ffc, comid_bmi,
-                YMD, YYYY, csci, huc_region, CEFF_type,
+data_por <- bmi_csci_por_trim %>% 
+  dplyr::select(StationCode, SampleID, HUC_12, site_id, 
+                comid_ffc, COMID, CEFF_type,
+                YYYY, csci,
                 metric, status_code 
                 ) %>% 
   # need to spread the metrics wide
   pivot_wider(names_from = metric, values_from = status_code) %>% 
-  mutate(huc_region = as.factor(huc_region),
-         CEFF_type = as.factor(CEFF_type)) %>% 
+  mutate(CEFF_type = as.factor(CEFF_type)) %>% 
   as.data.frame()
 
 # check how many NAs per col
@@ -91,36 +67,25 @@ dim(data_por)
 # find the cols that have been dropped
 setdiff(data_names, names(data_por))
 
-# seems SP_Dur is largely NA
-
 # remove rows that have more than 70% NA
 data_por <- data_por[which(rowMeans(!is.na(data_por))>0.7),]
-dim(data_ann)
+dim(data_por)
 
-# 05. Split Train/Test Data -------------------------------------------------------------------
+# 04. Split & TIDY Data -------------------------------------------------------------------
 
 # make sure data is randomized:
 random_index <- sample(1:nrow(data_por), nrow(data_por))
 data_por <- data_por[random_index, ]
 
-## Split data and specify train vs. test using rsample
-data_por_split <- initial_split(data_por, prop = .9)
-
-# make training dataset
-#data_por_train <- training(data_por_split) %>% 
+## USE ALL DATA
 data_por_train <- data_por %>% # use all data
-  dplyr::select({{bmiVar}}, 12:ncol(.)) %>%  # use 12 if not including HUC region and CEFF_type
+  dplyr::select({{bmiVar}}, 10:ncol(.)) %>%  # use 12 if not including HUC region and CEFF_type
   dplyr::filter(!is.na({{bmiVar}})) %>% as.data.frame()
          
-# make testing set
-data_por_test <- testing(data_por_split) %>% 
-  dplyr::select({{bmiVar}}, 12:ncol(.)) %>% 
-  filter(!is.na({{bmiVar}})) %>% as.data.frame()
-
 # double check cols are what we want
 names(data_por_train)
 
-# 06. GBM.STEP MODEL  ------------------------------------------------------------
+# 05. GBM.STEP MODEL  ------------------------------------------------------------
 
 # set up tuning params
 hyper_grid <- expand.grid(
@@ -160,7 +125,7 @@ gbm_fit_step <- function(
   }
 }
 
-# 07. RUN GBM.STEP WITH PURRR ---------------------------------------------
+# 06. RUN GBM.STEP WITH PURRR ---------------------------------------------
 
 # use PURRR: this part can take awhile...get some coffee
 hyper_grid$dev_explained <-purrr::pmap_dbl(
@@ -173,7 +138,7 @@ hyper_grid$dev_explained <-purrr::pmap_dbl(
     data = data_por_train) # CHECK AND CHANGE!!
 )
 
-# 08. VIEW AND SAVE MODEL RESULTS -----------------------------------------
+# 07. VIEW AND SAVE MODEL RESULTS -----------------------------------------
 
 # look at results:
 hyper_grid %>% 
@@ -186,7 +151,7 @@ hyper_grid %>%
     head(n=1))
 
 # write these all out to a file for reference later
-(gbm_file <- paste0("models/07_gbm_final_",tolower(as_name(bmiVar)),"_", tolower(hydroDat), "_", modname, "_hypergrid"))
+(gbm_file <- glue("models/07_gbm_final_{tolower(as_name(bmiVar))}_{tolower(hydroDat)}_{modname}_hypergrid"))
 
 # check for file and delete?
 if(fs::file_exists(path = paste0(gbm_file,".csv"))){
@@ -197,7 +162,7 @@ if(fs::file_exists(path = paste0(gbm_file,".csv"))){
 }
 
 # save out
-write_csv(hyper_grid, path = paste0(gbm_file,".csv"), append = TRUE)
+write_csv(hyper_grid, file = glue("{gbm_file}.csv"), append = TRUE)
 
 # read in
 hyper_grid <- readr::read_csv(file = paste0(gbm_file,".csv"), col_names = c("shrinkage", "interaction.depth", "n.minobsinnode", "bag.fraction", "dev_explained"))
@@ -207,8 +172,7 @@ hyper_grid <- readr::read_csv(file = paste0(gbm_file,".csv"), col_names = c("shr
     dplyr::arrange(desc(dev_explained)) %>% #
     head(n=1))
 
-
-# 09. RUN BEST BRT MODEL ---------------------------------------------------------------
+# 08. RUN BEST BRT MODEL ---------------------------------------------------------------
 
 # based on above, run final BRT and save:
 gbm_final_step <- function(
@@ -229,7 +193,7 @@ gbm_final_step <- function(
 }
 
 # set up filename for best model outputs
-(gbm_best_file <- paste0("models/07_gbm_final_",tolower(as_name(bmiVar)),"_", tolower(hydroDat), "_", modname, "_", "model_output.txt"))
+(gbm_best_file <- glue("models/07_gbm_final_{tolower(as_name(bmiVar))}_{tolower(hydroDat)}_{modname}_model_output.txt"))
 
 # check for file and delete?
 if(fs::file_exists(path = gbm_best_file)){
@@ -259,7 +223,7 @@ cat("\nBest parameters for GBM.STEP:\n\n",
     file = gbm_best_file, append=TRUE)
 
 # add the parameters used to run the model
-write_tsv(hyper_best, path = gbm_best_file,
+write_tsv(hyper_best, file = gbm_best_file,
           col_names = TRUE, append=TRUE)
 
 # % percent explained
@@ -268,13 +232,13 @@ write_tsv(hyper_best, path = gbm_best_file,
 # 10. SAVE FINAL GBM AND DATA ---------------------------------------------------------------
 
 # reassign names for RI outputs and save:
-assign(x = tolower(paste0("gbm_final_", as_name(bmiVar),"_",hydroDat, "_",modname)), value=gbm_fin_out)
+assign(x = tolower(glue("gbm_final_{as_name(bmiVar)}_{hydroDat}_{modname}")), value=gbm_fin_out)
 
 # get file name
-(fileToSave <- ls(pattern = paste0("gbm_final_", tolower(as_name(bmiVar)))))
+(fileToSave <- ls(pattern = glue("gbm_final_{tolower(as_name(bmiVar))}")))
 
 # save to RDS
-write_rds(x = get(fileToSave), path = paste0("models/07_",fileToSave, "_model.rds"), compress = "gz")
+write_rds(x = get(fileToSave), file = glue("models/07_{fileToSave}_model.rds"), compress = "gz")
 
 # Save all the datasets used in the model:
 save(list = ls(pattern="data_"), file = tolower(paste0("models/07_",fileToSave,"_model_data.rda")))

@@ -4,6 +4,7 @@
 # Libraries ---------------------------------------------------------------
 
 library(gt)
+library(glue)
 library(tidyverse)
 library(sf)
 library(viridis) # colors
@@ -12,11 +13,15 @@ library(purrr)
 
 # Load Data ---------------------------------------------------------------
 
-# load updated data w HUC_regions:
-load("data_output/05_selected_bmi_csci_por_trim_w_huc_region.rda")
-load("data_output/05_selected_bmi_csci_por_w_huc_region.rda")
 
-load("models/09_csci_por_all_ca_ffc_only_all_ri_all_regions.rda")
+# load updated data w HUC_regions:
+bmi_por_trim <- read_rds("data_output/04_selected_csci_ffm_por_trim.rds")
+
+# simple just sites:
+bmi_csci_sites <- bmi_por_trim %>% 
+  dplyr::distinct(StationCode, .keep_all = TRUE)
+
+ri_all_regions <- read_rds("models/08_gbm_csci_por_all_ca_ffc_only_RI_combined.rds")
 hydroDat <- "POR"
 plotname <- "All Site Pairs"  #"Central Valley" #"All Site Pairs"
 
@@ -25,7 +30,7 @@ plotname <- "All Site Pairs"  #"Central Valley" #"All Site Pairs"
 modname <- "all_ca" # model name 
 bmiVar <- quote(csci) # select response var
 # make pathnames
-(plot_savename <- tolower(paste0("09_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+(plot_savename <- tolower(glue("09_gbm_{as_name(bmiVar)}_{hydroDat}_{modname}")))
 
 # make regional Ri --------------------------------------------------------
 
@@ -68,7 +73,7 @@ ri_table <- ri_table %>%
   mutate(flow_component=forcats::fct_drop(flow_component),
          var = as.factor(var),
          var = fct_reorder2(var, flow_component, var),
-         model=as.factor(model),
+         model=as.factor(flowdat),
          Flow.Metric.Name = as.factor(Flow.Metric.Name),
          Flow.Metric.Name = forcats::fct_reorder2(Flow.Metric.Name, model, RI)) 
 
@@ -78,9 +83,9 @@ summary(ri_table)
 
 # generate order by CA wide RI for flow metrics:
 forder <- ri_table %>% 
-  filter(model=="all_ca", 
+  filter(#model=="all_ca", 
          method=="mse") %>% 
-  mutate(model=as.factor(model),
+  mutate(model=as.factor(modname),
          Flow.Metric.Name = as.factor(Flow.Metric.Name),
          Flow.Metric.Name = forcats::fct_reorder2(Flow.Metric.Name, model, RI)) %>% 
   group_by(model) %>% 
@@ -100,20 +105,12 @@ ri_table %>% group_by(flowdat, var) %>%
   arrange(flowdat, desc(meanRI))
 
 # so best hydrometric across model?
-ri_table %>% group_by(model, var) %>% 
+ri_table %>% group_by(var) %>% 
   summarize(meanRI = mean(RI),
             medianRI = median(RI),
             maxRI = max(RI),
             SD = sd(RI)) %>% 
   top_n(5) %>% group_by(var) %>% tally() %>% arrange(desc(n))
-
-# top metrics based on frequency across regions
-# Wet_BFL_Mag_50     5
-# DS_Mag_50          3
-# DS_Tim             3
-# Peak_5             3
-# SP_ROC             3
-# DS_Dur_WS          2
 
 
 # Summary Table ALL CA -----------------------------------------------------------
@@ -124,8 +121,9 @@ model_name <- "All CA"
 ## ALL CA Table
 # Create a gt table based on preprocessed table
 ri_table %>%
-  dplyr::filter(model=="all_ca", method=="mse") %>%
-  dplyr::select(-c(Ymetric, flowdat, flow_component, method, model, Flow.Characteristic)) %>%
+  dplyr::filter(method=="mse") %>%
+    #model=="all_ca", 
+  dplyr::select(-c(Ymetric, flowdat, flow_component, method, Flow.Characteristic)) %>%
   dplyr::select(Flow.Component, var, Flow.Metric.Name:Flow.Metric.Description, RI) %>%
   arrange(Flow.Component, var) %>% #View() 
   gt() %>%
@@ -140,24 +138,24 @@ ri_table %>%
 
 # Summary Table Regional -----------------------------------------------------------
 
-model_name <- "HUC Regions"
-
-# Create a gt table based on preprocessed table
-ri_table %>%
-  dplyr::filter(!model=="all_ca", method=="mse") %>%
-  dplyr::select(-c(Ymetric, flowdat, flow_component, method, Flow.Characteristic)) %>%
-  pivot_wider(names_from = model, values_from = RI) %>% # View()
-  dplyr::select(Flow.Component, var, Flow.Metric.Name:Unit, great_basin:south_coast) %>%
-  arrange(Flow.Component, var) %>% # View() 
-  gt() %>%
-  tab_header(
-    title = "Relative Influence of Functional Flow Metrics on CSCI",
-    subtitle = glue::glue("Model {model_name}")
-  ) %>%
-  fmt_number(
-    columns = vars(central_valley, north_coast, south_coast, great_basin), decimals = 1, 
-    drop_trailing_zeros = T
-  )
+# model_name <- "HUC Regions"
+# 
+# # Create a gt table based on preprocessed table
+# ri_table %>%
+#   dplyr::filter(!model=="all_ca", method=="mse") %>%
+#   dplyr::select(-c(Ymetric, flowdat, flow_component, method, Flow.Characteristic)) %>%
+#   pivot_wider(names_from = model, values_from = RI) %>% # View()
+#   dplyr::select(Flow.Component, var, Flow.Metric.Name:Unit, great_basin:south_coast) %>%
+#   arrange(Flow.Component, var) %>% # View() 
+#   gt() %>%
+#   tab_header(
+#     title = "Relative Influence of Functional Flow Metrics on CSCI",
+#     subtitle = glue::glue("Model {model_name}")
+#   ) %>%
+#   fmt_number(
+#     columns = vars(central_valley, north_coast, south_coast, great_basin), decimals = 1, 
+#     drop_trailing_zeros = T
+#   )
 
 # Summary Plot ALL CA ------------------------------------------------------------
 
@@ -172,13 +170,13 @@ flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" =
 
 # Faceted by hydrodat and flow metrics:
 ri_table %>% 
-  filter(model=="all_ca", 
+  filter(#model=="all_ca", 
          method=="mse") %>% 
   ggplot() +
   #geom_hline(yintercept = 5, color="gray40", lwd=0.8, lty=2, alpha=0.5)+
-  geom_linerange(aes(x=reorder(Flow.Metric.Name, RI), ymax=RI, ymin=0, group=model, color=flow_component), 
+  geom_linerange(aes(x=reorder(Flow.Metric.Name, RI), ymax=RI, ymin=0, group=flowdat, color=flow_component), 
                  lwd=.5, show.legend = F, alpha=0.7, lty=1)+
-  geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, fill=flow_component, size=RI), 
+  geom_point(aes(x=Flow.Metric.Name, y=RI, group=flowdat, fill=flow_component, size=RI), 
              #size=4, 
              show.legend = TRUE, pch=21) +
   scale_fill_manual("Flow Component", values=flowcomponent_colors) +

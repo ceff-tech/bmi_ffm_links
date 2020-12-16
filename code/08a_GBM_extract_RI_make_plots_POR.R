@@ -13,6 +13,7 @@ library(gbm) # boosted regression trees
 library(dismo)
 library(pdp)
 library(rlang)
+library(glue)
 #extrafont::loadfonts(quiet=TRUE)
 
 # GBM evaluation of single points of data
@@ -20,15 +21,11 @@ library(rlang)
 #library(ingredients)
 
 # load updated data w HUC_regions:
-load("data_output/05_selected_bmi_csci_por_trim_w_huc_region.rda")
-load("data_output/05_selected_bmi_csci_por_w_huc_region.rda")
+bmi_por_trim <- read_rds("data_output/04_selected_csci_ffm_por_trim.rds")
 
 # simple just sites:
-bmi_csci_sites <- bmi_csci_por_trim %>% 
+bmi_csci_sites <- bmi_por_trim %>% 
   dplyr::distinct(StationCode, .keep_all = TRUE)
-
-#length(unique(bmi_csci_sites$StationCode)) # n=238
-#length(unique(bmi_csci_sites$ID)) # n=139
 
 # Load Data --------------------------------------------------------------------
 
@@ -42,17 +39,17 @@ plotname <- "All Site Pairs"  #"Central Valley" #"All Site Pairs"
 bmiVar <- quote(csci) # select response var
 
 # make pathnames
-(mod_pathname <- paste0("07_gbm_final_", tolower(bmiVar), "_",tolower(hydroDat), "_",modname))
-(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+(mod_pathname <- glue("07_gbm_final_{tolower(bmiVar)}_{tolower(hydroDat)}_{modname}"))
+(mod_savename <- tolower(glue("08_gbm_{as_name(bmiVar)}_{hydroDat}_{modname}")))
 
 # get the gbm model:
 (brt <- list.files(path="models/", pattern = paste0("^", mod_pathname,".*\\.rds$")))
 
-gbm_final <- read_rds(path=paste0("models/", brt))
+gbm_final <- read_rds(file=paste0("models/", brt))
 class(gbm_final)
 
 # get model datasets (for PDPs)
-load(paste0("models/",mod_pathname, "_model_data.rda"))
+load(glue("models/{mod_pathname}_model_data.rda"))
 
 # rename datasets for plotting:
 gbm_out_train <- data_por_train # NEED TO CHANGE THESE
@@ -103,7 +100,7 @@ gbm_fin_RI <- gbm_fin_RI %>%
   theme_classic(base_family = "Roboto Condensed")) 
 
 # save out
-ggsave(filename=tolower(paste0("models/", mod_savename, "_all_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(glue("models/{mod_savename}_all_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 # 01B. RELATIVE INFLUENCE PLOTS (MSE) TOP VARS -------------------------------------
 
@@ -124,7 +121,7 @@ ggsave(filename=tolower(paste0("models/", mod_savename, "_all_RI_mse.png")), wid
     theme_classic(base_family = "Roboto Condensed")) 
 
 # save out
-ggsave(filename=tolower(paste0("models/", mod_savename, "_top_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(glue("models/{mod_savename}_top_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 
 # 02A. RI PERMUTATION TEST PLOTS ALL VARS ------------------------------------------------
@@ -192,23 +189,23 @@ ggsave(filename=tolower(paste0("models/", mod_savename, "_all_RI_permtest.png"))
 # save out
 ggsave(filename=tolower(paste0("models/", mod_savename, "_top_RI_permtest.png")), width = 9, height = 7, units = "in", dpi = 300)
 
-# Plot Side by Side -------------------------------------------------------
+## Plot Side by Side -------------------------------------------------------
 
-# library(cowplot)
+#library(cowplot)
 
-# (pg1 <- plot_grid(fin_ri_top, fin_pt_top, align = "h", labels=c("A","B")))
-# 
+#(pg1 <- plot_grid(fin_ri_top, fin_pt_top, align = "h", labels=c("A","B")))
+ 
 # cowplot::save_plot(pg1, filename = tolower(paste0("models/08_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_both", ".png")), base_width = 11, units = "in", dpi = 300)
 
 
 # 03. COMBINE RIs AND SAVE -----------------------------------------------------
 
 # reassign names for RI outputs and save:
-assign(x = tolower(paste0(as_name(bmiVar),"_",hydroDat,"_RI")), value=bind_rows(gbm_fin_PT, gbm_fin_RI))
+assign(x = tolower(glue("{as_name(bmiVar)}_{hydroDat}_RI")), value=bind_rows(gbm_fin_PT, gbm_fin_RI))
 
 filepattern <- ls(pattern = paste0("^",tolower(as_name(bmiVar))))
 
-write_rds(x = get(filepattern), path = paste0("models/", mod_savename, "_RI_combined.rds"))
+write_rds(x = get(filepattern), file = glue("models/{mod_savename}_RI_combined.rds"))
 
 # 04. MARGINAL FX Plots ----------------------------------------------
 
@@ -258,49 +255,3 @@ varNo <- 3 # single number makes single plot
 ggsave(filename=paste0("models/", mod_savename, "_pdp_ice_",
                        as.character(bestHydro_ri$var[varNo]),
                        ".png"), width = 11, height = 7, units = "in", dpi=300)
-
-
-
-
-
-
-
-# Z-archive this chunk: USE DALEX ---------------------------------------------------------------
-
-gbm_explain <- explain(gbm_final, data=gbm_out_train[,-1], y=gbm_out_train$csci)
-gbm_explain_tst <- explain(gbm_final, data=gbm_out_test[,-1], y=gbm_out_test$csci)
-
-# feature importance
-gbm_feat <- feature_importance(gbm_explain)
-plot(gbm_feat, max_vars=12)
-
-gbm_feat_tst <- feature_importance(gbm_explain_tst)
-plot(gbm_feat_tst, max_vars=12)
-
-# look at explained variance for a specific observation(s)
-library(iBreakDown)
-gbm_breakdown <- break_down(gbm_explain, new_observation = gm_out_test[,-1], keep_distributions=TRUE)
-gbm_shap <- shap(gbm_explain, gbm_out_test[,-1])
-plot(gbm_breakdown, baseline=0)
-plot(gbm_shap)
-
-# describe a bit more
-describe(gbm_breakdown)
-describe(gbm_shap)
-
-
-# partial dependency using ingredients (only works w/ no NAs)
-# gbm_pd <- partial_dependence(gbm_explain_tst, N=50, variables=c("SP_ROC","SP_Dur"))
-# plot(gbm_pd)
-# 
-# # ceteris_paribus (only works w/ data w/out NAs)
-# gbm_cp_pg <- ceteris_paribus(gbm_explain_tst, 
-#                               new_observation = gm_out_test[1,],
-#                               variables="SP_Dur")
-# plot(gbm_cp_pg)
-
-# predict values for test data
-pred <- predict(gbm_final, n.trees = gbm_final$n.trees, gm_out_test)
-
-# results
-caret::RMSE(pred, gm_out_train[,1])
