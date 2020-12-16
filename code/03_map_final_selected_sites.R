@@ -177,13 +177,10 @@ tmap::tmap_save(tm = final_triptych,
 
 # View Final Tally --------------------------------------------------------
 
-# any NA's?
-bmi_coms_dat %>% st_drop_geometry %>% filter(is.na(StationCode)) # nope
+# how many unique samples are avail: 
+bmi_final_dat %>% st_drop_geometry %>% distinct(SampleID) %>% tally #n=493 samples
+bmi_final_dat %>% st_drop_geometry %>% distinct(StationCode) %>% tally #n=275 sites
 
-# now look at how many unique samples are avail: n=437 unique samples
-bmi_coms_dat %>% st_drop_geometry %>% distinct(SampleID) %>% tally
-bmi_coms_dat %>% st_drop_geometry %>% distinct(StationCode) %>% tally
-
-# how many unique USGS gages? n=326 (ALT=245, REF=81)
-bmi_coms_dat %>% st_drop_geometry %>% distinct(site_id, .keep_all=TRUE) %>% count(CEFF_type)
+# how many unique USGS gages? n=226 (ALT=171, REF=55)
+bmi_final_dat %>% st_drop_geometry %>% distinct(site_id, .keep_all=TRUE) %>% count(CEFF_type)
 
