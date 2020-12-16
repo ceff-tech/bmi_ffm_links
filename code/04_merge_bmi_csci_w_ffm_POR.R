@@ -16,16 +16,18 @@ library(tidylog)
 ### bmi_coms_dat (all data for selected site pairs), 
 ### bmi_coms_final (just coms and id)
 ### bmi_coms_dat_trim (all data for selected site pairs btwn Jun-Sep)
-load("data_output/03_selected_final_bmi_stations_dat_all_gages.rda") 
+
+bmi_final_trim <- read_rds("data_output/02c_selected_final_bmi_csci_dat_trim.rds") 
 
 # FISH REGIONS
 ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
 
-# nhd streamlines
-load("data_output/03_selected_nhd_mainstems_gages.rda") # mainstems_all
+# ALL GAGES W FFC DATA
+# read from ffm_comparison repo: https://github.com/ryanpeek/ffm_comparison
 
-# get all functional flow metric data (percentiles, alt status, ffmetrics)
-load("data_output/02_usgs_all_ffm_data.rda")
+ffc_dat <- read_rds(file = url("https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_alteration.rds")) #%>% 
+  distinct(gageid, .keep_all=TRUE) # n=959
+
 
 # Set Basemaps ------------------------------------------------------------
 
