@@ -9,6 +9,7 @@ library(tidyverse)
 library(tidylog)
 library(sf)
 library(mapview)
+mapviewOptions(fgb = FALSE)
 library(lubridate)
 
 # 01. Load Data ---------------------------------------------------------------
@@ -132,6 +133,10 @@ basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery",
                   "CartoDB.Positron", "Stamen.TopOSMFeatures")
 
 mapviewOptions(basemaps=basemapsList)
+
+# map of all BMI sites
+mapview(bmi_stations_distinct, cex=6, col.regions="orange", 
+        layer.name="All BMI Stations")
 
 # a map of all gages and BMI stations that fall within the same H12
 
