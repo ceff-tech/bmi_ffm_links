@@ -69,11 +69,16 @@ bmi_comids <- readRDS("data_output/02b_bmi_stations_comids_revised.rds")
 
 ## 02b. BMI COMIDs from NHDTools ------------------------------------------------
 
+# bmi_segs <- sel_bmi_station_gages_h12 %>%
+#   select(StationCode, longitude, latitude) %>%
+#   distinct(StationCode, .keep_all = TRUE)
+
 # # use nhdtools to get comids
-# bmi_all_coms <- bmi_segs %>%
-#   group_split(StationCode) %>%
-#   set_names(bmi_segs$StationCode) %>%
-#   map(~discover_nhdplus_id(.x$geometry))
+bmi_all_coms <- bmi_segs %>%
+  #slice(1:10) %>% 
+  group_split(StationCode) %>%
+  set_names(bmi_segs$StationCode) %>%
+  map(~discover_nhdplus_id(.x$geometry))
 #    
 # # flatten into single dataframe instead of list
 # bmi_segs_df <-bmi_all_coms %>% flatten_dfc() %>% t() %>%

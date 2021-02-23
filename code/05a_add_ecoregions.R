@@ -134,6 +134,33 @@ mapview(eco_revised)
 st_write(eco_revised, "data/spatial/ecoregions_combined_L3.shp")
 write_rds(eco_revised, "data/spatial/ecoregions_combined_L3.rds")
 
+# Merge Sierras w Cascades ------------------------------------------------
+
+eco_revised <- read_rds("data/spatial/ecoregions_combined_L3.rds")
+
+# merge SN with Cascades
+casc <- eco_revised[4,]
+snev <- eco_revised[eco_revised$US_L3_mod=="Sierra Nevada",]
+snev_combined <- st_union(casc, snev) %>% 
+  select(-US_L3_mod.1) %>% 
+  mutate(US_L3_mod="Sierra Nevada/Cascades")
+
+# quick check
+mapview(snev_combined)
+
+# now bind back to revised
+eco_revised2 <- rbind(snev_combined, eco_revised[!eco_revised$US_L3_mod %in% c("Sierra Nevada", "Cascades"),])
+
+# SAVE THIS OUT
+st_write(eco_revised2, "data/spatial/ecoregions_combined_L3_rev.shp")
+write_rds(eco_revised2, "data/spatial/ecoregions_combined_L3_rev.rds")
+
+eco_revised2 <- read_rds("data/spatial/ecoregions_combined_L3_rev.rds")
+
+# map it!
+mapview(eco_revised2, layer.name="Revised Ecoregs") + mapview(ecoregs, zcol="US_L3NAME", alpha.regions=0.2, layer.name="Ecoregions L3") +
+  mapview(bmi_sf_mod, col.regions="orange", layer.name="BMI Sites") 
+
 # Get HUCs and Simplify ---------------------------------------------------
 
 h12 <- st_read(gpkg_name, "CA_HUC12")
