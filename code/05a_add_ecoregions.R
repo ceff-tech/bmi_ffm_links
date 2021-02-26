@@ -19,7 +19,6 @@ ca <- USAboundaries::us_states(states="california")
 
 load("data_output/02c_selected_final_bmi_dat_all.rda")
 
-
 # Get Ecoregions ----------------------------------------------------------
 
 gpkg_name <- "data/healthy_watersheds/CA_PHWA_Geodatabase_170518.gdb/"
@@ -64,22 +63,24 @@ bmi_sf_mod <- bmi_sf %>%
                        "520PS0199", "521PS0663","521BCRBRx") ~ "Sierra Nevada",
     StationCode == "609PS0053" ~ "Desert",
     US_L3NAME =="Sonoran Basin and Range" ~ "Desert",
-    US_L3NAME =="Cascades" ~ "Sierra Nevada",
+    US_L3NAME == "Central Basin and Range" ~ "Cascades/Basin Range",
+    US_L3NAME == "Cascades" ~ "Cascades/Basin Range",
+    US_L3NAME == "Southern California Mountains" ~ "Southern California",
+    US_L3NAME == "Southern California/Northern Baja Coast" ~ "Southern California",
     US_L3NAME =="Klamath Mountains/California High North Coast Range" ~ "Coast Range",
     TRUE ~ US_L3NAME))
 
 table(bmi_sf_mod$US_L3_mod)
 
-#mapview(bmi_sf_mod, zcol="US_L3_mod") + mapview(ecoregs_ca, zcol="US_L3NAME", cex=0.4)
+mapview(bmi_sf_mod, zcol="US_L3_mod") + mapview(ecoregs_ca, zcol="US_L3NAME", cex=0.4)
 
 # create combined ecoregs
 ecoregs_ca_comb <- ecoregs_ca %>% 
   mutate(US_L3_mod = case_when(
-    US_L3CODE %in% c(4, 9) ~ "Cascades",
+    US_L3CODE %in% c(13, 80, 4, 9) ~ "Cascades/Basin Range",
     US_L3CODE %in% c(14, 81) ~ "Mojave/Sonoran Desert",
     US_L3CODE %in% c(8, 85) ~ "Southern California",
     US_L3CODE %in% c(1, 78) ~ "North Coast",
-    US_L3CODE %in% c(13, 80) ~ "Basin Range",
     TRUE ~ US_L3NAME))
 
 mapview(bmi_sf_mod, col.regions="orange") + mapview(ecoregs_ca_comb, zcol="US_L3_mod", cex=0.4)
@@ -96,38 +97,36 @@ ecoregs_ca_comb <- ecoregs_ca_comb %>% rmapshaper::ms_simplify(keep=0.1)
 library(mapedit)
 library(leafpm)
 
-ecoregs_edit <- mapedit::editFeatures(ecoregs_ca_comb[6,], editor = "leafpm")
+# draw line to split coast from sierras through center of valley and exiting at top and bottom of Sierra/Foothills
+ecoregs_edit <- mapedit::editFeatures(ecoregs_ca_comb[5,], editor = "leafpm")
 
 # extract pieces
 mapview(ecoregs_edit$geometry[2,])
 
-# intersect to get just foothills
-tst <- st_intersection(ecoregs_ca_comb[6,], ecoregs_edit$geometry[2,])
-mapview(tst)
+# extract
+tst <- st_collection_extract(lwgeom::st_split(ecoregs_ca_comb[5,], ecoregs_edit$geometry[2,]),"POLYGON") %>% rename(geometry=Shape)
+mapview(tst$geometry[4,]) + # coast
+  mapview(tst$geometry[3,], col.regions="yellow") # foothills
 
 # merge with Sierras
-mapview(ecoregs_ca_comb[5,]) + mapview(tst, col.regions="yellow")
+mapview(ecoregs_ca_comb[5,]) + mapview(tst[3,], col.regions="yellow")
+
+# save out temp:
+foothillsn_ecoregs <- tst[3,]
+foothillcoast_ecoregs <- tst[4,]
+save(foothillsn_ecoregs, file="data/spatial/05a_foothillsn_ecoreg_L3.rda")
 
 # merge to get all Sierras
-snevada_combine <- st_union(ecoregs_ca_comb[5,], tst) %>% 
+snevada_combine <- st_union(ecoregs_ca_comb[4,], foothillsn_ecoregs) %>% 
   rename(geometry=Shape) %>% select(-US_L3_mod.1)
 mapview(snevada_combine)
 
-# intersect to cut coast out from tst
-coastal_foothills <- ecoregs_ca_comb[6,]
-coastal_foothills_v1 <- st_difference(coastal_foothills, snevada_combine) %>% rename(geometry=Shape) %>% select(-US_L3_mod.1)
-mapview(coastal_foothills_v1)
-
-# map
-mapview(ecoregs_ca_comb, zcol="US_L3_mod")+ mapview(snevada_combine)
-
 # drop the sierras and coast
-eco_trim <- ecoregs_ca_comb[-c(5, 6),] %>% rename(geometry=Shape)
+eco_trim <- ecoregs_ca_comb[-c(4, 5),] %>% rename(geometry=Shape)
 mapview(eco_trim)
 
 # now merge
-eco_revised <- rbind(eco_trim, coastal_foothills_v1, snevada_combine)
-
+eco_revised <- rbind(eco_trim, foothillcoast_ecoregs, snevada_combine)
 mapview(eco_revised)
 
 # SAVE THIS OUT
@@ -136,39 +135,24 @@ write_rds(eco_revised, "data/spatial/ecoregions_combined_L3.rds")
 
 # Merge Sierras w Cascades ------------------------------------------------
 
-eco_revised <- read_rds("data/spatial/ecoregions_combined_L3.rds")
-
-# merge SN with Cascades
-casc <- eco_revised[4,]
-snev <- eco_revised[eco_revised$US_L3_mod=="Sierra Nevada",]
-snev_combined <- st_union(casc, snev) %>% 
-  select(-US_L3_mod.1) %>% 
-  mutate(US_L3_mod="Sierra Nevada/Cascades")
-
-# quick check
-mapview(snev_combined)
-
-# now bind back to revised
-eco_revised2 <- rbind(snev_combined, eco_revised[!eco_revised$US_L3_mod %in% c("Sierra Nevada", "Cascades"),])
-
-# SAVE THIS OUT
-st_write(eco_revised2, "data/spatial/ecoregions_combined_L3_rev.shp")
-write_rds(eco_revised2, "data/spatial/ecoregions_combined_L3_rev.rds")
-
-eco_revised2 <- read_rds("data/spatial/ecoregions_combined_L3_rev.rds")
-
 # map it!
-mapview(eco_revised2, layer.name="Revised Ecoregs") + mapview(ecoregs, zcol="US_L3NAME", alpha.regions=0.2, layer.name="Ecoregions L3") +
+mapview(eco_revised, layer.name="Revised Ecoregs") + mapview(ecoregs, zcol="US_L3NAME", alpha.regions=0.2, layer.name="Ecoregions L3") +
   mapview(bmi_sf_mod, col.regions="orange", layer.name="BMI Sites") 
 
 # Get HUCs and Simplify ---------------------------------------------------
 
-h12 <- st_read(gpkg_name, "CA_HUC12")
-pryr::object_size(h12)
+# h12 <- st_read(gpkg_name, "CA_HUC12")
+# pryr::object_size(h12)
+# 
+# # dissolve by attribute column
+# # rmapshaper::ms_dissolve(h12, field = "field")
+# 
+# # simplify to avoid giant file
+# h12s <- rmapshaper::ms_simplify(h12, keep = .1)
+# pryr::object_size()
 
-# dissolve by attribute column
-# rmapshaper::ms_dissolve(h12, field = "field")
+# Get Ecoregs to BMI data -------------------------------------------------
 
-# simplify to avoid giant file
-h12s <- rmapshaper::ms_simplify(h12, keep = .1)
-pryr::object_size()
+bmi_final_dat_ecoreg <- st_join(bmi_sf, left = FALSE, eco_revised["US_L3_mod"])
+
+table(bmi_final_dat_ecoreg$US_L3_mod)
