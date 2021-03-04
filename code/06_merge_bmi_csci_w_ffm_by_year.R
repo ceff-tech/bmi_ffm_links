@@ -24,25 +24,24 @@ load(file = "data_output/02c_selected_final_bmi_dat_all.rda")
 # hucs_not_selected_v2 (all hucs not selected bc no site pair)
 # hucs_selected_v2 (all hucs selected)
 
-### bmi_final_dat (all BMI data with CSCI )
-#bmi_final_dat <- read_rds("data_output/02c_selected_final_bmi_csci_dat.rds")
 
 ### bmi_csci_trim (all BMI data for selected site pairs btwn May-Sep)
-bmi_csci_dat_trim <- read_rds("data_output/02c_selected_final_bmi_csci_dat_trim.rds")
+bmi_csci_trim <- read_rds("data_output/02c_selected_final_bmi_csci_dat_trim.rds")
 
 ### full joined FFC dataset
 bmi_csci_por_trim <- read_rds("data_output/04_selected_csci_ffm_por_trim.rds")
 
-# FISH REGIONS
-ecoregs <- load(file="data_output/05a_bmi_final_dat_ecoreg.rda")
+# REVISED ECO REGIONS: unique BMI stations w ecoregions
+#bmi_final_dat_ecoreg
+load(file="data_output/05a_bmi_final_dat_ecoreg.rda")
+ecoregs_bmi_stations <- bmi_final_dat_ecoreg %>% select(StationCode, US_L3_mod, geometry)
+rm(bmi_final_dat_ecoreg)
 
 # nhd streamlines
 #load("data_output/03_selected_nhd_mainstems_gages.rda") # mainstems_all
 
-# get all functional flow metric data (percentiles, alt status, ffmetrics)
-ffc_dat <- read_rds(file = url("https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_alteration.rds")) #%>% 
-
-#load("data_output/02_usgs_all_ffm_data.rda")
+# get Functional Flow alteration status data 
+ffc_dat <- read_rds(file = url("https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_alteration.rds"))
 
 # Set Basemaps ------------------------------------------------------------
 
@@ -51,24 +50,6 @@ basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap"
                   "OpenTopoMap", "OpenStreetMap", 
                   "CartoDB.Positron", "Stamen.TopOSMFeatures")
 mapviewOptions(basemaps=basemapsList)
-
-# Make BMI POR FF Dataset -----------------------------------------------
-
-# make gage_id as character for join, read date and filter to TRIM Months (May-Sep)
-sel_bmi_coms_final_v2 <- sel_bmi_coms_final_v2 %>% 
-  mutate(gage_id_c = gsub("^T", "", ID))
-
-sel_bmi_coms_final_trimmed <- sel_bmi_coms_final_v2 %>% 
-  mutate(gage_id_c = gsub("^T", "", ID)) %>% 
-  separate(SampleID, into=c("site", "sampledate"), sep = "_", remove = FALSE) %>% 
-  mutate(sampledate = lubridate::mdy(sampledate)) %>% 
-  mutate(sampledate = if_else(is.na(sampledate), lubridate::mdy("06282009"), sampledate)) %>% 
-  select(-site) %>% 
-  filter(lubridate::month(sampledate)>4, lubridate::month(sampledate)<10)
-
-# check the layers above match: 
-bmi_coms_dat_trim %>% st_drop_geometry() %>% distinct(SampleID, ID) %>% dim() # trimmed data (n=300):
-bmi_coms_dat %>% st_drop_geometry() %>% distinct(SampleID, ID) %>% dim() # this should be 349
 
 # Make ANNUAL Dataset -----------------------------------------------------
 
