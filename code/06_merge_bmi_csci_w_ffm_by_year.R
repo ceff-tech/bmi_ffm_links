@@ -13,24 +13,36 @@ library(tidylog)
 
 # Load Data ---------------------------------------------------------------
 
-# bmi data:
-### bmi_coms_dat (all data for selected site pairs), 
-### sel_bmi_coms_final_v2 (just the sites)
-### bmi_coms_dat_trim (all data for selected site pairs btwn Jun-Sep)
-load("data_output/03_selected_final_bmi_stations_dat_all_gages.rda") 
+# BMI data:
 
-# POR joined data w huc regions
-#load("data_output/05_selected_bmi_csci_por_trim_w_huc_region.rda")
-#load("data_output/05_selected_bmi_csci_por_w_huc_region.rda")
+### ALL THE DATA
+load(file = "data_output/02c_selected_final_bmi_dat_all.rda")
+# bmi_final_dat (all BMI sites w CSCI) (full date range, Mar-Nov)
+# bmi_not_selected_v2 (all BMI sites not selected bc no site pair)
+# gages_not_selected_v2 (all gage sites not selected bc no site pair)
+# gages_selected_v2 (all gage sites selected)
+# hucs_not_selected_v2 (all hucs not selected bc no site pair)
+# hucs_selected_v2 (all hucs selected)
+
+### bmi_final_dat (all BMI data with CSCI )
+#bmi_final_dat <- read_rds("data_output/02c_selected_final_bmi_csci_dat.rds")
+
+### bmi_csci_trim (all BMI data for selected site pairs btwn May-Sep)
+bmi_csci_dat_trim <- read_rds("data_output/02c_selected_final_bmi_csci_dat_trim.rds")
+
+### full joined FFC dataset
+bmi_csci_por_trim <- read_rds("data_output/04_selected_csci_ffm_por_trim.rds")
 
 # FISH REGIONS
-ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
+ecoregs <- load(file="data_output/05a_bmi_final_dat_ecoreg.rda")
 
 # nhd streamlines
-load("data_output/03_selected_nhd_mainstems_gages.rda") # mainstems_all
+#load("data_output/03_selected_nhd_mainstems_gages.rda") # mainstems_all
 
 # get all functional flow metric data (percentiles, alt status, ffmetrics)
-load("data_output/02_usgs_all_ffm_data.rda")
+ffc_dat <- read_rds(file = url("https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_alteration.rds")) #%>% 
+
+#load("data_output/02_usgs_all_ffm_data.rda")
 
 # Set Basemaps ------------------------------------------------------------
 
@@ -131,15 +143,15 @@ bmi_csci_ffm_lag2 <- bmi_csci_ffm_lag2 %>% st_as_sf(coords=c("longitude","latitu
 bmi_csci_ffm_lag2_trim <- bmi_csci_ffm_lag2_trim %>% st_as_sf(coords=c("longitude","latitude"), crs=4326, remove=FALSE)
 
 # transform to match proj
-ca_sp_regions <- ca_sp_regions %>% st_transform(4326)
+ecoregs <- ecoregs %>% st_transform(4326)
 
 # join with regions and add huc_region, make sure both df are in 4326
-bmi_csci_ffm_ann <- st_join(bmi_csci_ffm_ann, left = TRUE, ca_sp_regions["huc_region"])
-bmi_csci_ffm_ann_trim <- st_join(bmi_csci_ffm_ann_trim, left = TRUE, ca_sp_regions["huc_region"])
-bmi_csci_ffm_lag1 <- st_join(bmi_csci_ffm_lag1, left = TRUE, ca_sp_regions["huc_region"])
-bmi_csci_ffm_lag1_trim <- st_join(bmi_csci_ffm_lag1_trim, left = TRUE, ca_sp_regions["huc_region"])
-bmi_csci_ffm_lag2 <- st_join(bmi_csci_ffm_lag2, left = TRUE, ca_sp_regions["huc_region"])
-bmi_csci_ffm_lag2_trim <- st_join(bmi_csci_ffm_lag2_trim, left = TRUE, ca_sp_regions["huc_region"])
+bmi_csci_ffm_ann <- st_join(bmi_csci_ffm_ann, left = TRUE, ecoregs["huc_region"])
+bmi_csci_ffm_ann_trim <- st_join(bmi_csci_ffm_ann_trim, left = TRUE, ecoregs["huc_region"])
+bmi_csci_ffm_lag1 <- st_join(bmi_csci_ffm_lag1, left = TRUE, ecoregs["huc_region"])
+bmi_csci_ffm_lag1_trim <- st_join(bmi_csci_ffm_lag1_trim, left = TRUE, ecoregs["huc_region"])
+bmi_csci_ffm_lag2 <- st_join(bmi_csci_ffm_lag2, left = TRUE, ecoregs["huc_region"])
+bmi_csci_ffm_lag2_trim <- st_join(bmi_csci_ffm_lag2_trim, left = TRUE, ecoregs["huc_region"])
 
 ## sites to add to central valley
 cvalley_add <- c("514FC1278", "514RCR001", "534DCC167")

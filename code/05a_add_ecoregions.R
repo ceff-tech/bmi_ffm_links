@@ -156,3 +156,5 @@ mapview(eco_revised, layer.name="Revised Ecoregs") + mapview(ecoregs, zcol="US_L
 bmi_final_dat_ecoreg <- st_join(bmi_sf, left = FALSE, eco_revised["US_L3_mod"])
 
 table(bmi_final_dat_ecoreg$US_L3_mod)
+
+save(bmi_final_dat_ecoreg, file="data_output/05a_bmi_final_dat_ecoreg.rda")
