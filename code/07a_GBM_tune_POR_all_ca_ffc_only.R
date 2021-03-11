@@ -6,9 +6,10 @@
 # Libraries ---------------------------------------------------------------
 
 library(purrr) # for working with lists/loops
-library(tidylog)
 library(glue)
-library(tidyverse) # all the things
+library(tidylog)
+#options(tidyverse.quiet = TRUE)
+library(tidyverse) # load quietly
 library(viridis) # colors
 library(sf) # spatial operations
 library(mapview) # web maps
@@ -16,6 +17,7 @@ library(gbm) # boosted regression trees
 library(rsample) # sampling
 library(rlang)
 library(dismo)
+library(tidylog)
 source("code/functions/My.gbm.step.R")
 
 set.seed(321) # reproducibility
@@ -23,7 +25,9 @@ set.seed(321) # reproducibility
 # 01. Load Data ---------------------------------------------------------------
 
 # load updated data:
-bmi_csci_por_trim <- read_rds("data_output/04_selected_csci_ffm_por_trim.rds")
+load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
+# rename for ease of use and drop sf
+bmi_csci_por_trim <- bmi_csci_por_trim_ecoreg %>% st_drop_geometry()
 
 # set background basemaps/default options:
 basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery",
@@ -33,45 +37,57 @@ basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery",
 mapviewOptions(homebutton = FALSE, 
                basemaps=basemapsList, 
                viewer.suppress = FALSE,
-               fgb = TRUE)
+               fgb = FALSE)
 
 # 02. Select BMI Response Variable for GBM ------------------------------
 
 # get metrics
+modname <- "all_ca_ffc_only"   # or "all_ca_ffc_only"
+Hregions <- c(modname) # set a region or regions
+
 bmi.metrics<-c("csci") # response var for model
 hydroDat <- "POR" # dataset, can be Annual, Lag1, Lag2, POR
 bmiVar <- quote(csci) # select response var from list above
 
 # 03. Setup POR Data for Model ----------------------------------------------------------------
 
+# summarize to look at distrib of -1,0,1
+table(bmi_csci_por_trim$status_code)
+summary(bmi_csci_por_trim$status_code)
+table(bmi_csci_por_trim$status)
+# filter out indeterminate and not_enough_data
+bmi_csci_por_filt <- bmi_csci_por_trim %>% 
+  filter(status_code %in% c(-1, 1)) # should drop 1336 + 152 rows
+
 # need to select and spread data: 
-data_por <- bmi_csci_por_trim %>% 
+data_por <- bmi_csci_por_filt %>% 
   dplyr::select(StationCode, SampleID, HUC_12, site_id, 
                 comid_ffc, COMID, CEFF_type,
                 YYYY, csci,
-                metric, status_code 
+                metric, status_code
                 ) %>% 
   # need to spread the metrics wide
   pivot_wider(names_from = metric, values_from = status_code) %>% 
   mutate(CEFF_type = as.factor(CEFF_type)) %>% 
   as.data.frame()
 
-# check how many NAs per col
+
+# check how many rows/cols: KEEP ALL FOR NOW
 dim(data_por)
 data_names <- names(data_por) # save colnames out
 
 # remove cols that have more than 70% NA
-data_por <- data_por[, which(colMeans(!is.na(data_por)) > 0.7)]
-dim(data_por)
+# data_por <- data_por[, which(colMeans(!is.na(data_por)) > 0.7)]
+# dim(data_por)
+# 
+# # find the cols that have been dropped
+# setdiff(data_names, names(data_por))
+# 
+# # remove rows that have more than 70% NA
+# data_por <- data_por[which(rowMeans(!is.na(data_por))>0.7),]
+# dim(data_por)
 
-# find the cols that have been dropped
-setdiff(data_names, names(data_por))
-
-# remove rows that have more than 70% NA
-data_por <- data_por[which(rowMeans(!is.na(data_por))>0.7),]
-dim(data_por)
-
-# 04. Split & TIDY Data -------------------------------------------------------------------
+# 04. RANDOMIZE AND TIDY Data ----------------------------------------------------
 
 # make sure data is randomized:
 random_index <- sample(1:nrow(data_por), nrow(data_por))
@@ -83,7 +99,7 @@ data_por_train <- data_por %>% # use all data
   dplyr::filter(!is.na({{bmiVar}})) %>% as.data.frame()
          
 # double check cols are what we want
-names(data_por_train)
+names(data_por_train) # should be 25 (CSCI + 24 metrics)
 
 # 05. GBM.STEP MODEL  ------------------------------------------------------------
 
