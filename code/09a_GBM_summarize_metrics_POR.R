@@ -14,13 +14,16 @@ library(purrr)
 # Load Data ---------------------------------------------------------------
 
 
-# load updated data w HUC_regions:
-bmi_por_trim <- read_rds("data_output/04_selected_csci_ffm_por_trim.rds")
+# load updated data w regions:
+load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
+# rename
+bmi_por_trim <- bmi_csci_por_trim_ecoreg
 
 # simple just sites:
-bmi_csci_sites <- bmi_por_trim %>% 
+bmi_csci_sites <- bmi_por_trim %>% st_drop_geometry() %>% 
   dplyr::distinct(StationCode, .keep_all = TRUE)
 
+# REGIONS
 ri_all_regions <- read_rds("models/08_gbm_csci_por_all_ca_ffc_only_RI_combined.rds")
 hydroDat <- "POR"
 plotname <- "All Site Pairs"  #"Central Valley" #"All Site Pairs"
@@ -160,10 +163,11 @@ ri_table %>%
 # Summary Plot ALL CA ------------------------------------------------------------
 
 # color palette 
-flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" = "#56B4E9",
-                          "Peak flow" = "#0072B2", "Spring recession flow" = "#009E73", 
-                          "Dry-season baseflow" = "#D55E00")
+# flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" = "#56B4E9",
+#                           "Peak flow" = "#0072B2", "Spring recession flow" = "#009E73", 
+#                           "Dry-season baseflow" = "#D55E00")
 
+# darker for peak flow
 flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" = "#56B4E9",
                           "Peak flow" = "#404788FF", "Spring recession flow" = "#009E73", 
                           "Dry-season baseflow" = "#D55E00")

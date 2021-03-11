@@ -5,8 +5,8 @@
 
 library(tidyverse)
 library(sf)
-library(leaflet)
-library(mapview)
+#library(leaflet)
+#library(mapview)
 library(viridis) # colors
 library(cowplot)
 library(gbm) # boosted regression trees
@@ -20,11 +20,13 @@ library(glue)
 #library(DALEX)
 #library(ingredients)
 
-# load updated data w HUC_regions:
-bmi_por_trim <- read_rds("data_output/04_selected_csci_ffm_por_trim.rds")
+# load updated data w regions:
+load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
+# rename
+bmi_por_trim <- bmi_csci_por_trim_ecoreg
 
 # simple just sites:
-bmi_csci_sites <- bmi_por_trim %>% 
+bmi_csci_sites <- bmi_por_trim %>% st_drop_geometry() %>% 
   dplyr::distinct(StationCode, .keep_all = TRUE)
 
 # Load Data --------------------------------------------------------------------
@@ -191,11 +193,26 @@ ggsave(filename=tolower(paste0("models/", mod_savename, "_top_RI_permtest.png"))
 
 ## Plot Side by Side -------------------------------------------------------
 
-#library(cowplot)
+# plot w/out legend
+(fin_ri_top_noleg <- gbm_fin_RI %>% 
+   arrange(desc(RI)) %>% 
+   filter(flow_component!="General", RI>5) %>% 
+   ggplot(.) +
+   geom_col(aes(x=reorder(var, RI),
+                y=RI, fill=flow_component), color="gray20", lwd=.1,
+            position="dodge", show.legend = FALSE) +
+   coord_flip() +
+   geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
+   ylim(c(0,30))+
+   scale_fill_viridis_d("Flow Component")+
+   labs(title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Top Metrics: ", modname),
+        x="", y="Relative Influence (%)", subtitle="MSE Criterion") +
+   theme_classic(base_family = "Roboto Condensed")) 
 
-#(pg1 <- plot_grid(fin_ri_top, fin_pt_top, align = "h", labels=c("A","B")))
+
+(pg1 <- plot_grid(fin_ri_top_noleg, fin_pt_top, rel_widths = c(0.7, 1), align = "h", labels=c("A","B")))
  
-# cowplot::save_plot(pg1, filename = tolower(paste0("models/08_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_both", ".png")), base_width = 11, units = "in", dpi = 300)
+cowplot::save_plot(pg1, filename = tolower(paste0("models/08_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_both", ".png")), base_width = 8, units = "in", dpi = 300)
 
 
 # 03. COMBINE RIs AND SAVE -----------------------------------------------------
@@ -236,7 +253,7 @@ library(pdp)
 
 # When the curves have a wide range of intercepts and are consequently “stacked” on each other, heterogeneity in the response variable values due to marginal changes in the predictor variable of interest can be difficult to discern, thus centering can help
 
-varNo <- 3 # single number makes single plot
+varNo <- 1 # single number makes single plot
 
 # RI
 (ice_ri <- gbm_final %>%
