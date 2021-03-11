@@ -1,4 +1,4 @@
-
+# CREATE REVISED ECOREGIONS
 
 # Libraries ---------------------------------------------------------------
 
@@ -14,9 +14,9 @@ mapviewOptions(fgb = FALSE)
 
 ca <- USAboundaries::us_states(states="california")
 
-
 # Sites -------------------------------------------------------------------
 
+# all data: don't really need this
 load("data_output/02c_selected_final_bmi_dat_all.rda")
 
 # Get Ecoregions ----------------------------------------------------------
@@ -150,11 +150,3 @@ mapview(eco_revised, layer.name="Revised Ecoregs") + mapview(ecoregs, zcol="US_L
 # # simplify to avoid giant file
 # h12s <- rmapshaper::ms_simplify(h12, keep = .1)
 # pryr::object_size()
-
-# Get Ecoregs to BMI data -------------------------------------------------
-
-bmi_final_dat_ecoreg <- st_join(bmi_sf, left = FALSE, eco_revised["US_L3_mod"])
-
-table(bmi_final_dat_ecoreg$US_L3_mod)
-
-save(bmi_final_dat_ecoreg, file="data_output/05a_bmi_final_dat_ecoreg.rda")

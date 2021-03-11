@@ -132,5 +132,5 @@ ggsave(filename = "figs/04_csci_scores_by_ffc_alteration_status.png", height = 8
 
 # Export Joined POR Data ---------------------------------------------
 
-# save the bmi_csci_por data
+# save the bmi_csci_por_trim data
 write_rds(bmi_csci_por_trim, file = "data_output/04_selected_csci_ffm_por_trim.rds")

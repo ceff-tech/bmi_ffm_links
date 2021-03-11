@@ -53,6 +53,8 @@ mapviewOptions(basemaps=basemapsList)
 
 # Make ANNUAL Dataset -----------------------------------------------------
 
+## CAN ONLY USE RAW FFM DATA WITH ANNUAL BECAUSE ALTERATION STATUS IS CALCULATED BASED ON PERCENTILES NOT ON SINGLE YEARS
+
 #g_all_ffc %>% group_by(gage_id, Year) %>% distinct() %>% dim()
 
 # get raw functional flow metrics (for every year)
