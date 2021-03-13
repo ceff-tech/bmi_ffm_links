@@ -29,6 +29,9 @@ load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
 # rename for ease of use and drop sf
 bmi_csci_por_trim <- bmi_csci_por_trim_ecoreg %>% st_drop_geometry()
 
+# ecoregions:
+unique(bmi_csci_por_trim_ecoreg$US_L3_mod)
+
 # set background basemaps/default options:
 basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery",
                   "OpenTopoMap", "OpenStreetMap", 

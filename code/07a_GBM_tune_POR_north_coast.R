@@ -21,19 +21,17 @@ set.seed(321) # reproducibility
 
 # 01. Load Data ---------------------------------------------------------------
 
-## If already run Step 01a, comment out these next 3 lines and start at mainstem rivers, and skip 01a
+# load updated data:
+load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
 
-# trimmed (May-Sept) data, and sf layers w geoms for bmi and usgs
-# load("data_output/05_selected_bmi_csci_por_and_sf.rda")
+# rename for ease of use and drop sf
+bmi_csci_por_trim <- bmi_csci_por_trim_ecoreg %>% st_drop_geometry()
+
+# ecoregions:
+unique(bmi_csci_por_trim_ecoreg$US_L3_mod)
 
 # mainstem rivers
-load("data_output/03_selected_nhd_mainstems_gages.rda") # mainstems_all
-
-# ca regions
-ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T) %>% st_transform(4326)
-
-# load updated data w HUC_regions:
-load("data_output/07_selected_bmi_csci_por_trim_w_huc_region.rda")
+load("data_output/02b_sel_gage_mainstems_all.rda") # mainstems_all
 
 # set background basemaps/default options:
 basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap",
@@ -41,86 +39,25 @@ basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery","Esri.NatGeoWorldMap"
                   "CartoDB.Positron", "Stamen.TopOSMFeatures")
 mapviewOptions(homebutton = FALSE, basemaps=basemapsList, viewer.suppress = FALSE)
 
-# 01a. Add Regions --------------------------------------------------
-
-# check crs:
-# st_crs(bmi_csci_por_trim)
-# st_crs(ca_sp_regions)
-
-# join with regions and add huc_region, make sure both df are in 4326
-# bmi_csci_por_trim <- st_join(bmi_csci_por_trim, left = TRUE, ca_sp_regions["huc_region"])
-
-# make a simpler layer for just editing:
-# bmi_csci_sites <- bmi_csci_por_trim %>% 
-#   dplyr::distinct(StationCode, ID, .keep_all = TRUE)
-# length(unique(bmi_csci_sites$StationCode))
-
-# view and update w mapedit
-# mapview(bmi_csci_sites, col.regions="orange") + mapview(ca_sp_regions)
-
-# library(mapedit)
-# library(leafpm)
-# library(leaflet)
-# 
-# # use this to select features (returns a list of stationcodes)
-# selectMap(
-#   leaflet() %>%
-#     addTiles() %>%
-#     addPolygons(data=ca_sp_regions, layerId = ~huc_region, color = "orange") %>%
-#     addCircleMarkers(data = bmi_csci_sites, layerId = ~StationCode)
-#   )
-
-## sites to add to central valley
-# cvalley_add <- c("514FC1278", "514RCR001", "534DCC167")
-
-## sites to add to great_basin
-# gbasin_add <- c("603MAM004", "630PS0005")
-
-## sites to add to southcoast
-# scoast_add <- c("628PS1307","628PS1179","719MISSCK","719TRMDSS","719FCA001")
-
-# Amargosa site is "609PS0053" = mojave?
-
-# so 294 NA's
-# summary(as.factor(bmi_csci_por_trim$huc_region))
-
-# use case_when to replace
-# bmi_csci_por_trim <- bmi_csci_por_trim %>% 
-#   mutate(huc_region = case_when(
-#     StationCode %in% cvalley_add ~ "central_valley",
-#     StationCode %in% gbasin_add ~ "great_basin",
-#     StationCode %in% scoast_add ~ "south_coast",
-#     TRUE ~ huc_region))
-# 
-# summary(as.factor(bmi_csci_por_trim$huc_region))
-# table(bmi_csci_por_trim$huc_region)
-# 
-# # map and double check:
-# mapview(bmi_csci_por_trim, zcol="huc_region", layer.name="Selected Sites", viewer.suppress=FALSE) +
-#   mapview(ca_sp_regions, zcol="huc_region", layer.name="HUC Regions", alpha.regions=0.1)
-# 
-# # save back out for later
-# save(bmi_csci_por_trim, file = "data_output/07_selected_bmi_csci_por_trim_w_huc_region.rda")
-
 
 # 02. Select a Region ---------------------------------------------------------
 
 # make a simpler layer for mapping
 bmi_csci_sites <- bmi_csci_por_trim %>% 
-  dplyr::distinct(StationCode, ID, .keep_all = TRUE)
+  dplyr::distinct(StationCode, .keep_all = TRUE)
+table(bmi_csci_sites$US_L3_mod) # list of unique stations
+
+(ecoregs <- unique(bmi_csci_por_trim_ecoreg$US_L3_mod))
 
 # if selecting by a specific region use region select
-# list regions ("central_valley", "great_basin", "north_coast", "south_coast")
-table(bmi_csci_sites$huc_region)
-
-modname <- "north_coast"   # or "all_ca_ffc_only"
-Hregions <- c(modname) # set a region or regions
+table(bmi_csci_por_trim$US_L3_mod)
+modname <- "north_coast"   # "North Coast" 
+(Hregions <- c(ecoregs[1])) # set a region or regions
 
 # now filter data to region(s) of interest
-region_sel <- bmi_csci_por_trim %>% filter(huc_region %in% Hregions)
+region_sel <- bmi_csci_por_trim_ecoreg %>% filter(US_L3_mod %in% Hregions)
 
-# double check w map
-mapview(region_sel, zcol="huc_region", viewer.suppress=FALSE)
+mapview(region_sel, zcol="US_L3_mod")
 
 # 03. Select BMI Response Variable for GBM ------------------------------
 
@@ -131,31 +68,45 @@ bmiVar <- quote(csci) # select response var from list above
 
 # 04. Setup POR Data for Model ----------------------------------------------------------------
 
+# filter out indeterminate and not_enough_data
+data_por <- region_sel %>% st_drop_geometry() #%>% 
+  #filter(status_code %in% c(-1, 1))
+
 # need to select and spread data: 
-data_por <- region_sel %>% st_drop_geometry() %>% 
-  dplyr::select(StationCode, SampleID, HUC_12, ID, comid_ffc, comid_bmi,
-                YMD, YYYY, csci, huc_region, CEFF_type,
-                metric, status_code 
-                ) %>% 
+data_por <- data_por %>% 
+  dplyr::select(StationCode, SampleID, HUC_12, site_id, 
+                comid_ffc, COMID, CEFF_type,
+                YYYY, csci,
+                metric, status_code
+  ) %>% 
   # need to spread the metrics wide
   pivot_wider(names_from = metric, values_from = status_code) %>% 
-  mutate(huc_region = as.factor(huc_region),
-         CEFF_type = as.factor(CEFF_type)) %>% 
+  mutate(CEFF_type = as.factor(CEFF_type)) %>% 
   as.data.frame()
 
-# check how many NAs per col
-dim(data_por)
-data_names <- names(data_por)
+# check how many rows/cols: KEEP ALL FOR NOW
+library(naniar)
+gg_miss_var(data_por)
+
+# show how many missing combos:
+library(VIM)
+summary(aggr(data_por, sortVar=TRUE))$combinations
+
+# dim(data_por)
+data_names <- names(data_por) # save colnames out
 
 # remove cols that have more than 70% NA
-data_por <- data_por[, which(colMeans(!is.na(data_por)) > 0.7)]
-dim(data_por)
+#dim(data_por) # before
+#dim(data_por[, which(colMeans(!is.na(data_por)) > 0.7)]) # after
+#data_por <- data_por[, which(colMeans(!is.na(data_por)) > 0.7)]
 
 # find the cols that have been dropped
-setdiff(data_names, names(data_por))
-
-# LOTS OF SITES W OVER 70% missing data (NA)
-# just "SP_Dur"
+#setdiff(data_names, names(data_por))
+ 
+# remove rows that have more than 70% NA
+dim(data_por)
+dim(data_por[which(rowMeans(!is.na(data_por))>0.7),])
+data_por <- data_por[which(rowMeans(!is.na(data_por))>0.7),]
 
 # 05. Split Train/Test Data -------------------------------------------------------------------
 
@@ -163,30 +114,24 @@ setdiff(data_names, names(data_por))
 random_index <- sample(1:nrow(data_por), nrow(data_por))
 data_por <- data_por[random_index, ]
 
-## Split data and specify train vs. test using rsample
-data_por_split <- initial_split(data_por, prop = .9)
-
-# make training dataset
-#data_por_train <- training(data_por_split) %>% 
+## USE ALL DATA
 data_por_train <- data_por %>% # use all data
-  dplyr::select({{bmiVar}}, 12:ncol(.)) %>%  # use 12 if not including HUC region and CEFF_type
+  dplyr::select({{bmiVar}}, 10:ncol(.)) %>%  # use 12 if not including HUC region and CEFF_type
   dplyr::filter(!is.na({{bmiVar}})) %>% as.data.frame()
-         
-# make testing set
-data_por_test <- testing(data_por_split) %>% 
-  dplyr::select({{bmiVar}}, 12:ncol(.)) %>% 
-  filter(!is.na({{bmiVar}})) %>% as.data.frame()
 
 # double check cols are what we want
 names(data_por_train)
+
+# replace all NAs with zero?
+#data_por_train[is.na(data_por_train)] <- 0
 
 # 06. GBM.STEP MODEL  ------------------------------------------------------------
 
 # set up tuning params
 hyper_grid <- expand.grid(
-  shrinkage = c(0.001, 0.002), 
-  interaction.depth = c(3, 5),  
-  n.minobsinnode = c(3, 5), 
+  shrinkage = c(0.001, 0.003, 0.005), 
+  interaction.depth = c(5), 
+  n.minobsinnode = c(3, 5, 10), 
   bag.fraction = c(0.75, 0.8) 
 )
 
@@ -202,33 +147,35 @@ gbm_fit_step <- function(
     gbm.x = 2:ncol(data), # hydro dat
     family = "gaussian",
     data = data,
+    n.trees = 100,
     #max.trees = 8000, # can specify but don't for now
     learning.rate = shrinkage,
     tree.complexity = interaction.depth,
     n.minobsinnode = n.minobsinnode,
     bag.fraction = bag.fraction,
     plot.main = FALSE,
-    verbose = FALSE
-  )
+    verbose = FALSE)
   
   # Compute the Deviance Explained: (total dev - cv dev) / total dev
-  (m_step$self.statistics$mean.null - m_step$cv.statistics$deviance.mean) /
-    m_step$self.statistics$mean.null
+  val <- if(!is.null(m_step$self.statistics$mean.null)){
+    (m_step$self.statistics$mean.null - m_step$cv.statistics$deviance.mean) / m_step$self.statistics$mean.null}
+  else(NA_real_)
   
+  return(val)
 }
 
 # 07. RUN GBM.STEP WITH PURRR ---------------------------------------------
+# possibly(.f = gbm_fit_step, otherwise = NA_real_)
 
 # use PURRR: this part can take awhile...get some coffee
-hyper_grid$dev_explained <-purrr::pmap_dbl(
+hyper_grid$dev_explained <- purrr::pmap_dbl(
   hyper_grid,
   ~ gbm_fit_step(
     shrinkage = ..1,
     interaction.depth = ..2,
     n.minobsinnode = ..3,
     bag.fraction = ..4,
-    data = data_por_train) # CHECK AND CHANGE!!
-)
+    data = data_por_train))
 
 # 08. VIEW AND SAVE MODEL RESULTS -----------------------------------------
 
@@ -254,7 +201,7 @@ if(fs::file_exists(path = paste0(gbm_file,".csv"))){
 }
 
 # save out
-write_csv(hyper_grid, path = paste0(gbm_file,".csv"), append = TRUE)
+write_csv(hyper_grid, file = paste0(gbm_file,".csv"), append = TRUE)
 
 # read in
 hyper_grid <- readr::read_csv(file = paste0(gbm_file,".csv"), col_names = c("shrinkage", "interaction.depth", "n.minobsinnode", "bag.fraction", "dev_explained"))
@@ -316,7 +263,7 @@ cat("\nBest parameters for GBM.STEP:\n\n",
     file = gbm_best_file, append=TRUE)
 
 # add the parameters used to run the model
-write_tsv(hyper_best, path = gbm_best_file,
+write_tsv(hyper_best, file = gbm_best_file,
           col_names = TRUE, append=TRUE)
 
 # % percent explained
@@ -331,7 +278,7 @@ assign(x = tolower(paste0("gbm_final_", as_name(bmiVar),"_",hydroDat, "_",modnam
 (fileToSave <- ls(pattern = paste0("gbm_final_", tolower(as_name(bmiVar)))))
 
 # save to RDS
-write_rds(x = get(fileToSave), path = paste0("models/07_",fileToSave, "_model.rds"), compress = "gz")
+write_rds(x = get(fileToSave), file = paste0("models/07_",fileToSave, "_model.rds"), compress = "gz")
 
 # Save all the datasets used in the model:
 save(list = ls(pattern="data_"), file = tolower(paste0("models/07_",fileToSave,"_model_data.rda")))

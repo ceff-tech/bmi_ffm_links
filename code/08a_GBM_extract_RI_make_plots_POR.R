@@ -25,6 +25,7 @@ load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
 # rename
 bmi_por_trim <- bmi_csci_por_trim_ecoreg
 
+
 # simple just sites:
 bmi_csci_sites <- bmi_por_trim %>% st_drop_geometry() %>% 
   dplyr::distinct(StationCode, .keep_all = TRUE)
@@ -33,11 +34,12 @@ bmi_csci_sites <- bmi_por_trim %>% st_drop_geometry() %>%
 
 ## VARIABLES:
 # "all_ca_ffc_only"
-# "central_valley", "great_basin", "north_coast", "south_coast", 
+# "cent_coast", "north_coast", "sierras", "so_cal" 
+unique(bmi_csci_por_trim_ecoreg$US_L3_mod)
 
-hydroDat <- "POR" # can be Annual, Lag1, Lag2, POR
-modname <- "all_ca_ffc_only" # model name 
-plotname <- "All Site Pairs"  #"Central Valley" #"All Site Pairs"
+hydroDat <- "POR"
+modname <- "so_cal" # model name 
+plotname <- "Southern California"  #"All Site Pairs"
 bmiVar <- quote(csci) # select response var
 
 # make pathnames
