@@ -17,7 +17,7 @@ library(tmaptools)
 # Load Data ---------------------------------------------------------------
 
 # FISH REGIONS
-ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
+#ca_sp_regions <- read_sf("data/spatial/umbrella_sp_regions.shp", as_tibble = T)
 
 # Selected Sites: with BMI data
 load("data_output/02c_selected_final_bmi_dat_all.rda")
