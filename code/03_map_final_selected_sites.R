@@ -31,8 +31,9 @@ mainstems_distinct <- mainstems_all %>%
 # get ecoregions
 eco_revised <- read_rds("data/spatial/ecoregions_combined_L3.rds")
 
-# asci data: https://github.com/ksirving/asci_ffm_2019/tree/master/output_data
-asci <- read_rds("data_output/02c_selected_final_algae_asci_dat.rds")
+#load(url("https://github.com/ksirving/asci_ffm_2019/blob/master/output_data/05_algae_asci_por_trim_ecoreg.rda?raw=true")) 
+#write_rds(algae_asci_por_trim_ecoreg, file = "data_output/03_algae_asci_por_trim_ecoreg.rds")
+asci <- read_rds("data_output/03_algae_asci_por_trim_ecoreg.rds")
 load("data_output/01a_algae_stations_distinct.rdata") # algae_stations_distinct
 asci_all <- algae_stations_distinct
 
@@ -74,7 +75,7 @@ m3@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
 #mapshot(m3, url = paste0(here::here(),"/figs/03_map_of_final_bmi_csci_sites.html"))
 
 
-# TMAP MAPS ---------------------------------------------------------------
+# TMAP Ecoregions  ---------------------------------------------------------------
 
 library(tmap)
 library(USAboundaries)
@@ -107,7 +108,7 @@ rivs_ca <- st_intersection(rivs, ca) %>%
 tmap::tmap_save(tm = map_ecoca, 
                 filename = "figs/03_tmap_ecoregions_revised.png", width = 8, height = 11, units = "in", dpi = 300)
 
-# BMI stations TMAP --------------------------------------------------------------
+# TMAP CSCI stations ---------------------------------------------------------
 
 # get ALL bug data (distinct stations)      
 load("data_output/01_bmi_stations_distinct.rda")
@@ -131,13 +132,67 @@ load("data_output/01_bmi_stations_distinct.rda")
 
 # FIRST TRYPTYCH
 tmap::tmap_save(tm = map_bmi, 
-                filename = "figs/03_tmap_bio_sites_all.png", width = 8, height = 11, units = "in", dpi = 300)  
+                filename = "figs/03_tmap_csci_sites_all.png", width = 8, height = 11, units = "in", dpi = 300)  
 
+# TMAP ASCI stations ---------------------------------------------------------
 
-# ASCI stations TMAP ------------------------------------------------------
+# make algae sf
+algae_distinct <- algae_stations_distinct %>% 
+  filter(!is.na(Latitude)) %>% 
+  st_as_sf(coords=c("Longitude","Latitude"), remove=FALSE, crs=4326)
 
 # make a tmap
 (map_asci <- map_ca +
+    tm_shape(algae_distinct) +
+    tm_dots(col = "red2", shape = 21, size = 0.1, alpha=0.8, border.alpha=0.9) + 
+    tm_compass(type = "arrow", size = 2,
+               position = c(0.1,0.18)) +
+    #position = c(0.15, 0.2)) +
+    tm_scale_bar(breaks = c(0, 100, 200), 
+                 text.size = 0.6,
+                 position = c(0.12, 0.1)) +
+    tm_layout(title = glue("Sampling Locations\n (ASCI: n={nrow(algae_stations_distinct)})"), 
+              legend.show = FALSE, frame = FALSE, title.size = 0.8,
+              legend.outside = FALSE, attr.outside = FALSE,
+              inner.margins = 0.01, outer.margins = (0.01),
+              fontfamily = "Roboto Condensed", title.position = c(0.65, 0.7)))
+
+
+# FIRST TRYPTYCH
+tmap::tmap_save(tm = map_asci, 
+                filename = "figs/03_tmap_asci_sites_all.png", width = 8, height = 11, units = "in", dpi = 300)  
+
+# TMAP ASCI and CSCI distinct stations ---------------------------------------
+
+
+# make a tmap
+(map_bioall <- map_ca +
+   tm_shape(algae_distinct) +
+   tm_dots(col = "red2", shape = 21, size=0.2, alpha=0.9, border.alpha=0.3, legend.show = TRUE) + 
+   tm_shape(bmi_stations_distinct) +
+   tm_dots(col="#FDE725FF", shape=21, size=0.2, alpha=0.6, border.alpha=0.3, legend.show = TRUE) +
+   tm_compass(type = "arrow", size = 2,
+              position = c(0.1,0.18)) +
+   #position = c(0.15, 0.2)) +
+   tm_scale_bar(breaks = c(0, 100, 200), 
+                text.size = 0.6,
+                position = c(0.12, 0.1)) +
+   tm_layout(title = glue("Sampling Locations\n (ASCI: n={nrow(algae_stations_distinct)}\n  CSCI: n={nrow(bmi_stations_distinct)})"), 
+             legend.show = FALSE, frame = FALSE, title.size = 0.8,
+             legend.outside = FALSE, attr.outside = FALSE,
+             inner.margins = 0.01, outer.margins = (0.01),
+             fontfamily = "Roboto Condensed", title.position = c(0.65, 0.7)))
+
+
+# FIRST TRYPTYCH
+tmap::tmap_save(tm = map_bioall, 
+                filename = "figs/03_tmap_all_bio_sites.png", width = 8, height = 11, units = "in", dpi = 300)  
+
+
+# TMAP Selected ASCI-CSCI stations --------------------------------------------------------
+
+# make a tmap
+(map_bioselect <- map_ca +
    # tm_shape(gages_selected_v2) +
    # tm_dots(col="cyan3", shape=21, size=0.4, alpha=1) +
    tm_shape(asci) +
@@ -156,8 +211,8 @@ tmap::tmap_save(tm = map_bmi,
              fontfamily = "Roboto Condensed", title.position = c(0.65, 0.7)))
 
 
-# ASCI
-tmap::tmap_save(tm = map_bmi, 
+# Selected
+tmap::tmap_save(tm = map_bioselect, 
                 filename = "figs/03_tmap_selected_bio_sites_combined.png", width = 8, height = 11, units = "in", dpi = 300)  
 
 
@@ -209,11 +264,11 @@ tmap::tmap_save(tm=map_final_sites, filename = "figs/03_tmap_selected_paired_sit
 
 # Put them all together ---------------------------------------------------
 
-final_triptych<-tmap::tmap_arrange(map_bmi, map_usgs, map_final_sites, ncol = 3, outer.margins = 0.001)
+final_triptych<-tmap::tmap_arrange(map_bioall, map_usgs, map_bioselect, ncol = 3, outer.margins = 0.001)
 print(final_triptych)
 
 tmap::tmap_save(tm = final_triptych, 
-                filename = "figs/03_tmap_triptych_bmi_usgs_selected.png", width = 11, height = 7, units = "in", dpi = 300)  
+                filename = "figs/03_tmap_triptych_biosel_usgs.png", width = 11, height = 7, units = "in", dpi = 300)  
 
 
 # TMAP PALETTE EXPLORER ---------------------------------------------------
