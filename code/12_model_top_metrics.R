@@ -1,4 +1,4 @@
-# 10_model_top_metrics
+# 12_glm_model_top_metrics
 
 library(tidyverse)
 library(viridis)
@@ -12,14 +12,10 @@ library(cowplot)
 # Load Data ---------------------------------------------------------------
 
 # load updated data w HUC_regions:
-load("data_output/05_selected_bmi_csci_por_trim_w_huc_region.rda")
-load("data_output/05_selected_bmi_csci_por_w_huc_region.rda")
-load("models/09_all_ri_all_regions_csci.rda")
+load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
 
-# simple just samples:
-bmi_sampleid <- bmi_csci_por_trim %>% st_drop_geometry() %>% 
-  dplyr::distinct(SampleID, .keep_all = TRUE) %>% 
-  select(StationCode:csci, gage_id_c:median_in_iqr, huc_region)
+load("models/10_csci_asci_ri_por_trim_all_regions.rda")
+load("data_output/11_csci_ffm_ann_trim.rda")
 
 # get names
 library(readxl)

@@ -22,74 +22,87 @@ library(tidylog)
 
 # BMI data:
 load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
+# rename
+bmi_csci_por_sf <- bmi_csci_por_trim_ecoreg
 
 # rename for ease of use and drop sf
-bmi_csci_por_trim <- bmi_csci_por_trim_ecoreg %>% st_drop_geometry()
+bmi_csci_por <- bmi_csci_por_sf %>% st_drop_geometry()
 
-# REVISED ECO REGIONS: csci data w ecoregions (see 05b)
-# just ecoregions:
-# eco_revised <- read_rds("data/spatial/ecoregions_combined_L3.rds")
-#bmi_csci_por_trim_ecoreg: all trimmed CSCI data with ecoregions
-load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
-ecoregs_bmi_stations <- bmi_csci_por_trim_ecoreg %>% select(StationCode, US_L3_mod, geometry) %>% distinct(.keep_all=TRUE)
-mapview(ecoregs_bmi_stations, zcol="US_L3_mod")
+# rm
+rm(bmi_csci_por_trim_ecoreg)
 
+# get just stations
+ecoregs_bmi_stations <- bmi_csci_por_sf %>% select(StationCode, US_L3_mod, geometry) %>% distinct(.keep_all=TRUE)
+#mapview(ecoregs_bmi_stations, zcol="US_L3_mod")
 
 # get Functional Flow Metric data 
-#ffc_dat <- read_rds(file = url("https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_alteration.rds"))
-ffm_dat <- read_rds <- read_rds("data_output/usgs_combined_ffc_results_long.rds")
+# see here: https://github.com/ryanpeek/ffm_comparison/output/ffc_combined
+ffm_dat <- read_rds("data_output/usgs_combined_ffc_results_long.rds")
 
 # Make ANNUAL Dataset -----------------------------------------------------
 
 ## CAN ONLY USE RAW FFM DATA WITH ANNUAL BECAUSE ALTERATION STATUS IS CALCULATED BASED ON PERCENTILES NOT ON SINGLE YEARS
 
 # See number of BMI years by station-pair:
-csci_ecoreg <- bmi_csci_por_trim_ecoreg %>% st_drop_geometry() %>% 
+csci_ecoreg <- bmi_csci_por %>% 
   select(StationCode, US_L3_mod, site_id:lon, date_begin:sampledate, comid_ffc) %>% 
   group_by(SampleID, site_id, YYYY) %>% tally() # n=714 pair years
 
 # what about number of years?
-bmi_csci_por_trim_ecoreg %>% st_drop_geometry() %>% 
+bmi_csci_por %>% 
   select(StationCode, US_L3_mod, site_id:lon, date_begin:sampledate, comid_ffc) %>% 
-  group_by(StationCode, site_id) %>% distinct(YYYY, .keep_all=TRUE) %>% tally() %>% 
-  arrange(desc(n)) %>% filter(n>1) %>%  View() 
+  group_by(StationCode, site_id) %>% 
+  distinct(YYYY, .keep_all=TRUE) %>% 
+  tally() %>% 
+  arrange(desc(n)) %>% 
+  filter(n>1) #%>%  View() 
  # n=431 pairs with at least one unique year, 95 with >1 year of data
 
-# untrimmed = 349
-
 # join for annual data by GAGE ID, and BMI Sample YEAR = USGS Year
-csci_ffm_ann <- bmi_csci_por_trim_ecoreg %>% st_drop_geometry() %>% 
-  select(StationCode, US_L3_mod, latitude:HUC_12, site_id, station_nm, lat, lon, date_begin:sampledate, date_begin:sampledate) %>% 
-  left_join(., ffm_dat, by=c("site_id"="gageid", "YYYY"="year"))
+csci_ffm_ann <- bmi_csci_por %>% 
+  select(StationCode, SampleID, US_L3_mod, HUC_12, site_id:comid_gage, -c(site_tp_cd, coord_acy_cd, datum, elev_m, alt_acy_va, alt_datum_cd, huc8, interval, parm_cd, stat_cd, ts_id, count_nu), sampledate, YYYY, MM, DD, csci:COMID) %>% 
+  # drop duplication
+  distinct(StationCode, SampleID, YYYY, site_id, .keep_all=TRUE) %>% 
+  left_join(., ffm_dat, by=c("site_id"="gageid", "YYYY"="year")) %>% 
+  # drop cols and get distinct records
+  select(-ffc_version)
+# n=9631 rows
 
+# calc records by SampleID (how many mult years)
+csci_ffm_ann %>% select(SampleID, site_id, YYYY) %>% 
+  distinct(.keep_all=TRUE) %>% 
+  group_by(SampleID) %>% 
+  tally() %>% 
+  arrange(desc(n)) %>% 
+  filter(n>1)
 
 # Make LAGGED Dataset -----------------------------------------------------
 
-# years -1  -2
-lag_yrs_1 <- unique(csci_ffm_ann$YYYY) - 1
-lag_yrs_2 <- unique(csci_ffm_ann$YYYY) - 2
-
-# make lag data
-ffm_lag1 <- ffm_dat %>% filter(year %in% lag_yrs_1) %>% 
-  mutate(year_flow = year-1) # add for labeling purposes
-ffm_lag2 <- ffm_dat %>% filter(year %in% lag_yrs_2) %>% 
-  mutate(year_flow = year-2) # add for labeling purposes
-
-# rejoin LAG1
-csci_ffm_lag1 <- bmi_csci_por_trim_ecoreg %>% st_drop_geometry() %>% 
-  select(StationCode, US_L3_mod, latitude:HUC_12, site_id, station_nm, lat, lon, date_begin:sampledate, date_begin:sampledate) %>%
-  left_join(., ffm_lag1, by=c("site_id"="gageid", "YYYY"="year"))
-
-# rejoin LAG2
-csci_ffm_lag2 <- bmi_csci_por_trim_ecoreg %>% st_drop_geometry() %>% 
-  select(StationCode, US_L3_mod, latitude:HUC_12, site_id, station_nm, lat, lon, date_begin:sampledate, date_begin:sampledate) %>%
-  left_join(., ffm_lag2, by=c("site_id"="gageid", "YYYY"="year"))
+# # years -1  -2
+# lag_yrs_1 <- unique(csci_ffm_ann$YYYY) - 1
+# lag_yrs_2 <- unique(csci_ffm_ann$YYYY) - 2
+# 
+# # make lag data
+# ffm_lag1 <- ffm_dat %>% filter(year %in% lag_yrs_1) %>% 
+#   mutate(year_flow = year-1) # add for labeling purposes
+# ffm_lag2 <- ffm_dat %>% filter(year %in% lag_yrs_2) %>% 
+#   mutate(year_flow = year-2) # add for labeling purposes
+# 
+# # rejoin LAG1
+# csci_ffm_lag1 <- bmi_csci_por_sf %>% st_drop_geometry() %>% 
+#   select(StationCode, US_L3_mod, latitude:HUC_12, site_id, station_nm, lat, lon, date_begin:sampledate, date_begin:sampledate) %>%
+#   left_join(., ffm_lag1, by=c("site_id"="gageid", "YYYY"="year"))
+# 
+# # rejoin LAG2
+# csci_ffm_lag2 <- bmi_csci_por_sf %>% st_drop_geometry() %>% 
+#   select(StationCode, US_L3_mod, latitude:HUC_12, site_id, station_nm, lat, lon, date_begin:sampledate, date_begin:sampledate) %>%
+#   left_join(., ffm_lag2, by=c("site_id"="gageid", "YYYY"="year"))
 
 # SAVE OUT ----------------------------------------------------------------
 
 save(csci_ffm_ann, file="data_output/11_csci_ffm_ann_trim.rda")
-save(csci_ffm_lag1, file="data_output/11_csci_ffm_lag1_trim.rda")
-save(csci_ffm_lag2, file="data_output/11_csci_ffm_lag2_trim.rda")
+#save(csci_ffm_lag1, file="data_output/11_csci_ffm_lag1_trim.rda")
+#save(csci_ffm_lag2, file="data_output/11_csci_ffm_lag2_trim.rda")
 
 # zz: Calc Bug Metrics --------------------------------------------------------
 
