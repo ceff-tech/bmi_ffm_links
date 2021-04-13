@@ -1,8 +1,12 @@
 # 12_glm_model_top_metrics
 
+
+# Libraries ---------------------------------------------------------------
+
 library(tidyverse)
 library(viridis)
 library(sf)
+library(glue)
 library(purrr)
 library(rlang)
 library(ggthemes)
@@ -13,16 +17,32 @@ library(cowplot)
 
 # load updated data w HUC_regions:
 load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
-
 load("models/10_csci_asci_ri_por_trim_all_regions.rda")
+
+# add specific ASCI vs CSCI col
+asci_ri_all <- asci_ri_all %>% mutate(index="ASCI")
+csci_ri_all <- csci_ri_all %>% mutate(index="CSCI")
+
+# combine
+ri_all <- bind_rows(asci_ri_all, csci_ri_all) %>% 
+  # replace all H_ASCI.x with "asci"
+  mutate(Ymetric = case_when(
+    grepl("H_ASCI.x", Ymetric) ~ "asci",
+    TRUE ~ Ymetric
+  ))
+
+# get annual data
 load("data_output/11_csci_ffm_ann_trim.rda")
 
 # get names
 library(readxl)
 ff_defs <- readxl::read_xlsx("docs/Functional_Flow_Metrics_List_and_Definitions_final.xlsx", range = "A1:F25", .name_repair = "universal", trim_ws = TRUE) 
 
+
+# Tidy RI Data ---------------------------------------------------------------
+
 # join with the full RI table
-ri_table <- left_join(ri_all_regions, ff_defs, by=c("var"="Flow.Metric.Code"))
+ri_table <- left_join(ri_all, ff_defs, by=c("var"="Flow.Metric.Code"))
 
 # drop unused factors in flow component:
 ri_table <- ri_table %>% 
@@ -35,43 +55,42 @@ ri_table <- ri_table %>%
          Flow.Metric.Name = forcats::fct_reorder2(Flow.Metric.Name, model, RI))
 
 
-# SET UP NAMES --------------------------------------------------------------------
 
-## VARIABLES:
-# "all_ca_ffc_only"
-# "central_valley", "great_basin", "north_coast", "south_coast", 
-
-hydroDat <- "POR"
-modname <- "all_ca_ffc_only" # model name 
-plotname <- "All Site Pairs"  #"Central Valley" #"All Site Pairs"
-bmiVar <- quote(csci) # select response var
-
-# make pathnames
-(plot_savename <- tolower(paste0("09_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-
-
-# Get FFC METRIC Data and Join ---------------------------------------------------
+# JOIN WITH FF METRIC DATA ANNUALLY ------------------------------------------
 
 # load FFC Metrics Data
-load("data_output/02_usgs_all_ffm_data.rda")
+ffm_dat <- read_rds("data_output/usgs_combined_ffc_results_long.rds")
 
-## METRICS
-# for raw annual ffmetrics
-g_all_ffc %>% group_by(gage_id, Year) %>% distinct()
-ffm <- g_all_ffc %>% mutate(Year=as.integer(Year)) %>% 
-  distinct() # filter out duplication
+## assess metrics
+# get how many unique years for each gage exist
+ffm_dat %>% group_by(gageid, year) %>% distinct(year) %>% 
+  group_by(gageid) %>% mutate(yr_begin = first(year),
+                              yr_end = last(year)) %>% 
+  arrange(gageid, year) %>%
+  add_tally() %>% 
+  distinct(gageid, .keep_all=TRUE) %>% select(-year) %>% View()
 
-# make it long not wide for joins:
-ffm <- pivot_longer(ffm, cols= c(DS_Dur_WS:Peak_Fre_5), names_to = "ffm_metric", values_to = "ffm_value") %>% 
-  # drop nas
-  filter(!is.na(ffm_value))
+## JOIN ANN: CSCI
+bmi_ffm_ann <- csci_por_trim %>% st_drop_geometry() %>% 
+  distinct(StationCode, SampleID, YYYY, sampledate, site_id, .keep_all=TRUE) %>% 
+  left_join(., ffm_dat, by=c("site_id"="gageid", "YYYY"="year")) %>% 
+  # drop cols and get distinct records
+  select(StationCode, SampleID, US_L3_mod, HUC_12, site_id, station_nm, lat, lon, date_begin, date_end, comid_gage, sampledate, YYYY, MM, DD, csci, csci_percentile, COMID_bmi, ffm_name, value)
 
-# join for POR
-bmi_ffm_por <- left_join(bmi_csci_por_trim, ffm, by=c("gage_id_c"="gage_id", "metric"="ffm_metric"))
+## JOIN ANN: ASCI
+asci_ffm_ann <- asci_por_trim %>% st_drop_geometry() %>% 
+  select(-c(ends_with(".y"), Latitude:median_in_iqr)) %>% mutate(YYYY = as.numeric(YYYY), MM=as.integer(MM), DD = as.integer(DD)) %>% 
+  distinct(StationCode, SampleID, YYYY, SampleDate, site_id, .keep_all=TRUE) %>% 
+  left_join(., ffm_dat, by=c("site_id"="gageid", "YYYY"="year")) %>% 
+  # drop cols and get distinct records
+  select(StationCode, SampleID, US_L3_mod, HUC_12, site_id, station_nm, lat, lon, date_begin, date_end, comid_gage, sampledate=SampleDate, YYYY, MM, DD, asci=H_ASCI.x, COMID_algae, ffm_name, value) 
 
-# # join for ann data:
-# bmi_ffm_ann <- left_join(bmi_sampleid, ffm, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
-# 
+# compare cols
+janitor::compare_df_cols(bmi_ffm_ann, asci_ffm_ann)
+janitor::compare_df_cols_same(bmi_ffm_ann, asci_ffm_ann)
+
+
+## JOIN LAG 
 # # years -1  -2
 # lag_yrs_1 <- unique(bmi_sampleid$YYYY) - 1
 # lag_yrs_2 <- unique(bmi_sampleid$YYYY) - 2
@@ -86,45 +105,42 @@ bmi_ffm_por <- left_join(bmi_csci_por_trim, ffm, by=c("gage_id_c"="gage_id", "me
 # bmi_ffm_lag1 <- left_join(bmi_sampleid, ffm_lag1, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
 # bmi_ffm_lag2 <- left_join(bmi_sampleid, ffm_lag2, by=c("gage_id_c"="gage_id", "YYYY"="Year"))
 
+## Evaluate ----------------------------------------------------------------
 
-# Get FFC PERCENTILE Data and Join ----------------------------------------
-
-## PERCENTILES
-ffm <- g_all_percentiles %>% 
-  # filter out stuff:
-  filter(!grepl("Julian", metric), !grepl("X__", metric))
-
-
-# POR: join data
-bmi_ffm_por <- left_join(bmi_csci_por_trim, ffm, by=c("gage_id"="gage_id", "metric"="metric"))
-
-# add proper names and RI's here:
-
-bmi_ffm_por <- left_join(bmi_ffm_por, ri_table[,c(1:2,6:11)], by=c("metric"="var"))
+# calc records by SampleID (how many mult years)
+csci_ffm_ann %>% select(SampleID, site_id, YYYY) %>% 
+  distinct(.keep_all=TRUE) %>% 
+  group_by(SampleID) %>% 
+  tally() %>% 
+  arrange(desc(n)) %>% 
+  filter(n>1)
 
 
-# SET UP CSCI PLOTS -------------------------------------------------------
+# SET UP NAMES and Condition Thresholds -------------------------------------
 
 # breaks w biological stream condition thresholds (Mazor et al. 2016)
 csci_breaks <- c(0, 0.63, 0.79, 0.92)
 csci_labs <- c("Very likely altered", "Likely altered", "Possibly altered","Likely intact")
 
-# SP_ROC: ALL SITES -----------------------------------------------------------------
+#facet_grid(cols = vars(model), labeller = labeller(model=c("all_ca"="All CA", "cent_coast"="C. Coast", "sierras"="Sierra Nevada", "north_coast"="N. Coast", "so_cal"="S. California"))) +
 
-# select metric
-metselect <- "SP_ROC"
+# DS_Mag_50: ALL SITES -----------------------------------------------------------------
+
+# set up variables
+metselect <- "Wet_BFL_Mag_50" # metric
+biovar <- "CSCI" # data
+region <- "All CA" # region
+
+# set title
+(cust_title <- glue("{biovar} Annual ({metselect}): {region}"))
 
 # data 
-plotdat <- bmi_ffm_por %>% 
-  filter(model=="all_ca", 
-         !is.na(huc_region),
-         result_type=="observed",
-         metric==metselect) %>% 
-  st_drop_geometry() %>% 
-  select(StationCode,gage_id, list_id, NHDV2_COMID, comid_bmi, csci, csci_percentile, huc_region,gage_id_c, metric:status_code, p10:p90, result_type:Flow.Metric.Name) %>% 
-  distinct()
+plotdat <- bmi_ffm_ann %>% 
+  filter(ffm_name==metselect, value>0) 
 
-# POR for SP_ROC:
+# summary
+summary(plotdat$value)
+
 # Trendline info:
 # for gam use: method = "gam", formula = y ~ s(x, bs = "cs").
 # for loess use method = "loess", span=1.5, (default span = 0.75), width of the moving window, or
@@ -143,31 +159,32 @@ plotdat <- bmi_ffm_por %>%
     # geom_rect(aes(xmin=0.01, xmax=0.5, ymin=0.79, ymax=0.92), fill="yellow2", alpha=0.2)+
     # geom_rect(aes(xmin=0.01,xmax=0.5, ymin=0.92, ymax=1.35), fill="seagreen", alpha=0.2)+
     annotate(geom = "text", label="Very likely altered", color="gray50", 
-             x=0.011, y=0.58, hjust=0, size=4) +
+             x=0.11, y=0.58, hjust=0, size=4) +
     annotate(geom = "text", label="Likely altered", color="gray50", 
-             x=0.011, y=0.71, hjust=0, size=4) +
+             x=0.11, y=0.71, hjust=0, size=4) +
     annotate(geom = "text", label="Possibly altered", color="gray50", 
-             x=0.011, y=0.85, hjust=0, size=4) +
+             x=0.11, y=0.85, hjust=0, size=4) +
     annotate(geom = "text", label="Likely intact", color="gray50", 
-             x=0.011, y=1, hjust=0, size=4) +
+             x=0.11, y=1, hjust=0, size=4) +
     
     # data points
-    geom_point(data=plotdat, aes(x=p50, y=csci), fill="gray10", pch=21, size=2.5, alpha=0.85, show.legend = FALSE) +
+    geom_point(data=plotdat, aes(x=value, y=csci), fill="gray10", pch=21, size=2.5, alpha=0.85, show.legend = FALSE) +
 
     #stat_smooth(data=plotdat, aes(x=p10, y=csci), method = "loess", span=.95, lty=2, color="gray40",se = FALSE, fill="gray80", show.legend = F)+
     # the smooth line
-    stat_smooth(data=plotdat, aes(x=p50, y=csci), method = "gam", formula = y ~ s(x, bs = "cs"), color="gray40", fill="gray80", show.legend = F)+
+    stat_smooth(data=plotdat, aes(x=value, y=csci), method = "gam", formula = y ~ s(x, bs = "cs"), color="gray40", fill="gray80", show.legend = FALSE, span = 0.9)+
     # all the other stuff
-    scale_y_continuous(breaks=c(0, 0.63, 0.79, 0.92), limits=c(0, 1.35))+
-    scale_x_log10(expand=c(0.01,0.01), limits=c(0.01, 0.5)) +
+    scale_y_continuous(breaks=c(0, 0.63, 0.79, 0.92), limits=c(0, 1.3))+
+    scale_x_log10(labels=scales::comma, expand=c(0.01,0.01), limits=c(0.1,max(plotdat$value))) + 
+    #scale_x_log10(expand=c(0.01,0.01), limits=c(0.01, 1)) +
+    #scale_x_continuous(limits=c(0,500)) +
     theme_clean(base_family = "Roboto Condensed") +
     theme(panel.border = element_blank(),
           plot.background = element_blank()) +
     labs(y="CSCI Score", 
          x=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
          title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
-         #title = "Period of Record",
-         subtitle = "Period of Record (50th percentile)"))
+         subtitle = cust_title))
 
 ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam.png"), width = 11, height = 7, dpi=300, units="in")
 ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
