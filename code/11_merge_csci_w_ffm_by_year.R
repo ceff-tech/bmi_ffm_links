@@ -1,6 +1,7 @@
-## 06 Calc BMI Metrics and Merge with Flow datasets
-## R. Peek
-# Calc bug metrics with CSCI and merge with flow metrics for respective datasets (annual, lag1, lag2, POR)
+## 11 Merge Data by Year for Plotting
+
+# once appropriate metrics have been identified, merge FFM (raw metrics) with 
+# biological data (CSCI/ASCI) on annual scale to look at relationships.
 
 # Libraries ---------------------------------------------------------------
 
@@ -20,23 +21,10 @@ library(tidylog)
 # Load Data ---------------------------------------------------------------
 
 # BMI data:
+load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
 
-### ALL THE DATA
-load("data_output/02c_selected_final_bmi_dat_all.rda")
-
-# add_bmi_w_gages (additional gages that weren't spatially joined)
-# bmi_final_dat (all BMI sites w CSCI) (full date range, Mar-Nov)
-# bmi_not_selected_v2 (all BMI sites not selected bc no site pair)
-# gages_not_selected_v2 (all gage sites not selected bc no site pair)
-# gages_selected_v2 (all gage sites selected)
-# hucs_not_selected_v2 (all hucs not selected bc no site pair)
-# hucs_selected_v2 (all hucs selected)
-
-### bmi_csci_trim (all BMI data for selected site pairs btwn May-Sep)
-bmi_csci_trim <- read_rds("data_output/02c_selected_final_bmi_csci_dat_trim.rds") 
-
-### full joined FFC dataset
-bmi_csci_por_trim <- read_rds("data_output/04_selected_csci_ffm_por_trim.rds")
+# rename for ease of use and drop sf
+bmi_csci_por_trim <- bmi_csci_por_trim_ecoreg %>% st_drop_geometry()
 
 # REVISED ECO REGIONS: csci data w ecoregions (see 05b)
 # just ecoregions:

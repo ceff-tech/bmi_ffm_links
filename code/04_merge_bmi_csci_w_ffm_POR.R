@@ -8,7 +8,6 @@ library(sf)
 library(mapview)
 library(tidylog)
 
-
 # Gages -------------------------------------------------------------------
 
 # all gages
