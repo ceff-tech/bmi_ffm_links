@@ -130,10 +130,11 @@ bio_labs <- c("Very likely altered", "Likely altered", "Possibly altered","Likel
 
 #facet_grid(cols = vars(model), labeller = labeller(model=c("all_ca"="All CA", "cent_coast"="C. Coast", "sierras"="Sierra Nevada", "north_coast"="N. Coast", "so_cal"="S. California"))) +
 
-# All Sites: CSCI - DS_Mag_50 ----------------------------------------
+# CSCI: DS_Mag_50 ----------------------------------------
 
 # set up variables
-metselect <- "DS_Mag_50" # metric # SP_Mag, Wet_BFL_Mag_50, DS_Mag_50
+metselect <- "SP_ROC" # metric 
+# SP_Mag, Wet_BFL_Mag_50, DS_Mag_50, SP_ROC
 region <- "All CA" # region
 
 biovar <- "CSCI" # data
@@ -185,7 +186,7 @@ summary(plotdat$value)
     # all the other stuff
     scale_y_continuous(breaks=csci_breaks, limits=c(0, 1.3))+
     scale_x_log10(labels=scales::comma, expand=c(0.01,0.01), 
-                  limits=c(0.1, 1000)) +#max(plotdat$value))) + 
+                  limits=c(0.1, 1)) +#max(plotdat$value))) + 
     theme_clean(base_family = "Roboto Condensed") +
     theme(panel.border = element_blank(),
           plot.background = element_blank()) +
@@ -198,7 +199,7 @@ summary(plotdat$value)
 #ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
 
 
-# All Sites: ASCI - DS_Mag_50 ----------------------------------------
+# ASCI: DS_Mag_50 ----------------------------------------
 
 # set up variables
 biovar <- "ASCI" # data
@@ -251,40 +252,127 @@ summary(plotdat$value)
 #ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
 
 
-# SP_ROC: HUC REGIONS FACETED -----------------------------------------------------------------
+# CSCI: SP_ROC: ecoreg facet -------------------------
+
+# set up variables
+metselect <- "SP_ROC" # metric 
+# SP_Mag, Wet_BFL_Mag_50, DS_Mag_50, SP_ROC
+region <- "All CA" # region
+biovar <- "CSCI" # data
+
+# set title
+(cust_title <- glue("{biovar} Annual ({metselect}): {region}"))
+
+# data 
+plotdat <- csci_ffm_ann %>% 
+  filter(ffm_name==metselect, value>0) 
+
+
 
 # FACETED
-(gg1b_faceted <- 
+(gg1a_faceted <- 
    ggplot() +
-   annotate(geom = "text", label="Very likely altered", color="gray50", x=0.011, y=0.57, size=3.5, hjust=0) +
-   annotate(geom = "text", label="Likely altered", color="gray50", x=0.011, y=0.71, size=3.5,  hjust=0) +
-   annotate(geom = "text", label="Possibly altered", color="gray50", x=0.011, y=0.85, size=3.5,  hjust=0) +
-   annotate(geom = "text", label="Likely intact", color="gray50", x=0.011, y=1, size=3.5,  hjust=0) +
+   annotate(geom = "text", label="Very likely altered", color="gray50", x=0.11, y=0.57, size=3.5, hjust=0) +
+   annotate(geom = "text", label="Likely altered", color="gray50", x=0.11, y=0.71, size=3.5,  hjust=0) +
+   annotate(geom = "text", label="Possibly altered", color="gray50", x=0.11, y=0.85, size=3.5,  hjust=0) +
+   annotate(geom = "text", label="Likely intact", color="gray50", x=0.11, y=1, size=3.5,  hjust=0) +
    
    # for faceted
-   geom_point(data=plotdat , aes(x=p50, y=csci, group=huc_region, shape=huc_region, color=huc_region),
+   geom_point(data=plotdat %>% 
+                filter(!US_L3_mod %in% c("Central California Valley",
+                                         "Mojave/Sonoran Desert")),
+              aes(x=value, y=csci, group=US_L3_mod, shape=US_L3_mod, color=US_L3_mod),
               size=3, alpha=0.85, show.legend = FALSE) +
-   stat_smooth(data=plotdat %>% filter(huc_region!="great_basin"),
-               aes(x=p50, y=csci, group=huc_region, color=huc_region),
-               method = "gam", formula = y ~ s(x, bs = "cs"), show.legend = F, se = FALSE) +
-   facet_wrap(huc_region~., labeller = labeller(huc_region=c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))) +
+   
+   # add smooth
+   stat_smooth(data=plotdat %>% 
+                 filter(!US_L3_mod %in% c("Central California Valley",
+                                          "Mojave/Sonoran Desert")),
+               aes(x=value, y=csci, group=US_L3_mod, color=US_L3_mod),
+               method = "gam", formula = y ~ s(x, bs = "cs"), 
+               #method = "loess", span = 0.97, 
+               show.legend = F, se = FALSE) +
+   
+   facet_wrap(.~US_L3_mod) +
    theme(panel.border = element_blank(),
          plot.background = element_blank()) +
-
+   
    # all the other stuff
-   scale_color_colorblind("HUC Region", labels = c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))+
-   scale_shape_discrete("HUC Region", labels = c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="North Coast", "south_coast"="South Coast"))+
+   scale_color_colorblind("EcoRegion") +
+   scale_shape_discrete("EcoRegion") +
    scale_y_continuous(breaks=c(0, 0.63, 0.79, 0.92), limits=c(0, 1.35))+
    scale_x_log10(expand=c(0.01,0.01), limits=c(0.01, 0.5)) +
    theme_clean(base_family = "Roboto Condensed") +
    labs(y="CSCI Score", 
         x=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
-        title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
-        subtitle = "Period of Record (50th percentile)"))
+        title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)])) 
+)
 
+
+## save
+#ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_faceted_by_huc_region.png"), width = 11, height = 7, dpi=300, units="in")
+#ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_faceted_by_huc_region.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
+
+# ASCI: SP_ROC: ecoreg facet -------------------------
+
+# set up variables
+metselect <- "SP_ROC" # metric 
+# SP_Mag, Wet_BFL_Mag_50, DS_Mag_50, SP_ROC
+region <- "All CA" # region
+
+biovar <- "ASCI" # data
+
+# set title
+(cust_title <- glue("{biovar} Annual ({metselect}): {region}"))
+
+# data 
+plotdat <- asci_ffm_ann %>% 
+  filter(ffm_name==metselect, value>0) 
+
+
+# FACETED
+(gg1b_faceted <- 
+   ggplot() +
+   
+   # for faceted
+   geom_point(data=plotdat %>% 
+                filter(!US_L3_mod %in% c("Central California Valley",
+                                         "Mojave/Sonoran Desert", "North Coast")),
+              aes(x=value, y=asci, group=US_L3_mod, shape=US_L3_mod, color=US_L3_mod),
+              size=3, alpha=0.85, show.legend = FALSE) +
+   
+   # add smooth
+   stat_smooth(data=plotdat %>% 
+                 filter(!US_L3_mod %in% c("Central California Valley",
+                                          "Mojave/Sonoran Desert", "North Coast")),
+               aes(x=value, y=asci, group=US_L3_mod, color=US_L3_mod),
+               method = "gam", formula = y ~ s(x, bs = "cs"), 
+               #method = "loess", span = 0.97, 
+               show.legend = F, se = FALSE) +
+   
+   facet_wrap(.~US_L3_mod) +
+   theme(panel.border = element_blank(),
+         plot.background = element_blank()) +
+   
+   # all the other stuff
+   scale_color_colorblind("EcoRegion") +
+   scale_shape_discrete("EcoRegion") +
+   scale_y_continuous(breaks=c(0, 0.63, 0.79, 0.92), limits=c(0, 1.35))+
+   scale_x_log10(expand=c(0.01,0.01), limits=c(0.01, 0.5)) +
+   theme_clean(base_family = "Roboto Condensed") +
+   labs(y="ASCI Score", 
+        x=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
+        title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)])) 
+)
+
+
+# save
 ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_faceted_by_huc_region.png"), width = 11, height = 7, dpi=300, units="in")
 ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_faceted_by_huc_region.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
 
+library(patchwork)
+
+gg1a_faceted + gg1b_faceted
 
 
 # SP_ROC: HUC REGIONS UNFACETED -------------------------------------------
