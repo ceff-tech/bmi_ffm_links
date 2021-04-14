@@ -264,13 +264,11 @@ biovar <- "CSCI" # data
 (cust_title <- glue("{biovar} Annual ({metselect}): {region}"))
 
 # data 
-plotdat <- csci_ffm_ann %>% 
+plotdat_gg1c <- csci_ffm_ann %>% 
   filter(ffm_name==metselect, value>0) 
 
-
-
 # FACETED
-(gg1a_faceted <- 
+(gg1c_faceted <- 
    ggplot() +
    annotate(geom = "text", label="Very likely altered", color="gray50", x=0.11, y=0.57, size=3.5, hjust=0) +
    annotate(geom = "text", label="Likely altered", color="gray50", x=0.11, y=0.71, size=3.5,  hjust=0) +
@@ -278,16 +276,16 @@ plotdat <- csci_ffm_ann %>%
    annotate(geom = "text", label="Likely intact", color="gray50", x=0.11, y=1, size=3.5,  hjust=0) +
    
    # for faceted
-   geom_point(data=plotdat %>% 
+   geom_point(data=plotdat_gg1c %>% 
                 filter(!US_L3_mod %in% c("Central California Valley",
-                                         "Mojave/Sonoran Desert")),
+                                         "Mojave/Sonoran Desert", "North Coast")),
               aes(x=value, y=csci, group=US_L3_mod, shape=US_L3_mod, color=US_L3_mod),
               size=3, alpha=0.85, show.legend = FALSE) +
    
    # add smooth
-   stat_smooth(data=plotdat %>% 
+   stat_smooth(data=plotdat_gg1c %>% 
                  filter(!US_L3_mod %in% c("Central California Valley",
-                                          "Mojave/Sonoran Desert")),
+                                          "Mojave/Sonoran Desert", "North Coast")),
                aes(x=value, y=csci, group=US_L3_mod, color=US_L3_mod),
                method = "gam", formula = y ~ s(x, bs = "cs"), 
                #method = "loess", span = 0.97, 
@@ -308,10 +306,9 @@ plotdat <- csci_ffm_ann %>%
         title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)])) 
 )
 
-
 ## save
-#ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_faceted_by_huc_region.png"), width = 11, height = 7, dpi=300, units="in")
-#ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_faceted_by_huc_region.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
+ggsave(glue("figs/12_ffm_vs_top_ri_{tolower(biovar)}_{tolower(metselect)}_por_gam_faceted_ecoregion.png"), width = 11, height = 7, dpi=300, units="in")
+# for pdf, add: device = cairo_pdf
 
 # ASCI: SP_ROC: ecoreg facet -------------------------
 
@@ -326,23 +323,23 @@ biovar <- "ASCI" # data
 (cust_title <- glue("{biovar} Annual ({metselect}): {region}"))
 
 # data 
-plotdat <- asci_ffm_ann %>% 
+plotdat_gg1d <- asci_ffm_ann %>% 
   filter(ffm_name==metselect, value>0) 
 
 
 # FACETED
-(gg1b_faceted <- 
+(gg1d_faceted <- 
    ggplot() +
    
    # for faceted
-   geom_point(data=plotdat %>% 
+   geom_point(data=plotdat_gg1d %>% 
                 filter(!US_L3_mod %in% c("Central California Valley",
                                          "Mojave/Sonoran Desert", "North Coast")),
               aes(x=value, y=asci, group=US_L3_mod, shape=US_L3_mod, color=US_L3_mod),
               size=3, alpha=0.85, show.legend = FALSE) +
    
    # add smooth
-   stat_smooth(data=plotdat %>% 
+   stat_smooth(data=plotdat_gg1d %>% 
                  filter(!US_L3_mod %in% c("Central California Valley",
                                           "Mojave/Sonoran Desert", "North Coast")),
                aes(x=value, y=asci, group=US_L3_mod, color=US_L3_mod),
@@ -367,12 +364,15 @@ plotdat <- asci_ffm_ann %>%
 
 
 # save
-ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_faceted_by_huc_region.png"), width = 11, height = 7, dpi=300, units="in")
-ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam_faceted_by_huc_region.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
+ggsave(glue("figs/12_ffm_vs_top_ri_{tolower(biovar)}_{tolower(metselect)}_por_gam_faceted_ecoregion.png"), width = 11, height = 7, dpi=300, units="in")
 
-library(patchwork)
+# combine plots
+# library(patchwork)
+# gg1c_faceted + gg1d_faceted
+library(cowplot)
+plot_grid(gg1c_faceted, gg1d_faceted)
 
-gg1a_faceted + gg1b_faceted
+ggsave(glue("figs/12_ffm_combined_{tolower(metselect)}_por_gam_faceted_ecoregion.png"), width = 11, height = 7, dpi=300, units="in")
 
 
 # SP_ROC: HUC REGIONS UNFACETED -------------------------------------------
