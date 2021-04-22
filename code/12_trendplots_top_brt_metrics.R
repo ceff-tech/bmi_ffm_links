@@ -130,10 +130,12 @@ bio_labs <- c("Very likely altered", "Likely altered", "Possibly altered","Likel
 
 #facet_grid(cols = vars(model), labeller = labeller(model=c("all_ca"="All CA", "cent_coast"="C. Coast", "sierras"="Sierra Nevada", "north_coast"="N. Coast", "so_cal"="S. California"))) +
 
+# do we need to color the points by alteration status (-1, 0, 1) to indicate alteration
+
 # CSCI: DS_Mag_50 ----------------------------------------
 
 # set up variables
-metselect <- "SP_ROC" # metric 
+metselect <- "SP_Mag" # metric 
 # SP_Mag, Wet_BFL_Mag_50, DS_Mag_50, SP_ROC
 region <- "All CA" # region
 
@@ -177,16 +179,19 @@ summary(plotdat$value)
     # data points
     geom_point(data=plotdat, aes(x=value, y=csci), fill="gray10", pch=21, size=2.5, alpha=0.85, show.legend = FALSE) +
     
-    # loess smooth
-    stat_smooth(data=plotdat, aes(x=value, y=csci), method = "loess", span=.9, lty=2, color="maroon",se = TRUE, fill="skyblue", show.legend = F)+
+    # # loess smooth
+    # stat_smooth(data=plotdat, aes(x=value, y=csci), method = "loess", span=.9, lty=2, color="maroon",se = TRUE, fill="skyblue", show.legend = F)+
     
     # gam smooth
-    stat_smooth(data=plotdat, aes(x=value, y=csci), method = "gam", formula = y ~ s(x, bs = "cs"), color="gray40", fill="gray80", show.legend = FALSE, span = 0.9)+
+    stat_smooth(data=plotdat, aes(x=value, y=csci), method = "gam", 
+                formula = y ~ s(x, bs = "cs"), 
+                color="gray40", fill="gray80", show.legend = FALSE, span = 0.9)+
     
     # all the other stuff
     scale_y_continuous(breaks=csci_breaks, limits=c(0, 1.3))+
     scale_x_log10(labels=scales::comma, expand=c(0.01,0.01), 
-                  limits=c(0.1, 1)) +#max(plotdat$value))) + 
+                  #limits=c(0.1, 1)) 
+                  max(plotdat$value)) + 
     theme_clean(base_family = "Roboto Condensed") +
     theme(panel.border = element_blank(),
           plot.background = element_blank()) +
@@ -239,7 +244,8 @@ summary(plotdat$value)
     stat_smooth(data=plotdatA, aes(x=value, y=asci), method = "gam", formula = y ~ s(x, bs = "cs"), color="gray40", fill="gray80", show.legend = FALSE, span = 0.9)+
     # using Table 8 from Theroux et al 2020
     scale_y_continuous(breaks=c(0, 0.75, 0.86, 0.94), limits=c(0, 1.3))+
-    scale_x_log10(labels=scales::comma, expand=c(0.01,0.01), limits=c(0.1,max(plotdatA$value))) + 
+    scale_x_log10(labels=scales::comma, expand=c(0.01,0.01), 
+                  limits=c(0.1,max(plotdatA$value))) + 
     theme_clean(base_family = "Roboto Condensed") +
     theme(panel.border = element_blank(),
           plot.background = element_blank()) +
@@ -251,6 +257,7 @@ summary(plotdat$value)
 #ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam.png"), width = 11, height = 7, dpi=300, units="in")
 #ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
 
+cowplot::plot_grid(gg1a, gg1b)
 
 # CSCI: SP_ROC: ecoreg facet -------------------------
 
@@ -287,7 +294,7 @@ plotdat_gg1c <- csci_ffm_ann %>%
                  filter(!US_L3_mod %in% c("Central California Valley",
                                           "Mojave/Sonoran Desert", "North Coast")),
                aes(x=value, y=csci, group=US_L3_mod, color=US_L3_mod),
-               method = "gam", formula = y ~ s(x, bs = "cs"), 
+               method = "gam", formula = y ~ s(x, bs = "cs"), span = 0.9,
                #method = "loess", span = 0.97, 
                show.legend = F, se = FALSE) +
    

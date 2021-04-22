@@ -16,6 +16,7 @@ library(purrr)
 
 # load updated data w regions:
 load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
+
 # rename
 bmi_por_trim <- bmi_csci_por_trim_ecoreg
 
@@ -28,22 +29,14 @@ bmi_csci_sites <- bmi_por_trim %>% st_drop_geometry() %>%
 # ri_all_regions 
 load("models/09_csci_por_all_ri_all_regions.rda")
 hydroDat <- "POR"
-plotname <- "Regional"  #"Central Valley" #"All Site Pairs"
 
-## ONLY IF YOU NEED MODEL NAMES/DATA
-## "all_ca_ffc_only", "central_valley", "great_basin", "north_coast", "south_coast", 
-modname <- "regional" # model name 
-bmiVar <- quote(csci) # select response var
-# make pathnames
-(plot_savename <- tolower(glue("09_gbm_{as_name(bmiVar)}_{hydroDat}_{modname}")))
+# Make Regional RI Dataset --------------------------------------------------------
 
-# make regional Ri --------------------------------------------------------
-
-## ONLY IF YOU NEED MODEL NAMES/DATA
-# "all_ca_ffc_only" "cent_coast", "north_coast", "sierras", "so_cal" 
 unique(bmi_csci_por_trim_ecoreg$US_L3_mod)
 
-modname <- "cent_coast" # model name 
+## ALL CA ----------------------
+
+modname <- "all_ca_ffc_only" # model name
 bmiVar <- quote(csci) # select response var
 
 # make pathnames
@@ -55,15 +48,49 @@ top_ris <- read_rds(file=paste0("models/", top_ri))
 
 # make sep and combine
 ri_all_ca <- top_ris %>% mutate(model="all_ca")
-ri_socal <- top_ris %>% mutate(model="so_cal")
-ri_ncoast <- top_ris %>% mutate(model="north_coast")
+
+## CENTRAL COAST ------------------
+modname <- "cent_coast" # model name
+(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+top_ris <- read_rds(file=paste0("models/", top_ri))
+
+# make sep and combine
 ri_centcoast <- top_ris %>% mutate(model="cent_coast")
+
+## NORTH COAST -----------------
+modname <- "north_coast" # model name
+(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+top_ris <- read_rds(file=paste0("models/", top_ri))
+
+# make sep and combine
+ri_ncoast <- top_ris %>% mutate(model="north_coast")
+
+## SIERRA NEVADA -----------------
+modname <- "sierras" # model name
+(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+top_ris <- read_rds(file=paste0("models/", top_ri))
+
+# make sep and combine
 ri_sierra <- top_ris %>% mutate(model="sierras")
+
+## SO CAL ---------------------------
+modname <- "so_cal" # model name
+(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+top_ris <- read_rds(file=paste0("models/", top_ri))
+
+# make sep and combine
+ri_socal <- top_ris %>% mutate(model="so_cal")
 ## not enough samples for cent valley or cascades
- 
-## bind 
+
+## COMBINE ALL -----------------------
+
+## bind
 ri_all_regions <- bind_rows(ri_all_ca, ri_socal, ri_ncoast, ri_centcoast, ri_sierra)
- 
+
 ## save out for later
 save(ri_all_regions, file = tolower(glue::glue("models/09_{bmiVar}_{hydroDat}_all_ri_all_regions.rda")))
 
@@ -87,6 +114,7 @@ ri_table <- ri_table %>%
 
 levels(ri_table$var)
 levels(ri_table$flow_component)
+levels(ri_table$Flow.Metric.Name)
 summary(ri_table)
 
 # generate order by CA wide RI for flow metrics:
@@ -129,11 +157,13 @@ model_name <- "All CA"
 ## ALL CA Table
 # Create a gt table based on preprocessed table
 ri_table %>%
-  dplyr::filter(method=="mse") %>%
+  dplyr::filter(method=="mse", Ymetric=="csci", model=="all_ca") %>%
     #model=="all_ca", 
   dplyr::select(-c(Ymetric, flowdat, flow_component, method, Flow.Characteristic)) %>%
   dplyr::select(Flow.Component, var, Flow.Metric.Name:Flow.Metric.Description, RI) %>%
-  arrange(Flow.Component, var) %>% #View() 
+  #arrange(Flow.Component, var) %>% #View() 
+  arrange(RI, Flow.Component) %>% #View() 
+  select(-var) %>% 
   gt() %>%
   tab_header(
     title = "Relative Influence of Functional Flow Metrics on CSCI",
@@ -153,8 +183,9 @@ ri_table %>%
   dplyr::filter(!model=="all_ca", method=="mse") %>%
   dplyr::select(-c(Ymetric, flowdat, flow_component, method, Flow.Characteristic)) %>% #View()
   pivot_wider(names_from = model, values_from = RI) %>%  #View()
-  dplyr::select(Flow.Component, var, Flow.Metric.Name:Unit, so_cal:sierras) %>%
-  arrange(Flow.Component, var) %>% # View()
+  mutate(Flow.Metric.Name.units = glue("{Flow.Metric.Name} ({Unit})")) %>% 
+  dplyr::select(Flow.Component, Flow.Metric.Name.units, so_cal:sierras) %>%
+  arrange(Flow.Component, Flow.Metric.Name.units) %>% # View()
   gt() %>%
   tab_header(
     title = "Relative Influence of Functional Flow Metrics on CSCI",
@@ -176,6 +207,10 @@ ri_table %>%
 flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" = "#56B4E9",
                           "Peak flow" = "#404788FF", "Spring recession flow" = "#009E73", 
                           "Dry-season baseflow" = "#D55E00")
+
+plotname <- "All CA"
+modname <- "all_ca_ffc_only"
+(plot_savename <- tolower(glue("09_gbm_{as_name(bmiVar)}_{hydroDat}_{modname}")))
 
 # Faceted by hydrodat and flow metrics:
 ri_table %>% 
@@ -205,6 +240,11 @@ ri_table %>%
 ggsave(filename=tolower(paste0("models/", plot_savename, "_all_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 # Summary Plot Regions ------------------------------------------------------------
+
+plotname <- "Regional"
+modname <- "regional"
+(plot_savename <- tolower(glue("09_gbm_{as_name(bmiVar)}_{hydroDat}_{modname}")))
+
 
 # now plot w facets (but use same ordering for ALL CA)
 ri_table %>% 
@@ -237,12 +277,7 @@ ri_table %>%
   #facet_grid(cols = vars(model), labeller = labeller(model=c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="N. Coast", "south_coast"="S. Coast")))
 
 # save out
-plot_savename2 <- "09_gbm_csci_por_regional"
-ggsave(filename=tolower(paste0("models/", plot_savename2, "_ri_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
-
-
-# all 5
-#ggsave(filename=tolower(paste0("models/", plot_savename2, "_all_regions_ri_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(glue("figs/{plot_savename}_ri_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 
 # Other Plots -------------------------------------------------------------
