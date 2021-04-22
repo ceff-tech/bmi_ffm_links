@@ -148,13 +148,20 @@ model_name <- "All CA"
 ri_table %>%
   dplyr::filter(model=="all_ca", method=="mse") %>%
   dplyr::select(-c(Ymetric, flowdat, flow_component, method, model, Flow.Characteristic)) %>%
-  dplyr::select(index, Flow.Component, var, Flow.Metric.Name:Flow.Metric.Description, RI) %>%
-  arrange(desc(RI), Flow.Component, var) %>% #View() 
+  mutate(Flow.Metric.Name_unit = glue("{Flow.Metric.Name} ({Unit})")) %>% 
+  dplyr::select(index, Flow.Component, Flow.Metric.Name_unit, Flow.Metric.Description, RI) %>%
+  arrange(desc(RI), Flow.Component) %>% #View() 
   gt() %>%
   tab_header(
     title = "Relative Influence of Functional Flow Metrics on ASCI/CSCI",
     subtitle = glue::glue("Model {model_name}")
   ) %>%
+  gt::cols_label(
+    index = "Index",
+    Flow.Component = "Flow Component",
+    Flow.Metric.Description = "Description",
+    Flow.Metric.Name_unit = "Flow Metric (unit)"
+  ) %>% 
   fmt_number(
     columns = vars(RI), decimals = 1, 
     drop_trailing_zeros = T
@@ -168,19 +175,27 @@ model_name <- "modified Ecoregions"
 ri_table %>%
   dplyr::filter(!model=="all_ca", method=="mse") %>%
   dplyr::select(-c(Ymetric, flowdat, flow_component, method, Flow.Characteristic)) %>%
-  pivot_wider(names_from = model, values_from = RI) %>% # View()
-  dplyr::select(Flow.Component, var, Flow.Metric.Name:Unit, so_cal:north_coast) %>%
-  arrange(Flow.Component, var) %>% # View() 
+  pivot_wider(names_from = model, values_from = RI) %>%
+  mutate(Flow.Metric.Name_unit = glue("{Flow.Metric.Name} ({Unit})")) %>% 
+  dplyr::select(index, Flow.Component, Flow.Metric.Name_unit, so_cal:north_coast) %>%
+  arrange(index, Flow.Component) %>% # View() 
   gt() %>%
   tab_header(
     title = "Relative Influence of Functional Flow Metrics on ASCI/CSCI",
     subtitle = glue::glue("Using {model_name}")
   ) %>%
+  gt::cols_label(
+    index = "Index",
+    Flow.Component = "Flow Component",
+    Flow.Metric.Name_unit = "Flow Metric (unit)",
+    sierras = "S. Nevada",
+    north_coast = "N. Coast",
+    cent_coast = "C. Coast",
+    so_cal = "So Cal") %>% 
   fmt_number(
     columns = vars(so_cal, cent_coast, sierras, north_coast), decimals = 1, 
     drop_trailing_zeros = T
   )
-
 
 
 # Summary Plot ALL CA ------------------------------------------------------------
@@ -232,7 +247,7 @@ ri_table %>%
         legend.background = element_rect(color="white"))
 
 # save out
-ggsave(filename=tolower(glue("models/10_gbm_asci_csci_{hydroDat}_{modname}_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(glue("figs/10_gbm_asci_csci_{hydroDat}_{modname}_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 # Summary Plot Regions ------------------------------------------------------------
 
@@ -272,13 +287,46 @@ ri_table %>%
                                                   direction="horizontal"), order = 2),
          size= "none")
 
-# save out
+# REGIONS ONLY
+ggsave(filename=tolower(glue("figs/10_gbm_asci_csci_{hydroDat}_regions_ri_sized_points_w_lines_ranked.png")), width = 10, height = 7, units = "in", dpi = 300)
+
+# now plot w CA and regions
+ri_table %>% 
+  filter(#model!="all_ca",
+         method=="mse") %>% 
+  left_join(., forder_asci, by="Flow.Metric.Name") %>% 
+  arrange(id) %>% #View() 
+  ggplot() +
+  facet_grid(cols = vars(model), labeller = labeller(model=c("all_ca"="All CA", "cent_coast"="C. Coast", "sierras"="Sierra Nevada", "north_coast"="N. Coast", "so_cal"="S. California"))) +
+  geom_linerange(aes(x=reorder(Flow.Metric.Name, desc(id)), ymax=RI, ymin=0, color=flow_component, group=model), 
+                 lwd=.5, show.legend = F, alpha=0.7, lty=1)+
+  geom_point(aes(x=reorder(Flow.Metric.Name, desc(id)), y=RI,
+                 fill=flow_component, size=RI, group=model, shape=index),
+             color="black", alpha=0.8) +
+  scale_fill_manual("Flow Component", values=flowcomponent_colors) +
+  scale_color_manual("Flow Component", values=flowcomponent_colors, guide=FALSE) +
+  scale_shape_manual("Index", values=c("ASCI"=23, "CSCI"=21))+
+  scale_size_area("", guide=FALSE) +
+  coord_flip() +
+  ylim(c(0,27))+
+  labs(title = "ASCI & CSCI BRT Models",
+       x="", y="Relative Influence (%)") +
+  theme_minimal(base_family = "Roboto Condensed") +
+  theme(legend.position = "bottom", 
+        legend.box="vertical",
+        legend.spacing.y = unit(-0.1,"cm"),
+        legend.justification = "center",
+        legend.margin = margin(6,0,6, 0),
+        legend.box.spacing = unit(-.01,"cm"),
+        legend.background = element_rect(color="white")) +
+  guides(fill = guide_legend(override.aes = 
+                               list(size = 4, pch=21, fill=flowcomponent_colors, 
+                                    color="gray40"), nrow = 1, order = 1, direction="horizontal"),
+         shape = guide_legend(override.aes = list(size = 4,                                                  direction="horizontal"), order = 2),
+         size= "none")
 
 # WITH CA
-ggsave(filename=tolower(glue("models/10_gbm_asci_csci_{hydroDat}_ca_and_regions_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
-
-# REGIONS ONLY
-ggsave(filename=tolower(glue("models/10_gbm_asci_csci_{hydroDat}_regions_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(glue("figs/10_gbm_asci_csci_{hydroDat}_ca_and_regions_ri_sized_points_w_lines_ranked.png")), width = 10, height = 7, units = "in", dpi = 300)
 
 
 # Other Plots -------------------------------------------------------------
