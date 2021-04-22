@@ -76,6 +76,19 @@ csci_ffm_ann %>% select(SampleID, site_id, YYYY) %>%
   arrange(desc(n)) %>% 
   filter(n>1)
 
+
+# Make Dataset that includes Status ---------------------------------------
+
+csci_ffm_ann_status <- 
+  csci_ffm_ann %>% 
+  left_join(., bmi_csci_por[,c("site_id", "metric", "status_code")], by=c("site_id", "ffm_name"="metric")) %>% 
+  group_by(SampleID, site_id, YYYY, ffm_name, value, status_code) %>%
+  distinct(.keep_all=TRUE) %>% 
+  ungroup()
+
+# write out
+write_rds(csci_ffm_ann_status, file = "data_output/11_csci_ffm_ann_trim_status.rds")
+
 # Make LAGGED Dataset -----------------------------------------------------
 
 # # years -1  -2
