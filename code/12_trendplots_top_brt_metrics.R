@@ -18,6 +18,15 @@ library(cowplot)
 # load updated data w EcoRegions:
 load("models/10_csci_asci_ri_por_trim_all_regions.rda")
 
+# get status codes 
+load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
+
+# rename
+bmi_csci_por_sf <- bmi_csci_por_trim_ecoreg
+
+# rename for ease of use and drop sf
+bmi_csci_por <- bmi_csci_por_sf %>% st_drop_geometry()
+
 # add specific ASCI vs CSCI col
 asci_ri_all <- asci_ri_all %>% mutate(index="ASCI")
 csci_ri_all <- csci_ri_all %>% mutate(index="CSCI")
@@ -67,7 +76,7 @@ csci_ffm_ann <- csci_por_trim %>% st_drop_geometry() %>%
   distinct(StationCode, SampleID, YYYY, sampledate, site_id, .keep_all=TRUE) %>% 
   left_join(., ffm_dat, by=c("site_id"="gageid", "YYYY"="year")) %>% 
   # drop cols and get distinct records
-  select(StationCode, SampleID, US_L3_mod, HUC_12, site_id, station_nm, lat, lon, date_begin, date_end, comid_gage, sampledate, YYYY, MM, DD, csci, csci_percentile, COMID_bmi, ffm_name, value)
+  select(StationCode, SampleID, US_L3_mod, HUC_12, site_id, station_nm, lat, lon, date_begin, date_end, comid_gage, sampledate, YYYY, MM, DD, csci, csci_percentile, COMID_bmi, ffm_name, value, status_code)
 
 ## Check Records by Year --------------------------------
 
@@ -82,11 +91,14 @@ csci_ffm_ann %>% select(SampleID, site_id, YYYY) %>%
 # JOIN ASCI WITH FFF ANNUAL ------------------------------
 
 asci_ffm_ann <- asci_por_trim %>% st_drop_geometry() %>% 
-  select(-c(ends_with(".y"), Latitude:median_in_iqr)) %>% mutate(YYYY = as.numeric(YYYY), MM=as.integer(MM), DD = as.integer(DD)) %>% 
+  select(-c(ends_with(".y"), Latitude:median_in_iqr), status_code) %>% 
+  mutate(YYYY = as.numeric(YYYY), 
+         MM=as.integer(MM), 
+         DD = as.integer(DD)) %>% 
   distinct(StationCode, SampleID, YYYY, SampleDate, site_id, .keep_all=TRUE) %>% 
   left_join(., ffm_dat, by=c("site_id"="gageid", "YYYY"="year")) %>% 
   # drop cols and get distinct records
-  select(StationCode, SampleID, US_L3_mod, HUC_12, site_id, station_nm, lat, lon, date_begin, date_end, comid_gage, sampledate=SampleDate, YYYY, MM, DD, asci=H_ASCI.x, COMID_algae, ffm_name, value) 
+  select(StationCode, SampleID, US_L3_mod, HUC_12, site_id, station_nm, lat, lon, date_begin, date_end, comid_gage, sampledate=SampleDate, YYYY, MM, DD, asci=H_ASCI.x, COMID_algae, ffm_name, value, status_code) 
 
 # compare cols
 janitor::compare_df_cols(csci_ffm_ann, asci_ffm_ann)
@@ -132,7 +144,7 @@ bio_labs <- c("Very likely altered", "Likely altered", "Possibly altered","Likel
 
 # do we need to color the points by alteration status (-1, 0, 1) to indicate alteration
 
-# CSCI: DS_Mag_50 ----------------------------------------
+# CSCI: SP_Mag ----------------------------------------
 
 # set up variables
 metselect <- "SP_Mag" # metric 
@@ -146,17 +158,15 @@ biovar <- "CSCI" # data
 
 # data 
 plotdat <- csci_ffm_ann %>% 
-  filter(ffm_name==metselect, value>0) 
+  filter(ffm_name==metselect, value>0, 
+         # rm NAs
+         !is.na(status_code),
+         # filter to just alt/unalt?
+         status_code!=0)
 
 # summary
 summary(plotdat$value)
-
-# Trendline info:
-# for gam use: method = "gam", formula = y ~ s(x, bs = "cs").
-# for loess use method = "loess", span=1.5, (default span = 0.75), width of the moving window, or
-# proportion of points in plot which influence the smooth at each value.
-# each of the local regressions used to produce that curve incorporate x% of total data 
-# (default is 75%)
+unique(plotdat$status_code)
 
 (gg1a <- 
    ggplot() +
@@ -177,34 +187,115 @@ summary(plotdat$value)
              x=0.11, y=1, hjust=0, size=4) +
     
     # data points
-    geom_point(data=plotdat, aes(x=value, y=csci), fill="gray10", pch=21, size=2.5, alpha=0.85, show.legend = FALSE) +
+    geom_point(data=plotdat, aes(x=value, y=csci, 
+                                 fill=as.factor(status_code)), 
+               #fill="gray10", 
+               pch=21, size=2.5, alpha=0.85, show.legend = TRUE) +
     
-    # # loess smooth
+    # loess smooth
     # stat_smooth(data=plotdat, aes(x=value, y=csci), method = "loess", span=.9, lty=2, color="maroon",se = TRUE, fill="skyblue", show.legend = F)+
     
     # gam smooth
-    stat_smooth(data=plotdat, aes(x=value, y=csci), method = "gam", 
-                formula = y ~ s(x, bs = "cs"), 
-                color="gray40", fill="gray80", show.legend = FALSE, span = 0.9)+
+    stat_smooth(data=plotdat, aes(x=value, y=csci, group=status_code, color=as.factor(status_code)),
+                method = "gam", 
+                #formula = y ~ s(x, bs = "cs", ), 
+                #color="gray40", 
+                fill="gray80", 
+                show.legend = FALSE)+
     
     # all the other stuff
+    scale_fill_colorblind("Alteration\nStatus") +
+    scale_color_colorblind("Alteration\nStatus") +
     scale_y_continuous(breaks=csci_breaks, limits=c(0, 1.3))+
-    scale_x_log10(labels=scales::comma, expand=c(0.01,0.01), 
+    scale_x_log10(#name="cfs", 
+                  labels=scales::comma, 
+                  expand=c(0.01,0.01))+
                   #limits=c(0.1, 1)) 
-                  max(plotdat$value)) + 
+                  #max(plotdat$value)) + 
     theme_clean(base_family = "Roboto Condensed") +
     theme(panel.border = element_blank(),
           plot.background = element_blank()) +
-    labs(y=glue("{biovar} Score"), 
-         x=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
+    labs(y=glue("{biovar} Score"),
+         x=unique(ri_table$Unit[which(ri_table$var==metselect)]),
          title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
          subtitle = cust_title))
 
 #ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam.png"), width = 11, height = 7, dpi=300, units="in")
 #ggsave(paste0("figs/10_ffm_vs_top_ri_all_ca_", tolower(metselect), "_por_gam.pdf"), width = 11, height = 7, dpi=300, units="in", device = cairo_pdf)
 
+# ASCI: SP_Mag ----------------------------------------
 
-# ASCI: DS_Mag_50 ----------------------------------------
+# set up variables
+metselect <- "SP_Mag" # metric
+region <- "All CA" # region
+biovar <- "ASCI" # data
+
+# set title
+(cust_title <- glue("{biovar} Annual ({metselect}): {region}"))
+
+# data 
+plotdat <- asci_ffm_ann %>% 
+  filter(ffm_name==metselect, value>0, 
+         # rm NAs
+         !is.na(status_code),
+         # filter to just alt/unalt?
+         status_code!=0)
+
+# summary
+summary(plotdat$value)
+unique(plotdat$status_code)
+
+(gg1a <- 
+    ggplot() +
+    # add line thresholds
+    # based on Theroux et al, Table 8
+    annotate(geom = "text", label="Very likely altered", color="gray50",
+             x=0.11, y=0.25, hjust=0, size=4) +
+    annotate(geom = "text", label="Likely altered", color="gray50",
+             x=0.11, y=0.8, hjust=0, size=4) +
+    annotate(geom = "text", label="Possibly altered", color="gray50",
+             x=0.11, y=0.9, hjust=0, size=4) +
+    annotate(geom = "text", label="Likely intact", color="gray50",
+             x=0.11, y=1.1, hjust=0, size=4) +
+    
+    
+    # data points
+    geom_point(data=plotdat, aes(x=value, y=asci, 
+                                 fill=as.factor(status_code)), 
+               #fill="gray10", 
+               pch=21, size=2.5, alpha=0.85, show.legend = TRUE) +
+    
+    # loess smooth
+    # stat_smooth(data=plotdat, aes(x=value, y=csci), method = "loess", span=.9, lty=2, color="maroon",se = TRUE, fill="skyblue", show.legend = F)+
+    
+    # gam smooth
+    stat_smooth(data=plotdat, aes(x=value, y=asci, group=status_code, color=as.factor(status_code)),
+                method = "gam", 
+                #formula = y ~ s(x, bs = "cs", ), 
+                #color="gray40", 
+                fill="gray80", 
+                show.legend = FALSE)+
+    
+    # all the other stuff
+    scale_fill_colorblind("Alteration\nStatus") +
+    scale_color_colorblind("Alteration\nStatus") +
+    scale_y_continuous(breaks=csci_breaks, limits=c(0, 1.3))+
+    scale_x_log10(#name="cfs", 
+      labels=scales::comma, 
+      expand=c(0.01,0.01))+
+    #limits=c(0.1, 1)) 
+    #max(plotdat$value)) + 
+    theme_clean(base_family = "Roboto Condensed") +
+    theme(panel.border = element_blank(),
+          plot.background = element_blank()) +
+    labs(y=glue("{biovar} Score"),
+         x=unique(ri_table$Unit[which(ri_table$var==metselect)]),
+         title=unique(ri_table$Flow.Metric.Name[which(ri_table$var==metselect)]), 
+         subtitle = cust_title))
+
+
+
+# ASCI: SP_Mag_w_colorbox ----------------------------------------
 
 # set up variables
 biovar <- "ASCI" # data
@@ -263,7 +354,6 @@ cowplot::plot_grid(gg1a, gg1b)
 
 # set up variables
 metselect <- "SP_ROC" # metric 
-# SP_Mag, Wet_BFL_Mag_50, DS_Mag_50, SP_ROC
 region <- "All CA" # region
 biovar <- "CSCI" # data
 
@@ -272,7 +362,9 @@ biovar <- "CSCI" # data
 
 # data 
 plotdat_gg1c <- csci_ffm_ann %>% 
-  filter(ffm_name==metselect, value>0) 
+  filter(ffm_name==metselect, value>0,
+         !is.na(status_code),
+         status_code!=0) 
 
 # FACETED
 (gg1c_faceted <- 
@@ -286,25 +378,35 @@ plotdat_gg1c <- csci_ffm_ann %>%
    geom_point(data=plotdat_gg1c %>% 
                 filter(!US_L3_mod %in% c("Central California Valley",
                                          "Mojave/Sonoran Desert", "North Coast")),
-              aes(x=value, y=csci, group=US_L3_mod, shape=US_L3_mod, color=US_L3_mod),
-              size=3, alpha=0.85, show.legend = FALSE) +
+              aes(x=value, y=csci, group=status_code, 
+                  #shape=US_L3_mod, 
+                  fill=as.factor(status_code)),
+              size=3, shape=21, alpha=0.85, show.legend = FALSE) +
    
    # add smooth
    stat_smooth(data=plotdat_gg1c %>% 
                  filter(!US_L3_mod %in% c("Central California Valley",
                                           "Mojave/Sonoran Desert", "North Coast")),
-               aes(x=value, y=csci, group=US_L3_mod, color=US_L3_mod),
-               method = "gam", formula = y ~ s(x, bs = "cs"), span = 0.9,
-               #method = "loess", span = 0.97, 
+               aes(x=value, y=csci, 
+                   group=status_code,
+                   #group=US_L3_mod, 
+                   color=as.factor(status_code)),
+               #method = "lm", 
+               #formula = y ~ s(x, bs = "cs"), span = 0.9,
+               method = "loess", span = 0.97, 
                show.legend = F, se = FALSE) +
-   
+    
+    # all the other stuff
+    scale_fill_colorblind("Alteration\nStatus") +
+    scale_color_colorblind("Alteration\nStatus") +
+    
    facet_wrap(.~US_L3_mod) +
    theme(panel.border = element_blank(),
          plot.background = element_blank()) +
    
    # all the other stuff
-   scale_color_colorblind("EcoRegion") +
-   scale_shape_discrete("EcoRegion") +
+   #scale_color_colorblind("EcoRegion") +
+   #scale_shape_discrete("EcoRegion") +
    scale_y_continuous(breaks=c(0, 0.63, 0.79, 0.92), limits=c(0, 1.35))+
    scale_x_log10(expand=c(0.01,0.01), limits=c(0.01, 0.5)) +
    theme_clean(base_family = "Roboto Condensed") +
