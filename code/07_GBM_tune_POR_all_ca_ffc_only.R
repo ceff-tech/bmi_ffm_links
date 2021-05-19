@@ -54,6 +54,20 @@ bmiVar <- quote(csci) # select response var from list above
 
 # 03. Setup POR Data for Model ----------------------------------------------------------------
 
+# summarize
+#bmi_csci_por_trim %>% group_by(metric, alteration_type) %>% tally() %>% 
+bmi_csci_por_trim %>% 
+  distinct(StationCode, metric, status_code, .keep_all = TRUE) %>% 
+  group_by(metric, status_code) %>% tally() %>% 
+  filter(!is.na(status_code)) %>% 
+  View()
+  group_by(alteration_type) %>% add_tally(n) %>% 
+  #View() %>% 
+  distinct(alteration_type, nn)
+
+  
+ggplot() + geom_col(aes(x=metric, y=n, fill=status_code))
+
 # summarize to look at distrib of -1,0,1
 table(bmi_csci_por_trim$status_code)
 summary(bmi_csci_por_trim$status_code)
