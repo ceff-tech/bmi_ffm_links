@@ -13,14 +13,13 @@ library(mapview) # web maps
 mapviewOptions(fgb=FALSE)
 
 
-
 # Data --------------------------------------------------------------------
 
 # REF gages
 gages_ref <- read_csv("data/usgs/gages_ref_223_period_record.csv") %>% 
   select(stream_class, gage, maxYr, minYr, YrRange) %>% 
   distinct(gage, .keep_all = TRUE) %>% 
-  mutate(refgage=TRUE)
+  mutate(refgage="Ref")
 
 # ffc gage data (alteration)
 ffc_dat <- read_rds(file = url("https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_alteration.rds")) %>%
@@ -35,14 +34,14 @@ ffc_gages <- ffc_dat %>% distinct(gageid, .keep_all=TRUE) %>%
   mutate(gage=as.numeric(gageid)) %>% 
   left_join(., gages_ref, by="gage") %>% 
   mutate(refgage = case_when(
-    is.na(refgage) ~ FALSE,
+    is.na(refgage) ~ "Non-Ref",
     TRUE ~ refgage)) %>% 
   select(-c(metric:median_in_iqr))
 
 # join w ref gages (FROM CEFF/FFM) data to get REF/non-ref
 ffc_dat <- left_join(ffc_dat, gages_ref, by="gage") %>% 
   mutate(refgage = case_when(
-    is.na(refgage) ~ FALSE,
+    is.na(refgage) ~ "Non-Ref",
     TRUE ~ refgage))
 
 # tally (24 metrics x 959 gages = 23016)
@@ -57,10 +56,14 @@ summary(ffc_dat$alteration_type)
 # PLOT --------------------------------------------------------------------
 
 # plot percent of sites with altered metric by FFM
-ffc_metric_count <- ffc_dat %>% group_by(metric) %>% 
-  count(name = "total_count") 
+(ffc_metric_count <- ffc_dat %>% 
+   group_by(metric, refgage) %>% 
+   #group_by(metric) %>% 
+   count(name = "total_count"))
 
-ffc_prcnt_alt <- ffc_dat %>% group_by(metric, status) %>% 
+ffc_prcnt_alt <- ffc_dat %>% 
+  group_by(metric, status, refgage) %>% # for facet by refgage
+  #group_by(metric, status) %>% # for no refgage facet
   tally() %>% 
   left_join(., ffc_metric_count) %>% 
   mutate(prop_n = n/total_count)
@@ -73,7 +76,8 @@ ggplot() + geom_col(data=ffc_prcnt_alt, aes(x=metric, y=prop_n, fill=status)) +
   labs(title="Proportion of Gages by Alteration Status",
        subtitle="Based on 959 gages with sufficient data for FFM R Calculator",
        x="", y="Proportion of Gages Altered") +
-  theme(axis.text.x = element_text(angle=270, hjust = 0.1, vjust=0.05))
+  theme(axis.text.x = element_text(angle=270, hjust = 0.1, vjust=0.05)) +
+  facet_wrap(vars(refgage))
 
-ggsave(filename = "figs/prop_gages_by_alt_status.png", width = 11, height = 8.5, dpi=300)
+ggsave(filename = "figs/prop_gages_by_alt_status_faceted.png", width = 11, height = 8.5, dpi=300)
 
