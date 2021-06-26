@@ -13,7 +13,7 @@ library(tidyverse) # load quietly
 library(viridis) # colors
 library(janitor)
 
-# GET DATA ----------------------------------------------------------------
+# 01: GET DATA ----------------------------------------------------------------
 
 # REF gages
 gages_ref <- read_csv("data/usgs/gages_ref_223_period_record.csv") %>% 
@@ -35,7 +35,7 @@ ffc_obs <- read_rds(file = url("https://github.com/ryanpeek/ffm_comparison/raw/m
 ffc_pred <- read_rds(file=url("https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_predicted_percentiles.rds")) %>% 
   mutate(gage=as.numeric(gageid))
 
-# TIDY AND CLEAN ----------------------------------------------------------
+# 02: TIDY AND CLEAN ----------------------------------------------------------
 
 # get distinct gages (n=959)
 ffc_gages <- ffc_alt %>% distinct(gageid, .keep_all=TRUE) %>% 
@@ -64,7 +64,7 @@ summary(ffc_alt$status_code)
 summary(ffc_alt$alteration_type)
 
 
-# CALC PROPORTION GAGES ALTERED PER METRIC ----------------
+# 03: CALC PROPORTION GAGES ALTERED PER METRIC ----------------
 
 # count total records by metric & refgage
 (ffm_metric_count <- ffc_alt %>% 
@@ -78,6 +78,7 @@ ffm_prcnt_alt <- ffc_alt %>%
   left_join(., ffm_metric_count) %>% 
   mutate(prop_n = n/total_count)
 
+ffm_prcnt_alt_ref <- ffm_prcnt_alt %>% filter(refgage=="Ref")
 
 ## Plot: ALT STATUS -------------------------------------------------------
 
@@ -94,7 +95,7 @@ ggplot() + geom_col(data=ffm_prcnt_alt, aes(x=metric, y=prop_n, fill=status)) +
 
 #ggsave(filename = "figs/prop_gages_by_alt_status_faceted.png", width = 11, height = 8.5, dpi=300)
 
-# FILTERING FFM ---------------------------------------------
+# 04: FILTERING FFM ---------------------------------------------
 
 ## STEP 1: <10% of Ref gages altered ------------------------
 
@@ -106,7 +107,7 @@ ffm_prcnt_alt_keep <- ffm_prcnt_alt %>%
   filter(prop_n < 0.1) %>% 
   filter(!grepl("^Peak", metric))
 
-# FILTER 1 METRIC LIST
+# FILTER METRIC LIST
 filt_less_than_10_perc_metrics <- ffm_prcnt_alt_keep$metric
 
 ## STEP 2: <15% of Ref gages peak flows altered -------------
@@ -118,7 +119,7 @@ ffm_prcnt_alt_keep_peak <- ffm_prcnt_alt %>%
   filter(grepl("^Peak", metric)) %>% 
   filter(prop_n < 0.15)
 
-# FILTER 1 METRIC LIST
+# FILTER METRIC LIST
 filt_less_than_15_peak <- ffm_prcnt_alt_keep_peak$metric
 
 ## STEP 3: <25% of Ref gages are indeterminant -----------
@@ -127,16 +128,43 @@ filt_less_than_15_peak <- ffm_prcnt_alt_keep_peak$metric
 
 ffm_prcnt_alt_keep_indet <- ffm_prcnt_alt %>% 
   filter(refgage == "Ref") %>% # keep only REF
+  filter(metric %in% filt_less_than_10_perc_metrics) %>% 
   filter(status == "indeterminate") %>% 
   filter(prop_n < 0.25)
 
-# FILTER 1 METRIC LIST
+# list of metrics
 filt_less_than_25_indeterm <- ffm_prcnt_alt_keep_indet$metric
 
 ### WRITE IT OUT
 write_csv(ffm_prcnt_alt_keep_indet, file = "data_output/06_filtered_ffm_based_on_ref_prop.csv")
 
+
+# 05: JOIN OBS & PRED FFM PERCENTILES -----------------------------------------
+
+# using the metrics listed above get the obs 50 percentile and predicted 50 percentile data 
+
+ffc_obs_filt <- ffc_obs %>% 
+  filter(metric %in% filt_less_than_25_indeterm) %>% 
+  select(metric:gageid, p50_obs = p50, data_type=result_type)
+
+ffc_pred_filt <- ffc_pred %>% 
+  filter(metric %in% filt_less_than_25_indeterm) %>% 
+  select(metric, comid, result_type, gageid, p50_pred = p50, result_type)
+
+ffm_delta_hyd <- left_join(ffc_obs_filt, ffc_pred_filt)
+
+# join with the ref/alt status data
+ffm_final_dat <- left_join(ffm_delta_hyd, ffc_alt %>% 
+                             select(metric:gageid, refgage))
+
+ffm_final_dat %>% group_by(metric, refgage) %>% tally() %>% View()
+
+# write out
+write_rds(ffm_final_dat, file = "data_output/06_ffm_final_dataset.rds")
+write_csv(ffm_final_dat, file = "data_output/06_ffm_final_dataset.csv")
+
 # ADD PLOTS/SUMMARIES ---------------------------------------
+
 # Calc REF/NON-REF w medianIQR ------------------------------
 
 summary(ffc_alt$median_in_iqr)
