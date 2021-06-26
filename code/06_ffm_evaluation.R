@@ -7,6 +7,7 @@
 # Libraries ---------------------------------------------------------------
 
 library(scales)
+library(sf)
 library(glue)
 options(tidyverse.quiet = TRUE)
 library(tidyverse) # load quietly
@@ -157,13 +158,39 @@ ffm_delta_hyd <- left_join(ffc_obs_filt, ffc_pred_filt)
 ffm_final_dat <- left_join(ffm_delta_hyd, ffc_alt %>% 
                              select(metric:gageid, refgage))
 
-ffm_final_dat %>% group_by(metric, refgage) %>% tally() %>% View()
+# ffm_final_dat %>% group_by(metric, refgage) %>% tally() %>% View()
 
 # write out
 write_rds(ffm_final_dat, file = "data_output/06_ffm_final_dataset.rds")
 write_csv(ffm_final_dat, file = "data_output/06_ffm_final_dataset.csv")
 
-# ADD PLOTS/SUMMARIES ---------------------------------------
+
+# 06: JOIN WITH CSCI DATA -----------------------------------------------------
+
+# load updated data:
+load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
+
+# rename for ease of use 
+csci_trim <- bmi_csci_por_trim_ecoreg #%>% st_drop_geometry()
+
+# simplify
+csci_trim <- csci_trim %>% select(StationCode:huc8, date_begin, date_end, comid_gage:sampledate, geometry) %>% distinct(.keep_all = TRUE)
+
+# now join
+csci_mod_dat <- left_join(csci_trim, ffm_final_dat, by=c("site_id"="gageid")) %>% 
+  mutate(delta_p50 = p50_obs/p50_pred) %>% 
+  filter(!is.na(delta_p50)) %>% 
+  filter(!is.infinite(delta_p50))
+
+summary(csci_mod_dat)
+# 07: ADD PLOTS/SUMMARIES -------------------------------------
+
+## Plot CSCI by alt_hyd: 
+ggplot(data=csci_mod_dat, aes(x=csci, y=p50_obs/p50_pred, fill=as.factor(refgage), color=as.factor(refgage), shape=as.factor(refgage))) + 
+  geom_point(alpha=0.5) +
+  geom_smooth() +
+  theme_bw() +
+  facet_wrap(.~metric, scales = "free_y")
 
 # Calc REF/NON-REF w medianIQR ------------------------------
 
