@@ -183,13 +183,23 @@ csci_mod_dat <- left_join(csci_trim, ffm_final_dat, by=c("site_id"="gageid")) %>
   filter(!is.infinite(delta_p50))
 
 summary(csci_mod_dat)
+
+write_rds(csci_mod_dat, file = "data_output/06_csci_por_trim_final_dataset.rds")
+write_csv(csci_mod_dat, file = "data_output/06_csci_por_trim_final_dataset.csv")
+
+
 # 07: ADD PLOTS/SUMMARIES -------------------------------------
 
 ## Plot CSCI by alt_hyd: 
-ggplot(data=csci_mod_dat, aes(x=csci, y=p50_obs/p50_pred, fill=as.factor(refgage), color=as.factor(refgage), shape=as.factor(refgage))) + 
-  geom_point(alpha=0.5) +
-  geom_smooth() +
+ggplot() + 
+  geom_point(data=csci_mod_dat, aes(x=csci, y=p50_obs/p50_pred, fill=as.factor(refgage), color=as.factor(refgage), shape=as.factor(refgage)), alpha=0.7) +
+  geom_smooth(data=csci_mod_dat, aes(x=csci, y=p50_obs/p50_pred, fill=as.factor(refgage), color=as.factor(refgage)), lwd=.5, show.legend = FALSE) +
   theme_bw() +
+  scale_shape("Gage Type", 
+              guide = guide_legend(override.aes = 
+                                     list(size = 3, alpha=0.9))) +
+  ggthemes::scale_fill_colorblind("Gage Type") +
+  ggthemes::scale_color_colorblind("Gage Type") +
   facet_wrap(.~metric, scales = "free_y")
 
 # Calc REF/NON-REF w medianIQR ------------------------------
