@@ -5,8 +5,6 @@
 
 library(tidyverse)
 library(sf)
-#library(leaflet)
-#library(mapview)
 library(viridis) # colors
 library(cowplot)
 library(gbm) # boosted regression trees
@@ -16,30 +14,35 @@ library(rlang)
 library(glue)
 #extrafont::loadfonts(quiet=TRUE)
 
-# GBM evaluation of single points of data
-#library(DALEX)
-#library(ingredients)
+# turn off spherical geometries
+sf_use_s2(FALSE)
+
 
 # load updated data w regions:
-load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
-# rename
-bmi_por_trim <- bmi_csci_por_trim_ecoreg
+csci_ffm<- read_rds("data_output/06_csci_por_trim_final_dataset.rds")
 
+# get ecoregions and join
+eco_revised <- read_rds("data/spatial/ecoregions_combined_L3.rds")
+csci_ffm <- st_join(csci_ffm, left = FALSE, eco_revised["US_L3_mod"])
 
 # simple just sites:
-bmi_csci_sites <- bmi_por_trim %>% st_drop_geometry() %>% 
+# make a simpler layer for mapping
+csci_sites <- csci_ffm %>% 
   dplyr::distinct(StationCode, .keep_all = TRUE)
+table(csci_sites$US_L3_mod) # list of unique stations
+
+(ecoregs <- unique(csci_ffm$US_L3_mod))
 
 # Load Data --------------------------------------------------------------------
 
 ## VARIABLES:
 # "all_ca_ffc_only"
 # "cent_coast", "north_coast", "sierras", "so_cal" 
-unique(bmi_csci_por_trim_ecoreg$US_L3_mod)
+unique(csci_ffm$US_L3_mod)
 
 hydroDat <- "POR"
-modname <- "so_cal" # model name 
-plotname <- "Southern California"  #"All Site Pairs"
+modname <- "all_ca_ffc_only" # model name 
+plotname <- "All Site Pairs"  #"All Site Pairs"
 bmiVar <- quote(csci) # select response var
 
 # make pathnames
@@ -104,7 +107,7 @@ gbm_fin_RI <- gbm_fin_RI %>%
   theme_classic(base_family = "Roboto Condensed")) 
 
 # save out
-ggsave(filename=tolower(glue("models/{mod_savename}_all_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
+#ggsave(filename=tolower(glue("models/{mod_savename}_all_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 # 01B. RELATIVE INFLUENCE PLOTS (MSE) TOP VARS -------------------------------------
 
@@ -125,7 +128,7 @@ ggsave(filename=tolower(glue("models/{mod_savename}_all_RI_mse.png")), width = 9
     theme_classic(base_family = "Roboto Condensed")) 
 
 # save out
-ggsave(filename=tolower(glue("models/{mod_savename}_top_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
+#ggsave(filename=tolower(glue("models/{mod_savename}_top_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 
 # 02A. RI PERMUTATION TEST PLOTS ALL VARS ------------------------------------------------
@@ -168,7 +171,7 @@ gbm_fin_PT <- gbm_fin_PT %>%
     theme_classic(base_family = "Roboto Condensed")) 
 
 # save out
-ggsave(filename=tolower(paste0("models/", mod_savename, "_all_RI_permtest.png")), width = 9, height = 7, units = "in", dpi = 300)
+#ggsave(filename=tolower(paste0("models/", mod_savename, "_all_RI_permtest.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 
 # 02B. RI PERMUTATION TEST PLOTS TOP VARS ------------------------------------------------
@@ -191,7 +194,7 @@ ggsave(filename=tolower(paste0("models/", mod_savename, "_all_RI_permtest.png"))
    theme_classic(base_family = "Roboto Condensed")) 
 
 # save out
-ggsave(filename=tolower(paste0("models/", mod_savename, "_top_RI_permtest.png")), width = 9, height = 7, units = "in", dpi = 300)
+#ggsave(filename=tolower(paste0("models/", mod_savename, "_top_RI_permtest.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 ## Plot Side by Side -------------------------------------------------------
 
@@ -214,17 +217,16 @@ ggsave(filename=tolower(paste0("models/", mod_savename, "_top_RI_permtest.png"))
 
 (pg1 <- plot_grid(fin_ri_top_noleg, fin_pt_top, rel_widths = c(0.7, 1), align = "h", labels=c("A","B")))
  
-cowplot::save_plot(pg1, filename = tolower(paste0("models/08_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_both", ".png")), base_width = 8, units = "in", dpi = 300)
-
+#cowplot::save_plot(pg1, filename = tolower(paste0("models/08_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_both", ".png")), base_width = 8, units = "in", dpi = 300)
 
 # 03. COMBINE RIs AND SAVE -----------------------------------------------------
 
 # reassign names for RI outputs and save:
 assign(x = tolower(glue("{as_name(bmiVar)}_{hydroDat}_RI")), value=bind_rows(gbm_fin_PT, gbm_fin_RI))
 
-filepattern <- ls(pattern = paste0("^",tolower(as_name(bmiVar))))
+(filepattern <- ls(pattern = paste0("^",tolower(as_name(bmiVar)))))
 
-write_rds(x = get(filepattern), file = glue("models/{mod_savename}_RI_combined.rds"))
+write_rds(x = csci_por_ri, file = glue("models/{mod_savename}_RI_combined.rds"))
 
 # 04. MARGINAL FX Plots ----------------------------------------------
 

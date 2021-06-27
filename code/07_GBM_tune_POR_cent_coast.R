@@ -19,15 +19,22 @@ source("code/functions/My.gbm.step.R")
 
 set.seed(321) # reproducibility
 
+# turn off spherical geometries
+sf_use_s2(FALSE)
+
 # 01. Load Data ---------------------------------------------------------------
 
 # load updated data:
-load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
-# rename for ease of use and drop sf
-bmi_csci_por_trim <- bmi_csci_por_trim_ecoreg %>% st_drop_geometry()
+csci_ffm<- read_rds("data_output/06_csci_por_trim_final_dataset.rds")
+
+# get ecoregions and join
+eco_revised <- read_rds("data/spatial/ecoregions_combined_L3.rds")
+
+csci_ffm <- st_join(csci_ffm, left = FALSE, eco_revised["US_L3_mod"])
+
 
 # ecoregions:
-unique(bmi_csci_por_trim_ecoreg$US_L3_mod)
+unique(csci_ffm$US_L3_mod)
 
 # mainstem rivers
 load("data_output/02b_sel_gage_mainstems_all.rda") # mainstems_all
@@ -42,19 +49,19 @@ mapviewOptions(homebutton = FALSE, basemaps=basemapsList, viewer.suppress = FALS
 # 02. Select a Region ---------------------------------------------------------
 
 # make a simpler layer for mapping
-bmi_csci_sites <- bmi_csci_por_trim %>% 
+csci_sites <- csci_ffm %>% 
   dplyr::distinct(StationCode, .keep_all = TRUE)
-table(bmi_csci_sites$US_L3_mod) # list of unique stations
+table(csci_sites$US_L3_mod) # list of unique stations
 
-(ecoregs <- unique(bmi_csci_por_trim_ecoreg$US_L3_mod))
+(ecoregs <- unique(csci_ffm$US_L3_mod))
 
 # if selecting by a specific region use region select
-table(bmi_csci_por_trim$US_L3_mod)
-modname <- "cent_coast"   # "So_cal" 
+table(csci_ffm$US_L3_mod)
+modname <- "cent_coast"
 (Hregions <- c(ecoregs[2])) # set a region or regions
 
 # now filter data to region(s) of interest
-region_sel <- bmi_csci_por_trim_ecoreg %>% filter(US_L3_mod %in% Hregions)
+region_sel <- csci_ffm %>% filter(US_L3_mod %in% Hregions)
 
 mapview(region_sel, zcol="US_L3_mod")
 
@@ -68,20 +75,20 @@ bmiVar <- quote(csci) # select response var from list above
 # 04. Setup POR Data for Model ----------------------------------------------------------------
 
 # filter out indeterminate and not_enough_data
-data_por <- region_sel %>% st_drop_geometry() #%>% 
-  #filter(status_code %in% c(-1, 1))
-
-# need to select and spread data: 
-data_por <- data_por %>% 
+data_por <- region_sel %>% st_drop_geometry() %>% 
+  # need to select and spread data: 
   dplyr::select(StationCode, SampleID, HUC_12, site_id, 
-                comid_ffc, COMID, CEFF_type,
+                comid, COMID_bmi, refgage,
                 YYYY, csci,
-                metric, status_code
+                metric, delta_p50
   ) %>% 
   # need to spread the metrics wide
-  pivot_wider(names_from = metric, values_from = status_code) %>% 
-  mutate(CEFF_type = as.factor(CEFF_type)) %>% 
+  pivot_wider(names_from = metric, values_from = delta_p50) %>% 
+  mutate(refgage = as.factor(refgage)) %>% 
+  # just non-ref sites
+  filter(refgage=="Non-Ref") %>% 
   as.data.frame()
+# n=62 obs
 
 # check how many rows/cols: KEEP ALL FOR NOW
 library(naniar)
@@ -106,7 +113,7 @@ dim(data_por[, which(colMeans(!is.na(data_por)) > 0.7)]) # after
 # remove rows that have more than 70% NA
 dim(data_por)
 dim(data_por[which(rowMeans(!is.na(data_por))>0.7),])
-data_por <- data_por[which(rowMeans(!is.na(data_por))>0.7),]
+#data_por <- data_por[which(rowMeans(!is.na(data_por))>0.7),]
 
 # 05. Split Train/Test Data -------------------------------------------------------------------
 

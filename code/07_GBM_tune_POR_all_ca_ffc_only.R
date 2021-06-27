@@ -7,7 +7,7 @@
 
 library(purrr) # for working with lists/loops
 library(glue)
-library(tidylog)
+#library(tidylog)
 #options(tidyverse.quiet = TRUE)
 library(tidyverse) # load quietly
 library(viridis) # colors
@@ -25,12 +25,10 @@ set.seed(321) # reproducibility
 # 01. Load Data ---------------------------------------------------------------
 
 # load updated data:
-load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
-# rename for ease of use and drop sf
-bmi_csci_por_trim <- bmi_csci_por_trim_ecoreg %>% st_drop_geometry()
+csci_ffm<- read_rds("data_output/06_csci_por_trim_final_dataset.rds")
 
 # ecoregions:
-unique(bmi_csci_por_trim_ecoreg$US_L3_mod)
+unique(csci_ffm$US_L3_mod)
 
 # set background basemaps/default options:
 basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery",
@@ -55,54 +53,43 @@ bmiVar <- quote(csci) # select response var from list above
 # 03. Setup POR Data for Model ----------------------------------------------------------------
 
 # summarize
-#bmi_csci_por_trim %>% group_by(metric, alteration_type) %>% tally() %>% 
-bmi_csci_por_trim %>% 
-  distinct(StationCode, metric, status_code, .keep_all = TRUE) %>% 
-  group_by(metric, status_code) %>% tally() %>% 
-  filter(!is.na(status_code)) %>% 
-  View()
-  group_by(alteration_type) %>% add_tally(n) %>% 
-  #View() %>% 
-  distinct(alteration_type, nn)
-
-  
-ggplot() + geom_col(aes(x=metric, y=n, fill=status_code))
-
-# summarize to look at distrib of -1,0,1
-table(bmi_csci_por_trim$status_code)
-summary(bmi_csci_por_trim$status_code)
-table(bmi_csci_por_trim$status)
-# filter out indeterminate and not_enough_data
-bmi_csci_por_filt <- bmi_csci_por_trim %>% 
-  filter(status_code %in% c(-1, 1)) # should drop 1336 + 152 rows
+#csci_ffm %>% group_by(metric, alteration_type) %>% tally() %>% 
+csci_ffm %>% st_drop_geometry() %>% 
+  distinct(StationCode, metric, refgage, .keep_all = TRUE) %>% 
+  select(StationCode, refgage, metric, delta_p50, csci) %>% 
+  group_by(metric, refgage) %>% add_tally() %>% 
+  #View()
+  distinct(refgage, n, .keep_all=TRUE) %>% 
+  ggplot() + geom_col(aes(x=metric, y=n, fill=refgage))
 
 # need to select and spread data: 
-data_por <- bmi_csci_por_filt %>% 
+data_por <- csci_ffm %>% st_drop_geometry() %>% 
   dplyr::select(StationCode, SampleID, HUC_12, site_id, 
-                comid_ffc, COMID, CEFF_type,
+                comid, COMID_bmi, refgage,
                 YYYY, csci,
-                metric, status_code
+                metric, delta_p50
                 ) %>% 
   # need to spread the metrics wide
-  pivot_wider(names_from = metric, values_from = status_code) %>% 
-  mutate(CEFF_type = as.factor(CEFF_type)) %>% 
+  pivot_wider(names_from = metric, values_from = delta_p50) %>% 
+  mutate(refgage = as.factor(refgage)) %>% 
+  # just non-ref sites
+  filter(refgage=="Non-Ref") %>% 
   as.data.frame()
-
+# n=521 obs
 
 # check how many rows/cols: KEEP ALL FOR NOW
 dim(data_por)
 data_names <- names(data_por) # save colnames out
 
 # remove cols that have more than 70% NA
-# data_por <- data_por[, which(colMeans(!is.na(data_por)) > 0.7)]
-# dim(data_por)
-# 
-# # find the cols that have been dropped
-# setdiff(data_names, names(data_por))
-# 
-# # remove rows that have more than 70% NA
-# data_por <- data_por[which(rowMeans(!is.na(data_por))>0.7),]
-# dim(data_por)
+data_por <- data_por[, which(colMeans(!is.na(data_por)) > 0.7)]
+dim(data_por)
+ 
+# find the cols that have been dropped
+setdiff(data_names, names(data_por))
+# remove rows that have more than 70% NA
+data_por <- data_por[which(rowMeans(!is.na(data_por))>0.7),]
+dim(data_por) # n=518
 
 # 04. RANDOMIZE AND TIDY Data ----------------------------------------------------
 
@@ -112,7 +99,8 @@ data_por <- data_por[random_index, ]
 
 ## USE ALL DATA
 data_por_train <- data_por %>% # use all data
-  dplyr::select({{bmiVar}}, 10:ncol(.)) %>%  # use 12 if not including HUC region and CEFF_type
+  dplyr::select({{bmiVar}}, 10:ncol(.)) %>%  
+  # use 12 if not including HUC region and CEFF_type
   dplyr::filter(!is.na({{bmiVar}})) %>% as.data.frame()
          
 # double check cols are what we want

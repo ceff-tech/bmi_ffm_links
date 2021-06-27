@@ -7,21 +7,23 @@ library(gt)
 library(glue)
 suppressPackageStartupMessages(library(tidyverse))
 library(sf)
+sf_use_s2(FALSE)
+
 library(viridis) # colors
 library(rlang)
 library(purrr)
 
 # Load Data ---------------------------------------------------------------
 
-
 # load updated data w regions:
-load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
+csci_ffm<- read_rds("data_output/06_csci_por_trim_final_dataset.rds")
 
-# rename
-bmi_por_trim <- bmi_csci_por_trim_ecoreg
+# get ecoregions and join
+eco_revised <- read_rds("data/spatial/ecoregions_combined_L3.rds")
+csci_ffm <- st_join(csci_ffm, left = FALSE, eco_revised["US_L3_mod"])
 
-# simple just sites:
-bmi_csci_sites <- bmi_por_trim %>% st_drop_geometry() %>% 
+# make a simpler layer for mapping
+csci_sites <- csci_ffm %>% 
   dplyr::distinct(StationCode, .keep_all = TRUE)
 
 # REGIONS
@@ -32,7 +34,7 @@ hydroDat <- "POR"
 
 # Make Regional RI Dataset --------------------------------------------------------
 
-unique(bmi_csci_por_trim_ecoreg$US_L3_mod)
+unique(csci_ffm$US_L3_mod)
 
 ## ALL CA ----------------------
 
@@ -94,7 +96,6 @@ ri_all_regions <- bind_rows(ri_all_ca, ri_socal, ri_ncoast, ri_centcoast, ri_sie
 ## save out for later
 save(ri_all_regions, file = tolower(glue::glue("models/09_{bmiVar}_{hydroDat}_all_ri_all_regions.rda")))
 
-
 # Make a Table of RI's ----------------------------------------------------
 
 library(readxl)
@@ -129,7 +130,6 @@ forder <- ri_table %>%
   mutate(id = row_number()) %>% 
   ungroup() %>% arrange(id) %>% 
   select(Flow.Metric.Name, id) # get the just the names for ordering things
-
 
 # Plot & Summarize All RI Combined ----------------------------------------
 
@@ -225,7 +225,7 @@ ri_table %>%
              show.legend = TRUE, pch=21) +
   scale_fill_manual("Flow Component", values=flowcomponent_colors) +
   scale_color_manual("Flow Component", values=flowcomponent_colors) +
-  scale_size_area("", guide=FALSE) +
+  scale_size_area("", guide="none") +
   #scale_shape_manual("Method", values=c("mse"=16, "permtest"=17))+
   coord_flip() +
   ylim(c(0,25))+
@@ -264,7 +264,7 @@ ri_table %>%
   #scale_x_continuous(breaks=forder$id, labels=forder$Flow.Metric.Name) +
   scale_fill_manual("Flow Component", values=flowcomponent_colors) +
   scale_color_manual("Flow Component", values=flowcomponent_colors) +
-  scale_size_binned("", guide=FALSE, range=c(0.5, 6.5)) +
+  scale_size_binned("", guide="none", range=c(0.5, 6.5)) +
   coord_flip() +
   ylim(c(0,30))+
   labs(subtitle = "CSCI Models",

@@ -4,55 +4,46 @@
  
 Performing cross-validation optimisation of a boosted regression tree model 
 for csci and using a family of gaussian 
-Using 325 observations and 24 predictors 
+Using 275 observations and 12 predictors 
 creating 10 initial models of 100 trees 
 
  folds are unstratified 
-total mean deviance =  0.0413 
+total mean deviance =  0.0408 
 tolerance is fixed at  0 
 ntrees resid. dev. 
-100    0.0383 
+100    0.0352 
 now adding trees... 
-200   0.0364 
-300   0.0353 
-400   0.0346 
-500   0.0341 
-600   0.0337 
-700   0.0334 
-800   0.0332 
-900   0.0331 
-1000   0.0329 
-1100   0.0328 
-1200   0.0328 
-1300   0.0328 
-1400   0.0328 
-1500   0.0327 
-1600   0.0327 
-1700   0.0327 
-1800   0.0327 
-1900   0.0327 
-2000   0.0327 
-2100   0.0327 
-2200   0.0326 
-2300   0.0326 
-2400   0.0327 
-2500   0.0327 
-2600   0.0328 
-2700   0.0328 
-2800   0.0328 
-2900   0.0328 
+200   0.0327 
+300   0.0316 
+400   0.0314 
+500   0.0315 
+600   0.0317 
+700   0.0321 
+800   0.0323 
+900   0.0325 
+1000   0.0328 
+1100   0.033 
+1200   0.0331 
+1300   0.0333 
+1400   0.0334 
+1500   0.0336 
+1600   0.0336 
+1700   0.0338 
+1800   0.0338 
+1900   0.0339 
+2000   0.034 
 
 mean total deviance = 0.041 
 mean residual deviance = 0.024 
  
-estimated cv deviance = 0.033 ; se = 0.003 
+estimated cv deviance = 0.031 ; se = 0.003 
  
-training data correlation = 0.647 
-cv correlation =  0.49 ; se = 0.048 
+training data correlation = 0.679 
+cv correlation =  0.486 ; se = 0.038 
  
-elapsed time -  0.25 minutes 
+elapsed time -  0.05 minutes 
 
 Best parameters for GBM.STEP:
 
 shrinkage	interaction.depth	n.minobsinnode	bag.fraction	dev_explained
-0.005	5	10	0.8	0.20918368758693642
+0.005	5	3	0.8	0.2307766099936336
