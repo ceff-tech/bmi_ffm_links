@@ -257,7 +257,7 @@ load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
 csci_trim <- bmi_csci_por_trim_ecoreg #%>% st_drop_geometry()
 
 # simplify
-csci_trim <- csci_trim %>% select(StationCode:huc8, date_begin, date_end, comid_gage:sampledate, geometry) %>% distinct(.keep_all = TRUE)
+csci_trim <- csci_trim %>% select(StationCode:huc8, date_begin, date_end, comid_gage:sampledate, US_L3_mod, geometry) %>% distinct(.keep_all = TRUE)
 
 # now join
 csci_mod_dat <- left_join(csci_trim, ffm_final_dat_v2, by=c("site_id"="gageid")) %>% 
@@ -272,7 +272,9 @@ csci_mod_dat %>% st_drop_geometry %>% distinct(StationCode) %>% tally() # n=206
 csci_mod_dat %>% st_drop_geometry %>% distinct(site_id) %>% tally() # n=156
 csci_mod_dat %>% st_drop_geometry %>% distinct(metric) %>% tally() # n=18
 csci_mod_dat %>% st_drop_geometry %>% distinct(refgage) %>% tally() # n=1
+csci_mod_dat %>% st_drop_geometry %>% group_by(US_L3_mod, metric) %>% tally() %>% View()
 
+# save out
 write_rds(csci_mod_dat, file = "data_output/06_csci_por_trim_final_dataset.rds")
 write_csv(csci_mod_dat, file = "data_output/06_csci_por_trim_final_dataset.csv")
 
