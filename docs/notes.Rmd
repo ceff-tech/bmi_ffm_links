@@ -1,0 +1,18 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Notes to do
+
+1.  drop only 6 metrics - 3 peak mags, 3 wet season bflw
+
+2.  drop 10 gages with no observed data (use SP_ROC as filter)
+
+3.  Fill FA_DUR w zeros in remaining altered gages
+
+4.  Re-Run BRTs, keep all metrics without the 70% filter

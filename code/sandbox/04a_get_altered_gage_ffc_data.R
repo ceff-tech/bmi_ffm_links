@@ -52,13 +52,14 @@ table(usgs_list$FINAL_REFERENCE) # 30=Y here,
 # Test with a Single Gage -------------------------------------------------
 
 # this works for a single gage and doesn't show plots
-# g1 <- usgs_list %>% 
-#   slice(5) %>% 
-#   select(gage_id, NHDV2_COMID) %>% 
-#   evaluate_gage_alteration(gage_id = .$gage_id,  
-#                            comid = .$NHDV2_COMID,
-#                            token = ffctoken, 
-#                            plot_results = FALSE)   
+g1 <- ffc_alt %>% select(gageid, comid) %>% 
+  #usgs_list %>%
+  slice(5) %>%
+  #select(gage_id, NHDV2_COMID) %>%
+  evaluate_gage_alteration(gage_id = .$gage_id,
+                           comid = .$NHDV2_COMID,
+                           token = ffctoken,
+                           plot_results = FALSE)
 
 # here we get a list of 5 df
 # names(g1)

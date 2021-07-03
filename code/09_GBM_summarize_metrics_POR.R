@@ -31,6 +31,8 @@ csci_sites <- csci_ffm %>%
 # ri_all_regions 
 load("models/09_csci_por_all_ri_all_regions.rda")
 hydroDat <- "POR"
+modname <- "all_ca_ffc_only" # model name
+bmiVar <- quote(csci) # select response var
 
 # Make Regional RI Dataset --------------------------------------------------------
 
@@ -38,63 +40,63 @@ unique(csci_ffm$US_L3_mod)
 
 ## ALL CA ----------------------
 
-modname <- "all_ca_ffc_only" # model name
-bmiVar <- quote(csci) # select response var
-
-# make pathnames
-(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-
-# get the gbm model:
-(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-top_ris <- read_rds(file=paste0("models/", top_ri))
-
-# make sep and combine
-ri_all_ca <- top_ris %>% mutate(model="all_ca")
-
-## CENTRAL COAST ------------------
-modname <- "cent_coast" # model name
-(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-top_ris <- read_rds(file=paste0("models/", top_ri))
-
-# make sep and combine
-ri_centcoast <- top_ris %>% mutate(model="cent_coast")
-
-## NORTH COAST -----------------
-modname <- "north_coast" # model name
-(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-top_ris <- read_rds(file=paste0("models/", top_ri))
-
-# make sep and combine
-ri_ncoast <- top_ris %>% mutate(model="north_coast")
-
-## SIERRA NEVADA -----------------
-modname <- "sierras" # model name
-(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-top_ris <- read_rds(file=paste0("models/", top_ri))
-
-# make sep and combine
-ri_sierra <- top_ris %>% mutate(model="sierras")
-
-## SO CAL ---------------------------
-modname <- "so_cal" # model name
-(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-top_ris <- read_rds(file=paste0("models/", top_ri))
-
-# make sep and combine
-ri_socal <- top_ris %>% mutate(model="so_cal")
-## not enough samples for cent valley or cascades
-
-## COMBINE ALL -----------------------
-
-## bind
-ri_all_regions <- bind_rows(ri_all_ca, ri_socal, ri_ncoast, ri_centcoast, ri_sierra)
-
-## save out for later
-save(ri_all_regions, file = tolower(glue::glue("models/09_{bmiVar}_{hydroDat}_all_ri_all_regions.rda")))
+# modname <- "all_ca_ffc_only" # model name
+# bmiVar <- quote(csci) # select response var
+# 
+# # make pathnames
+# (mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+# 
+# # get the gbm model:
+# (top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+# top_ris <- read_rds(file=paste0("models/", top_ri))
+# 
+# # make sep and combine
+# ri_all_ca <- top_ris %>% mutate(model="all_ca")
+# 
+# ## CENTRAL COAST ------------------
+# modname <- "cent_coast" # model name
+# (mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+# (top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+# top_ris <- read_rds(file=paste0("models/", top_ri))
+# 
+# # make sep and combine
+# ri_centcoast <- top_ris %>% mutate(model="cent_coast")
+# 
+# ## NORTH COAST -----------------
+# modname <- "north_coast" # model name
+# (mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+# (top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+# top_ris <- read_rds(file=paste0("models/", top_ri))
+# 
+# # make sep and combine
+# ri_ncoast <- top_ris %>% mutate(model="north_coast")
+# 
+# ## SIERRA NEVADA -----------------
+# modname <- "sierras" # model name
+# (mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+# (top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+# top_ris <- read_rds(file=paste0("models/", top_ri))
+# 
+# # make sep and combine
+# ri_sierra <- top_ris %>% mutate(model="sierras")
+# 
+# ## SO CAL ---------------------------
+# modname <- "so_cal" # model name
+# (mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+# (top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+# top_ris <- read_rds(file=paste0("models/", top_ri))
+# 
+# # make sep and combine
+# ri_socal <- top_ris %>% mutate(model="so_cal")
+# ## not enough samples for cent valley or cascades
+# 
+# ## COMBINE ALL -----------------------
+# 
+# ## bind
+# ri_all_regions <- bind_rows(ri_all_ca, ri_socal, ri_ncoast, ri_centcoast, ri_sierra)
+# 
+# ## save out for later
+# save(ri_all_regions, file = tolower(glue::glue("models/09_{bmiVar}_{hydroDat}_all_ri_all_regions.rda")))
 
 # Make a Table of RI's ----------------------------------------------------
 
@@ -271,7 +273,8 @@ ri_table %>%
        x="", y="Relative Influence (%)") +
   #theme_bw(base_family = "Roboto Condensed")
   theme_minimal(base_family = "Roboto Condensed") +
-  theme(legend.position = "bottom", legend.box = "horizontal")+
+  theme(legend.position = "bottom", legend.box = "horizontal", 
+        plot.background = element_rect(fill = 'white')) +
   guides(fill = guide_legend(override.aes = list(size = 4), 
                              title.position = "top"))
   #facet_grid(cols = vars(model), labeller = labeller(model=c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="N. Coast", "south_coast"="S. Coast")))

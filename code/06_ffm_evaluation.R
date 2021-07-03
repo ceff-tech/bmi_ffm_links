@@ -77,9 +77,16 @@ ffm_prcnt_alt <- ffc_alt %>%
   group_by(metric, status, refgage) %>% # for facet by refgage
   tally() %>% 
   left_join(., ffm_metric_count) %>% 
-  mutate(prop_n = n/total_count)
+  mutate(prop_n = n/total_count) %>% 
+  # create all possible combos
+  complete(metric, status, refgage) %>% 
+  # drop duplications here (not sure why getting dups!?)
+  distinct(.keep_all = TRUE) %>% 
+  # fill NAs with zero
+  mutate(across(everything(), ~replace_na(.x, 0)))
 
-ffm_prcnt_alt_ref <- ffm_prcnt_alt %>% filter(refgage=="Ref")
+# filter to just ref
+ffm_prcnt_alt_ref <- ffm_prcnt_alt %>% filter(refgage=="Ref") 
 
 ## Plot: ALT STATUS -------------------------------------------------------
 
@@ -102,39 +109,37 @@ ggplot() + geom_col(data=ffm_prcnt_alt, aes(x=metric, y=prop_n, fill=status)) +
 
 # Filter to only FFM with < 10% of ref gages == altered, excluding PEAK FLOW METRICS 
 
-ffm_prcnt_alt_keep <- ffm_prcnt_alt %>% 
-  filter(refgage == "Ref") %>% # keep only REF
+ffm_prcnt_alt_keep <- ffm_prcnt_alt_ref %>% 
   filter(status == "likely_altered") %>% 
-  filter(prop_n < 0.1) %>% 
-  filter(!grepl("^Peak", metric))
+  filter(prop_n < 0.1) # dropped "Peak_10" "Peak_2"  "Peak_5"
 
 # FILTER METRIC LIST
-filt_less_than_10_perc_metrics <- ffm_prcnt_alt_keep$metric
+(filt_less_than_10_perc_metrics <- ffm_prcnt_alt_keep$metric)
 
 ## STEP 2: <15% of Ref gages peak flows altered -------------
 
-# Filter to only Peak flow metris w < 15% of ref gages == altered
-ffm_prcnt_alt_keep_peak <- ffm_prcnt_alt %>% 
-  filter(refgage == "Ref") %>% # keep only REF
-  filter(status == "likely_altered") %>% 
-  filter(grepl("^Peak", metric)) %>% 
-  filter(prop_n < 0.15)
+# # Filter to only Peak flow metris w < 15% of ref gages == altered
+# ffm_prcnt_alt_keep_peak <- ffm_prcnt_alt %>% 
+#   filter(refgage == "Ref") %>% # keep only REF
+#   filter(status == "likely_altered") %>% 
+#   filter(grepl("^Peak", metric)) %>% 
+#   filter(prop_n < 0.15)
+# 
+# View(ffm_prcnt_alt_keep_peak)
 
 # FILTER METRIC LIST
-filt_less_than_15_peak <- ffm_prcnt_alt_keep_peak$metric
+# (filt_less_than_15_peak <- ffm_prcnt_alt_keep_peak$metric)
 
 ## STEP 3: <25% of Ref gages are indeterminant -----------
 
 # <25% of ref gages are indeterminate for that metric
-
-ffm_prcnt_alt_keep_indet <- ffm_prcnt_alt %>% 
-  filter(refgage == "Ref") %>% # keep only REF
+ffm_prcnt_alt_keep_indet <- ffm_prcnt_alt_ref %>% 
   filter(metric %in% filt_less_than_10_perc_metrics) %>% 
   filter(status == "indeterminate") %>% 
-  filter(prop_n < 0.25)
+  filter(prop_n < 0.25) # drop "Wet_BFL_Mag_10" "Wet_BFL_Mag_50" "Wet_Tim"
 
 # list of metrics
-filt_less_than_25_indeterm <- ffm_prcnt_alt_keep_indet$metric
+(filt_less_than_25_indeterm <- ffm_prcnt_alt_keep_indet$metric)
 
 ### WRITE IT OUT
 write_csv(ffm_prcnt_alt_keep_indet, file = "data_output/06_filtered_ffm_based_on_ref_prop.csv")
@@ -144,11 +149,17 @@ write_csv(ffm_prcnt_alt_keep_indet, file = "data_output/06_filtered_ffm_based_on
 
 # using the metrics listed above get the obs 50 percentile and predicted 50 percentile data 
 
+# get all alt gages to use:
+alt_gages_unique <- ffc_alt %>% filter(refgage=="Non-Ref") %>% 
+  select(gageid) %>% distinct()
+
 ffc_obs_filt <- ffc_obs %>% 
+  filter(gageid %in% alt_gages_unique$gageid) %>% 
   filter(metric %in% filt_less_than_25_indeterm) %>% 
   select(metric:gageid, p50_obs = p50, data_type=result_type)
 
 ffc_pred_filt <- ffc_pred %>% 
+  filter(gageid %in% alt_gages_unique$gageid) %>% 
   filter(metric %in% filt_less_than_25_indeterm) %>% 
   select(metric, comid, result_type, gageid, p50_pred = p50, result_type)
 
@@ -160,9 +171,81 @@ ffm_final_dat <- left_join(ffm_delta_hyd, ffc_alt %>%
 
 # ffm_final_dat %>% group_by(metric, refgage) %>% tally() %>% View()
 
+
+# Filter and Fix ----------------------------------------------------------
+
+# how  many total gages?
+ffm_final_dat %>% distinct(gageid) %>% tally()
+
+# drop 10 gages with missing SP metrics
+gages_to_drop <- ffm_final_dat %>% 
+  filter(metric== "SP_ROC" & is.na(p50_obs)) %>% 
+  select(gageid) #%>% 
+  #View()
+
+# filter
+ffm_final_dat_v2 <- ffm_final_dat %>% 
+  filter(!gageid %in% gages_to_drop$gageid)
+
+# check how many remain
+ffm_final_dat_v2 %>% distinct(gageid) %>% tally()
+
+# summary of na
+summary(ffm_final_dat_v2$p50_obs)
+summary(ffm_final_dat_v2$p50_pred)
+
+# fill FA_Dur obs to 0 if NA
+ffm_final_dat_v2 <- ffm_final_dat_v2 %>% 
+  mutate(p50_obs = case_when(
+    metric == "FA_Dur" & is.na(p50_obs) ~ 0,
+    TRUE ~ p50_obs
+  ))
+
+# drop remaining NA's?
+ffm_final_dat_v2 <- ffm_final_dat_v2 %>% 
+  filter(!is.na(p50_obs) & !is.na(p50_pred))
+
+# look 
+ffm_final_dat_v2 %>% distinct(gageid) %>% tally()
+ffm_final_dat_v2 %>% distinct(metric) %>% tally()
+ffm_final_dat_v2 %>% group_by(gageid) %>% tally() %>% 
+  View()
+
+# Test FFC API ------------------------------------------------------------
+
+library(ffcAPIClient)
+# set/get the token for using the FFC
+ffctoken <- set_token(Sys.getenv("EFLOWS_TOKEN", "")) 
+
+
+g1 <- ffc_obs %>% 
+  select(gageid, comid) %>% 
+  filter(gageid == "10257499") %>% 
+  evaluate_gage_alteration(gage_id = .$gageid,
+                           comid = .$comid,
+                           token = ffctoken,
+                           force_comid_lookup = FALSE,
+                           plot_results = FALSE)
+
+
+source("code/functions/f_iterate_ffc.R")
+
+# this takes these data and saves them all into a single file/s
+source("code/functions/f_ffc_collapse.R")
+
+ffcs <- gagelist %>%
+  select(site_id, comid) %>% # pull just ID column
+  pmap(.l = ., .f = ~ffc_possible(.x, startDate = st_date, ffctoken=ffctoken, comid=.y, dirToSave="output/ffc_run_alt", save=TRUE)) %>%
+  # add names to list
+  set_names(x = ., nm=gagelist$site_id_name)
+toc() # end time
+
+
+# Save Out Data -----------------------------------------------------------
+
 # write out
-write_rds(ffm_final_dat, file = "data_output/06_ffm_final_dataset.rds")
-write_csv(ffm_final_dat, file = "data_output/06_ffm_final_dataset.csv")
+write_rds(ffm_final_dat_v2, file = "data_output/06_ffm_final_dataset.rds")
+write_csv(ffm_final_dat_v2, file = "data_output/06_ffm_final_dataset.csv")
 
 
 # 06: JOIN WITH CSCI DATA -----------------------------------------------------
@@ -177,12 +260,18 @@ csci_trim <- bmi_csci_por_trim_ecoreg #%>% st_drop_geometry()
 csci_trim <- csci_trim %>% select(StationCode:huc8, date_begin, date_end, comid_gage:sampledate, geometry) %>% distinct(.keep_all = TRUE)
 
 # now join
-csci_mod_dat <- left_join(csci_trim, ffm_final_dat, by=c("site_id"="gageid")) %>% 
+csci_mod_dat <- left_join(csci_trim, ffm_final_dat_v2, by=c("site_id"="gageid")) %>% 
   mutate(delta_p50 = p50_obs/p50_pred) %>% 
   filter(!is.na(delta_p50)) %>% 
   filter(!is.infinite(delta_p50))
 
+# how many unique gages & sites?
 summary(csci_mod_dat)
+
+csci_mod_dat %>% st_drop_geometry %>% distinct(StationCode) %>% tally() # n=206
+csci_mod_dat %>% st_drop_geometry %>% distinct(site_id) %>% tally() # n=156
+csci_mod_dat %>% st_drop_geometry %>% distinct(metric) %>% tally() # n=18
+csci_mod_dat %>% st_drop_geometry %>% distinct(refgage) %>% tally() # n=1
 
 write_rds(csci_mod_dat, file = "data_output/06_csci_por_trim_final_dataset.rds")
 write_csv(csci_mod_dat, file = "data_output/06_csci_por_trim_final_dataset.csv")
@@ -192,8 +281,9 @@ write_csv(csci_mod_dat, file = "data_output/06_csci_por_trim_final_dataset.csv")
 
 ## Plot CSCI by alt_hyd: 
 ggplot() + 
-  geom_point(data=csci_mod_dat, aes(x=csci, y=p50_obs/p50_pred, fill=as.factor(refgage), color=as.factor(refgage), shape=as.factor(refgage)), alpha=0.7) +
-  geom_smooth(data=csci_mod_dat, aes(x=csci, y=p50_obs/p50_pred, fill=as.factor(refgage), color=as.factor(refgage)), lwd=.5, show.legend = FALSE) +
+  geom_point(data=csci_mod_dat, aes(x=csci, y=delta_p50, fill=status), alpha=0.7, pch=21) +
+  geom_smooth(data=csci_mod_dat, method = "gam",
+              aes(x=csci, y=delta_p50, color=status, fill=status), lwd=.5, show.legend = FALSE) +
   theme_bw() +
   scale_shape("Gage Type", 
               guide = guide_legend(override.aes = 
@@ -201,6 +291,10 @@ ggplot() +
   ggthemes::scale_fill_colorblind("Gage Type") +
   ggthemes::scale_color_colorblind("Gage Type") +
   facet_wrap(.~metric, scales = "free_y")
+
+ggsave(filename = "figs/prelim_glm_delta_p50obsexp_vs_csci.png", width = 11, height = 8, dpi=300)
+
+ggsave(filename = "figs/prelim_gam_delta_p50obsexp_vs_csci.png", width = 11, height = 8, dpi=300)
 
 # Calc REF/NON-REF w medianIQR ------------------------------
 
