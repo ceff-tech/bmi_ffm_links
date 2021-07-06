@@ -151,7 +151,7 @@ csci_ffm <- csci_ffm %>%
 # top 1 by region (no_coast): FA_Mag
 # top 1 by region (sierras): DS_Mag_90
 # top 1 by region (so_cal): SP_ROC
-metselect <- "FA_Dur"
+metselect <- "SP_ROC"
 
 # filter to just regions of interest:
 ggplot() +
@@ -171,9 +171,6 @@ ggplot() +
              aes(x=delta_p50, y=csci, color=US_L3_mod), 
              size=2.8, alpha=0.7, show.legend = F) +
   
-  #scale_shape_manual("Alteration\nStatus", labels=c("Likely Altered","Likely Unaltered"), 
-  #                    values=c("-1"=23,"1"=21), guide=FALSE) +
-  
   # gam smooth
   stat_smooth(data=csci_ffm %>% 
                 filter(metric == metselect),
@@ -188,21 +185,24 @@ ggplot() +
               show.legend = FALSE) +
   
   # all the other stuff
-  #scale_x_continuous(limits=c(0,4)) +
+  #scale_x_continuous(limits=c(0,3)) +
   scale_y_continuous(breaks=csci_breaks, limits=c(0, 1.25)) +
   #scale_x_log10(
   #  labels=scales::comma,
   #  expand=c(0.01,0.01))+
   theme_clean(base_family = "Roboto Condensed") +
-  theme(panel.border = element_blank(),
-        plot.background = element_blank()) +
+  #theme(panel.border = element_blank(),
+  #      plot.background = element_blank()) +
   labs(y="CSCI Score",
        x=glue("{unique(csci_ffm$Flow.Metric.Name[which(csci_ffm$metric==metselect)])} (Obs/Exp p50)"),
        title=unique(csci_ffm$Flow.Metric.Name[which(csci_ffm$metric==metselect)])) +
   facet_wrap(vars(US_L3_mod), scales = "free_x", nrow=2)
 
 
-
+ggsave(filename=glue("figs/12_trendplots_{metselect}.png"), width = 11, height = 8, 
+       dpi=300)
+#ggsave(filename=glue("figs/12_trendplots_{metselect}_trunc.png"), width = 11, height = 8, 
+#       dpi=300)
 
 # CSCI: SP_Mag ----------------------------------------
 
