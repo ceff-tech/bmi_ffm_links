@@ -17,13 +17,12 @@ library(glue)
 # turn off spherical geometries
 sf_use_s2(FALSE)
 
-
 # load updated data w regions:
 csci_ffm<- read_rds("data_output/06_csci_por_trim_final_dataset.rds")
 
 # get ecoregions and join
-eco_revised <- read_rds("data/spatial/ecoregions_combined_L3.rds")
-csci_ffm <- st_join(csci_ffm, left = FALSE, eco_revised["US_L3_mod"])
+# eco_revised <- read_rds("data/spatial/ecoregions_combined_L3.rds")
+# csci_ffm <- st_join(csci_ffm, left = FALSE, eco_revised["US_L3_mod"])
 
 # simple just sites:
 # make a simpler layer for mapping
@@ -41,7 +40,7 @@ table(csci_sites$US_L3_mod) # list of unique stations
 unique(csci_ffm$US_L3_mod)
 
 hydroDat <- "POR"
-modname <- "all_ca_ffc_only" # model name 
+modname <- "so_cal" # model name 
 plotname <- "All Site Pairs"  #"All Site Pairs"
 bmiVar <- quote(csci) # select response var
 
@@ -128,7 +127,7 @@ gbm_fin_RI <- gbm_fin_RI %>%
     theme_classic(base_family = "Roboto Condensed")) 
 
 # save out
-#ggsave(filename=tolower(glue("models/{mod_savename}_top_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
+# ggsave(filename=tolower(glue("models/{mod_savename}_top_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 
 # 02A. RI PERMUTATION TEST PLOTS ALL VARS ------------------------------------------------

@@ -29,12 +29,7 @@ csci_ffm<- read_rds("data_output/06_csci_por_trim_final_dataset.rds")
 
 # get ecoregions and join
 eco_revised <- read_rds("data/spatial/ecoregions_combined_L3.rds")
-
-csci_ffm <- st_join(csci_ffm, left = FALSE, eco_revised["US_L3_mod"])
-
-
-# ecoregions:
-unique(csci_ffm$US_L3_mod)
+#csci_ffm <- st_join(csci_ffm, left = FALSE, eco_revised["US_L3_mod"])
 
 # mainstem rivers
 load("data_output/02b_sel_gage_mainstems_all.rda") # mainstems_all

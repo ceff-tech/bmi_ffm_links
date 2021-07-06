@@ -19,8 +19,8 @@ library(purrr)
 csci_ffm<- read_rds("data_output/06_csci_por_trim_final_dataset.rds")
 
 # get ecoregions and join
-eco_revised <- read_rds("data/spatial/ecoregions_combined_L3.rds")
-csci_ffm <- st_join(csci_ffm, left = FALSE, eco_revised["US_L3_mod"])
+# eco_revised <- read_rds("data/spatial/ecoregions_combined_L3.rds")
+# csci_ffm <- st_join(csci_ffm, left = FALSE, eco_revised["US_L3_mod"])
 
 # make a simpler layer for mapping
 csci_sites <- csci_ffm %>% 
@@ -40,63 +40,63 @@ unique(csci_ffm$US_L3_mod)
 
 ## ALL CA ----------------------
 
-# modname <- "all_ca_ffc_only" # model name
-# bmiVar <- quote(csci) # select response var
-# 
-# # make pathnames
-# (mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-# 
-# # get the gbm model:
-# (top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-# top_ris <- read_rds(file=paste0("models/", top_ri))
-# 
-# # make sep and combine
-# ri_all_ca <- top_ris %>% mutate(model="all_ca")
-# 
-# ## CENTRAL COAST ------------------
-# modname <- "cent_coast" # model name
-# (mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-# (top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-# top_ris <- read_rds(file=paste0("models/", top_ri))
-# 
-# # make sep and combine
-# ri_centcoast <- top_ris %>% mutate(model="cent_coast")
-# 
-# ## NORTH COAST -----------------
-# modname <- "north_coast" # model name
-# (mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-# (top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-# top_ris <- read_rds(file=paste0("models/", top_ri))
-# 
-# # make sep and combine
-# ri_ncoast <- top_ris %>% mutate(model="north_coast")
-# 
-# ## SIERRA NEVADA -----------------
-# modname <- "sierras" # model name
-# (mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-# (top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-# top_ris <- read_rds(file=paste0("models/", top_ri))
-# 
-# # make sep and combine
-# ri_sierra <- top_ris %>% mutate(model="sierras")
-# 
-# ## SO CAL ---------------------------
-# modname <- "so_cal" # model name
-# (mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-# (top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-# top_ris <- read_rds(file=paste0("models/", top_ri))
-# 
-# # make sep and combine
-# ri_socal <- top_ris %>% mutate(model="so_cal")
-# ## not enough samples for cent valley or cascades
-# 
-# ## COMBINE ALL -----------------------
-# 
-# ## bind
-# ri_all_regions <- bind_rows(ri_all_ca, ri_socal, ri_ncoast, ri_centcoast, ri_sierra)
-# 
-# ## save out for later
-# save(ri_all_regions, file = tolower(glue::glue("models/09_{bmiVar}_{hydroDat}_all_ri_all_regions.rda")))
+modname <- "all_ca_ffc_only" # model name
+bmiVar <- quote(csci) # select response var
+
+# make pathnames
+(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+
+# get the gbm model:
+(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+top_ris <- read_rds(file=paste0("models/", top_ri))
+
+# make sep and combine
+ri_all_ca <- top_ris %>% mutate(model="all_ca")
+ 
+## CENTRAL COAST ------------------
+modname <- "cent_coast" # model name
+(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+top_ris <- read_rds(file=paste0("models/", top_ri))
+
+# make sep and combine
+ri_centcoast <- top_ris %>% mutate(model="cent_coast")
+
+## NORTH COAST -----------------
+modname <- "north_coast" # model name
+(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+top_ris <- read_rds(file=paste0("models/", top_ri))
+
+# make sep and combine
+ri_ncoast <- top_ris %>% mutate(model="north_coast")
+
+## SIERRA NEVADA -----------------
+modname <- "sierras" # model name
+(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+top_ris <- read_rds(file=paste0("models/", top_ri))
+
+# make sep and combine
+ri_sierra <- top_ris %>% mutate(model="sierras")
+
+## SO CAL ---------------------------
+modname <- "so_cal" # model name
+(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
+top_ris <- read_rds(file=paste0("models/", top_ri))
+
+# make sep and combine
+ri_socal <- top_ris %>% mutate(model="so_cal")
+## not enough samples for cent valley or cascades
+
+## COMBINE ALL -----------------------
+
+## bind
+ri_all_regions <- bind_rows(ri_all_ca, ri_socal, ri_ncoast, ri_centcoast, ri_sierra)
+
+## save out for later
+save(ri_all_regions, file = tolower(glue::glue("models/09_{bmiVar}_{hydroDat}_all_ri_all_regions.rda")))
 
 # Make a Table of RI's ----------------------------------------------------
 

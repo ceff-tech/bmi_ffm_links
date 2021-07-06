@@ -30,9 +30,6 @@ csci_ffm<- read_rds("data_output/06_csci_por_trim_final_dataset.rds")
 # get ecoregions and join
 eco_revised <- read_rds("data/spatial/ecoregions_combined_L3.rds")
 
-csci_ffm <- st_join(csci_ffm, left = FALSE, eco_revised["US_L3_mod"])
-
-
 # ecoregions:
 unique(csci_ffm$US_L3_mod)
 
@@ -279,10 +276,11 @@ write_tsv(hyper_best, file = gbm_best_file,
 assign(x = tolower(paste0("gbm_final_", as_name(bmiVar),"_",hydroDat, "_",modname)), value=gbm_fin_out)
 
 # get file name
-(fileToSave <- ls(pattern = paste0("gbm_final_", tolower(as_name(bmiVar))))[2])
+(fileToSave <- ls(pattern = paste0("gbm_final_", tolower(as_name(bmiVar)))))
 
 # save to RDS
 write_rds(x = get(fileToSave), file = paste0("models/07_",fileToSave, "_model.rds"), compress = "gz")
 
 # Save all the datasets used in the model:
 save(list = ls(pattern="data_"), file = tolower(paste0("models/07_",fileToSave,"_model_data.rda")))
+
