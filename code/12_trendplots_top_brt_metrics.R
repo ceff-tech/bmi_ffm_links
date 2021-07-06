@@ -16,16 +16,16 @@ library(cowplot)
 # Load Data ---------------------------------------------------------------
 
 # load updated data w EcoRegions:
-load("models/10_csci_asci_ri_por_trim_all_regions.rda")
+csci_ffm_sf <- read_rds("data_output/06_csci_por_trim_final_dataset.rds")
+
+load("models/09_csci_por_all_ri_all_regions.rda")
+#load("models/10_csci_asci_ri_por_trim_all_regions.rda")
 
 # get status codes 
-load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
-
-# rename
-bmi_csci_por_sf <- bmi_csci_por_trim_ecoreg
+#load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
 
 # rename for ease of use and drop sf
-bmi_csci_por <- bmi_csci_por_sf %>% st_drop_geometry()
+csci_ffm <- csci_ffm_sf %>% st_drop_geometry()
 
 # add specific ASCI vs CSCI col
 asci_ri_all <- asci_ri_all %>% mutate(index="ASCI")
@@ -44,16 +44,20 @@ library(readxl)
 ff_defs <- readxl::read_xlsx("docs/Functional_Flow_Metrics_List_and_Definitions_final.xlsx", range = "A1:F25", .name_repair = "universal", trim_ws = TRUE) 
 
 # load FFC Metrics Data
-ffm_dat <- read_rds("data_output/usgs_combined_ffc_results_long.rds")
+# ffm_dat <- read_rds("data_output/usgs_combined_ffc_results_long.rds")
 
 # get how many unique years for each gage exist
-ffm_dat %>% group_by(gageid, year) %>% distinct(year) %>% 
-  group_by(gageid) %>% mutate(yr_begin = first(year),
-                              yr_end = last(year)) %>% 
-  arrange(gageid, year) %>%
-  add_tally() %>% 
-  distinct(gageid, .keep_all=TRUE) %>% select(-year) #%>% View()
+# ffm_dat %>% group_by(gageid, year) %>% distinct(year) %>% 
+#   group_by(gageid) %>% mutate(yr_begin = first(year),
+#                               yr_end = last(year)) %>% 
+#   arrange(gageid, year) %>%
+#   add_tally() %>% 
+#   distinct(gageid, .keep_all=TRUE) %>% select(-year) #%>% View()
 
+# join defs with data
+csci_table <- left_join(ri_all, ff_defs, by=c("var"="Flow.Metric.Code"))
+
+csci_ffm <- left_join(csci_ffm, ff_defs, by=c("metric"="Flow.Metric.Code"))
 
 # Tidy RI Data ---------------------------------------------------------------
 
@@ -70,25 +74,17 @@ ri_table <- ri_table %>%
          Flow.Metric.Name = as.factor(Flow.Metric.Name),
          Flow.Metric.Name = forcats::fct_reorder2(Flow.Metric.Name, model, RI))
 
-# JOIN CSCI WITH FFM ANNUAL -------------------------------
-
-csci_ffm_ann <- csci_por_trim %>% st_drop_geometry() %>% 
-  distinct(StationCode, SampleID, YYYY, sampledate, site_id, .keep_all=TRUE) %>% 
-  left_join(., ffm_dat, by=c("site_id"="gageid", "YYYY"="year")) %>% 
-  # drop cols and get distinct records
-  select(StationCode, SampleID, US_L3_mod, HUC_12, site_id, station_nm, lat, lon, date_begin, date_end, comid_gage, sampledate, YYYY, MM, DD, csci, csci_percentile, COMID_bmi, ffm_name, value, status_code)
-
 ## Check Records by Year --------------------------------
 
 # calc records by SampleID (how many mult years)
-csci_ffm_ann %>% select(SampleID, site_id, YYYY) %>% 
+csci_ffm %>% select(SampleID, site_id, YYYY) %>% 
   distinct(.keep_all=TRUE) %>% 
   group_by(SampleID) %>% 
   tally() %>% 
   arrange(desc(n)) %>% 
   filter(n>1)
 
-# JOIN ASCI WITH FFF ANNUAL ------------------------------
+# JOIN ASCI WITH FF ANNUAL ------------------------------
 
 asci_ffm_ann <- asci_por_trim %>% st_drop_geometry() %>% 
   select(-c(ends_with(".y"), Latitude:median_in_iqr), status_code) %>% 
@@ -131,13 +127,82 @@ combined_ffm_ann <- bind_rows(csci_ffm_ann, asci_ffm_ann) %>%
 # SET UP NAMES and Condition Thresholds -----------------------
 
 # biological stream condition thresholds (Mazor et al. 2016, Theroux et al. 2020 - See Table 8)
-csci_breaks <- c(0, 0.63, 0.79, 0.92)
+csci_breaks <- c(0, 0.25, 0.63, 0.79, 0.92)
 asci_breaks <- c(0, 0.75, 0.86, 0.94)
 bio_labs <- c("Very likely altered", "Likely altered", "Possibly altered","Likely intact")
 
 #facet_grid(cols = vars(model), labeller = labeller(model=c("all_ca"="All CA", "cent_coast"="C. Coast", "sierras"="Sierra Nevada", "north_coast"="N. Coast", "so_cal"="S. California"))) +
 
 # we need to color the points by alteration status (-1, 0, 1) to indicate alteration
+
+
+# PLOTS -----------------------------------------------
+
+# preliminary plots
+ri_table %>% group_by(model) %>% arrange(flow_component) %>% top_n(3, RI) %>% arrange(model, desc(RI)) %>% View()
+
+unique(ri_table$model)
+
+csci_ffm <- csci_ffm %>% 
+  filter(US_L3_mod %in% c("North Coast", "Central California Foothills and Coastal Mountains", "Southern California", "Sierra Nevada"))
+
+# top 3 for all CA: Peak_Dur_2, Wet_BFL_Dur, FA_Mag, 
+# top 1 by region (cent_ca): FA_Tim, 
+# top 1 by region (no_coast): FA_Mag
+# top 1 by region (sierras): DS_Mag_90
+# top 1 by region (so_cal): SP_ROC
+metselect <- "SP_ROC"
+
+# filter to just regions of interest:
+ggplot() +
+  # add line thresholds
+  annotate(geom = "text", label="Very likely altered", color="gray50", 
+           x=0.01, y=0.58, hjust=0, size=4) +
+  annotate(geom = "text", label="Likely altered", color="gray50",
+           x=0.01, y=0.71, hjust=0, size=4) +
+  annotate(geom = "text", label="Possibly altered", color="gray50", 
+           x=0.01, y=0.85, hjust=0, size=4) +
+  annotate(geom = "text", label="Likely intact", color="gray50",
+           x=0.01, y=1, hjust=0, size=4) +
+  
+  # data points
+  geom_point(data=csci_ffm %>% 
+               filter(metric == metselect), 
+             aes(x=delta_p50, y=csci, color=US_L3_mod), 
+             size=2.8, alpha=0.7, show.legend = F) +
+  
+  #scale_shape_manual("Alteration\nStatus", labels=c("Likely Altered","Likely Unaltered"), 
+  #                    values=c("-1"=23,"1"=21), guide=FALSE) +
+  
+  # gam smooth
+  stat_smooth(data=csci_ffm %>% 
+                filter(metric == metselect),
+              aes(x=delta_p50, y=csci, group=US_L3_mod), 
+              #color=alteration_type),
+              #method = "loess", span = 0.95, size=1, # moving avg
+              #method = "lm", formula = y ~ x + I(x^2), size = 1, # quadratic
+              #method = "glm", level = 0.89, # linear
+              method = "gam", formula = y ~ s(x, k=4), size=1, 
+              color="gray40", 
+              fill="gray80", 
+              show.legend = FALSE) +
+  
+  # all the other stuff
+  #scale_x_continuous(limits=c(0,4)) +
+  scale_y_continuous(breaks=csci_breaks, limits=c(0, 1.25)) +
+  #scale_x_log10(
+  #  labels=scales::comma,
+  #  expand=c(0.01,0.01))+
+  theme_clean(base_family = "Roboto Condensed") +
+  theme(panel.border = element_blank(),
+        plot.background = element_blank()) +
+  labs(y="CSCI Score",
+       x=glue("{unique(csci_ffm$Flow.Metric.Name[which(csci_ffm$metric==metselect)])} (Obs/Exp p50)"),
+       title=unique(csci_ffm$Flow.Metric.Name[which(csci_ffm$metric==metselect)])) +
+  facet_wrap(vars(US_L3_mod), scales = "free_x", nrow=2)
+
+
+
 
 # CSCI: SP_Mag ----------------------------------------
 

@@ -353,3 +353,124 @@ ggplot() + geom_col(data=ffm_prcnt_alt3, aes(x=metric, y=prop_n, fill=alteration
 
 # ggsave(filename = "figs/prop_gages_by_alt_type_faceted.png", width = 11, height = 8.5, dpi=300)
 
+
+
+
+# More Plots --------------------------------------------------------------
+
+csci_breaks <- c(0, 0.63, 0.79, 0.92)
+asci_breaks <- c(0, 0.75, 0.86, 0.94)
+bio_labs <- c("Very likely altered", "Likely altered", "Possibly altered","Likely intact")
+
+unique(csci_mod_dat$metric)
+unique(csci_mod_dat$refgage)
+
+brt_out <- csci_mod_dat %>% 
+  filter(metric == "SP_ROC") 
+# Peak_Dur_2
+# Wet_BFL_Dur
+
+(gg1a <- 
+   ggplot() +
+   
+   # color the biological condition thresholds (Mazor et al 2016)
+   # geom_rect(aes(xmin=0.01, xmax=0.5, ymin=0, ymax=0.63), fill="maroon", alpha=0.2) +
+   # geom_rect(aes(xmin=0.01, xmax=0.5, ymin=0.63, ymax=0.79), fill="orange2", alpha=0.2) +
+   # geom_rect(aes(xmin=0.01, xmax=0.5, ymin=0.79, ymax=0.92), fill="yellow2", alpha=0.2)+
+   # geom_rect(aes(xmin=0.01,xmax=0.5, ymin=0.92, ymax=1.35), fill="seagreen", alpha=0.2)+
+
+   # add line thresholds
+   annotate(geom = "text", label="Very likely altered", color="gray50", 
+            x=0.11, y=0.58, hjust=0, size=4) +
+   annotate(geom = "text", label="Likely altered", color="gray50",
+            x=0.11, y=0.71, hjust=0, size=4) +
+   annotate(geom = "text", label="Possibly altered", color="gray50", 
+            x=0.11, y=0.85, hjust=0, size=4) +
+   annotate(geom = "text", label="Likely intact", color="gray50",
+            x=0.11, y=1, hjust=0, size=4) +
+    
+    # data points
+    geom_point(data=brt_out, aes(x=delta_p50, y=csci, 
+                                 #shape=status,
+                                 color=US_L3_mod), 
+               size=2.8, alpha=0.7, show.legend = F) +
+    
+    #scale_shape_manual("Alteration\nStatus", labels=c("Likely Altered","Likely Unaltered"), 
+    #                    values=c("-1"=23,"1"=21), guide=FALSE) +
+    
+    # gam smooth
+    stat_smooth(data=brt_out, aes(x=delta_p50, y=csci,
+                                  group=US_L3_mod), 
+                                  #color=alteration_type),
+                method = "loess", span = 0.95,
+                #method = "glm", level = 0.89,
+                #method = "gam", level = 0.89,
+                #formula = y ~ s(x, bs = "cs"), 
+                #color="gray40", 
+                fill="gray80", 
+                show.legend = FALSE) +
+    
+   # all the other stuff
+   #scale_fill_colorblind("Bioindex", labels=c("CSCI", "ASCI"), guide = guide_legend(override.aes = list(shape = c(21, 21), size=4))) +
+   #scale_fill_colorblind("FFM Alteration\nStatus", labels=c("Altered", "Unaltered"),
+    #                     guide = guide_legend(override.aes = list(shape = c(23, 21), size=4))) +
+   #scale_color_colorblind("FFM Alteration\nStatus", labels=c("Altered", "Unaltered")) +
+    scale_y_continuous(breaks=csci_breaks, limits=c(0, 1.3)) +
+    scale_x_log10(
+      labels=scales::comma,
+      expand=c(0.01,0.01))+
+    #limits=c(0.1, 1)) 
+    #max(plotdat$value)) + 
+    theme_clean(base_family = "Roboto Condensed") +
+    theme(panel.border = element_blank(),
+          plot.background = element_blank()) +
+    labs(y="CSCI Score",
+         x=unique(brt_out$metric),
+         title=unique(brt_out$metric))) +
+  facet_wrap(.~US_L3_mod)
+
+
+
+# Boxplots ----------------------------------------------------------------
+
+
+csci_breaks <- c(0, 0.63, 0.79, 0.92)
+asci_breaks <- c(0, 0.75, 0.86, 0.94)
+
+unique(csci_mod_dat$metric)
+unique(csci_mod_dat$refgage)
+
+brt_out <- csci_mod_dat %>% 
+  filter(metric == "SP_ROC") 
+
+ggplot() + 
+  
+  # add line thresholds
+  annotate(geom = "text", label="Very likely altered", color="gray50", 
+           x=0.11, y=0.58, hjust=0, size=4) +
+  annotate(geom = "text", label="Likely altered", color="gray50",
+           x=0.11, y=0.71, hjust=0, size=4) +
+  annotate(geom = "text", label="Possibly altered", color="gray50", 
+           x=0.11, y=0.85, hjust=0, size=4) +
+  annotate(geom = "text", label="Likely intact", color="gray50",
+           x=0.11, y=1, hjust=0, size=4) +
+  
+  geom_boxplot(data=brt_out, aes(x=delta_p50, y=csci, 
+                               #shape=status, 
+                               group=alteration_type,
+                               fill=alteration_type), 
+               alpha=0.7, show.legend = TRUE, 
+               #varwidth = TRUE, 
+               notch = TRUE) +
+  
+  scale_x_log10(
+    labels=scales::comma)+
+  
+  theme_clean(base_family = "Roboto Condensed") +
+  theme(panel.border = element_blank(),
+        plot.background = element_blank()) +
+  labs(y="CSCI Score",
+       x=unique(brt_out$metric),
+       title=unique(brt_out$metric))
+
+  

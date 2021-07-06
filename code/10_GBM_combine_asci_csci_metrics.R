@@ -13,7 +13,7 @@ library(purrr)
 
 # Load CSCI Data ---------------------------------------------------------------
 
-# CSCI load updated data w HUC_regions:
+# CSCI load updated data w regions:
 load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
 load("models/09_csci_por_all_ri_all_regions.rda")
 
@@ -23,8 +23,6 @@ plotname <- "All Site Pairs"  #"All Site Pairs"
 ## ONLY IF YOU NEED MODEL NAMES/DATA
 modname <- "all_ca" # model name 
 bmiVar <- quote(csci) # select response var
-# make pathnames
-#(plot_savename <- tolower(glue("09_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
 
 # rename objects for brevity
 csci_por_trim <- bmi_csci_por_trim_ecoreg
