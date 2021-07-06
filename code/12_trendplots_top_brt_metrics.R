@@ -151,7 +151,7 @@ csci_ffm <- csci_ffm %>%
 # top 1 by region (no_coast): FA_Mag
 # top 1 by region (sierras): DS_Mag_90
 # top 1 by region (so_cal): SP_ROC
-metselect <- "SP_ROC"
+metselect <- "FA_Dur"
 
 # filter to just regions of interest:
 ggplot() +
@@ -180,9 +180,9 @@ ggplot() +
               aes(x=delta_p50, y=csci, group=US_L3_mod), 
               #color=alteration_type),
               #method = "loess", span = 0.95, size=1, # moving avg
-              #method = "lm", formula = y ~ x + I(x^2), size = 1, # quadratic
+              method = "lm", formula = y ~ x + I(x^2), size = 1, # quadratic
               #method = "glm", level = 0.89, # linear
-              method = "gam", formula = y ~ s(x, k=4), size=1, 
+              #method = "gam", formula = y ~ s(x, k=4), size=1, 
               color="gray40", 
               fill="gray80", 
               show.legend = FALSE) +
