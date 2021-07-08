@@ -142,7 +142,7 @@ ffm_prcnt_alt_keep_indet <- ffm_prcnt_alt_ref %>%
 (filt_less_than_25_indeterm <- ffm_prcnt_alt_keep_indet$metric)
 
 ### WRITE IT OUT
-write_csv(ffm_prcnt_alt_keep_indet, file = "data_output/06_filtered_ffm_based_on_ref_prop.csv")
+# write_csv(ffm_prcnt_alt_keep_indet, file = "data_output/06_filtered_ffm_based_on_ref_prop.csv")
 
 
 # 05: JOIN OBS & PRED FFM PERCENTILES -----------------------------------------
@@ -169,7 +169,8 @@ ffm_delta_hyd <- left_join(ffc_obs_filt, ffc_pred_filt)
 ffm_final_dat <- left_join(ffm_delta_hyd, ffc_alt %>% 
                              select(metric:gageid, refgage))
 
-# ffm_final_dat %>% group_by(metric, refgage) %>% tally() %>% View()
+
+ffm_final_dat %>% group_by(metric, refgage) %>% tally() %>% View()
 
 
 # Filter and Fix ----------------------------------------------------------
@@ -200,6 +201,28 @@ ffm_final_dat_v2 <- ffm_final_dat_v2 %>%
     metric == "FA_Dur" & is.na(p50_obs) ~ 0,
     TRUE ~ p50_obs
   ))
+
+# Metrics missing from pred and obs gages
+ffm_final_dat_v2 %>% filter(is.na(p50_pred)) %>% 
+  group_by(metric) %>% tally(name = "n_pred") %>%
+  full_join(., (
+    ffm_final_dat_v2 %>% 
+      filter(is.na(p50_obs)) %>%
+      group_by(metric) %>% tally(name="n_obs"))) %>% 
+  # get number of gages that are missing these metrics
+  View()
+
+# get number of metrics missing per gage
+ffm_final_dat_v2 %>% filter(is.na(p50_pred)| is.na(p50_obs)) %>% 
+  group_by(gageid) %>% tally() %>% 
+  View() # n=134 total
+
+# get list of these gages for later use:
+ffm_gages_missing_metrics <- ffm_final_dat_v2 %>% filter(is.na(p50_pred)| is.na(p50_obs)) %>% 
+  group_by(gageid) %>% tally()
+
+write_rds(ffm_gages_missing_metrics, file = "data_output/06_ffm_gages_missing_metrics.rds")
+write_csv(ffm_gages_missing_metrics, file = "data_output/06_ffm_gages_missing_metrics.csv")
 
 # drop remaining NA's?
 ffm_final_dat_v2 <- ffm_final_dat_v2 %>% 
