@@ -203,14 +203,17 @@ ffm_final_dat_v2 <- ffm_final_dat_v2 %>%
   ))
 
 # Metrics missing from pred and obs gages
-ffm_final_dat_v2 %>% filter(is.na(p50_pred)) %>% 
+ffm_missing_metrics <- ffm_final_dat_v2 %>% filter(is.na(p50_pred)) %>% 
   group_by(metric) %>% tally(name = "n_pred") %>%
   full_join(., (
     ffm_final_dat_v2 %>% 
       filter(is.na(p50_obs)) %>%
-      group_by(metric) %>% tally(name="n_obs"))) %>% 
+      group_by(metric) %>% tally(name="n_obs"))) #%>% 
   # get number of gages that are missing these metrics
-  View()
+ffm_missing_metrics %>% View()
+
+# write out:
+write_csv(ffm_missing_metrics, file = "data_output/06_ffm_gages_missing_per_metrics_pred_obs.csv")
 
 # get number of metrics missing per gage
 ffm_final_dat_v2 %>% filter(is.na(p50_pred)| is.na(p50_obs)) %>% 
