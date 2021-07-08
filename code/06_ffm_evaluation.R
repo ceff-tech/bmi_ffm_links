@@ -141,6 +141,16 @@ ffm_prcnt_alt_keep_indet <- ffm_prcnt_alt_ref %>%
 # list of metrics
 (filt_less_than_25_indeterm <- ffm_prcnt_alt_keep_indet$metric)
 
+# list of metrics that are being dropped:
+anti_join(ffm_prcnt_alt_ref, ffm_prcnt_alt_keep_indet, by=c("metric")) %>% ungroup() %>% distinct(metric)
+
+# Peak_10       
+# Peak_2        
+# Peak_5        
+# Wet_BFL_Mag_10
+# Wet_BFL_Mag_50
+# Wet_Tim       
+
 ### WRITE IT OUT
 # write_csv(ffm_prcnt_alt_keep_indet, file = "data_output/06_filtered_ffm_based_on_ref_prop.csv")
 
@@ -210,19 +220,19 @@ ffm_missing_metrics <- ffm_final_dat_v2 %>% filter(is.na(p50_pred)) %>%
       filter(is.na(p50_obs)) %>%
       group_by(metric) %>% tally(name="n_obs"))) #%>% 
   # get number of gages that are missing these metrics
-ffm_missing_metrics %>% View()
+#ffm_missing_metrics %>% View()
 
 # write out:
-write_csv(ffm_missing_metrics, file = "data_output/06_ffm_gages_missing_per_metrics_pred_obs.csv")
+#write_csv(ffm_missing_metrics, file = "data_output/06_ffm_gages_missing_per_metrics_pred_obs.csv")
 
 # get number of metrics missing per gage
 ffm_final_dat_v2 %>% filter(is.na(p50_pred)| is.na(p50_obs)) %>% 
-  group_by(gageid) %>% tally() %>% 
+  group_by(gageid, comid) %>% tally() %>% 
   View() # n=134 total
 
 # get list of these gages for later use:
 ffm_gages_missing_metrics <- ffm_final_dat_v2 %>% filter(is.na(p50_pred)| is.na(p50_obs)) %>% 
-  group_by(gageid) %>% tally()
+  group_by(gageid, comid) %>% tally()
 
 write_rds(ffm_gages_missing_metrics, file = "data_output/06_ffm_gages_missing_metrics.rds")
 write_csv(ffm_gages_missing_metrics, file = "data_output/06_ffm_gages_missing_metrics.csv")
@@ -239,33 +249,31 @@ ffm_final_dat_v2 %>% group_by(gageid) %>% tally() %>%
 
 # Test FFC API ------------------------------------------------------------
 
+options(dplyr.print_max = 50)
+
 library(ffcAPIClient)
 # set/get the token for using the FFC
 ffctoken <- set_token(Sys.getenv("EFLOWS_TOKEN", "")) 
 
+gageNo <- "09423350"
+COMID <- 10017314
 
-g1 <- ffc_obs %>% 
-  select(gageid, comid) %>% 
-  filter(gageid == "10257499") %>% 
-  evaluate_gage_alteration(gage_id = .$gageid,
-                           comid = .$comid,
-                           token = ffctoken,
-                           force_comid_lookup = FALSE,
-                           plot_results = FALSE)
+# get predicted data:
+ffcAPIClient::get_predicted_flow_metrics(comid = COMID, online = TRUE)
 
+# return everything
+tst <- ffcAPIClient::evaluate_gage_alteration(token=ffctoken, comid = COMID, gage_id = gageNo, return_processor = TRUE, plot_results = FALSE)
 
-source("code/functions/f_iterate_ffc.R")
+# observe percentiles
+as_tibble(tst$ffc_percentiles)
+as_tibble(tst$predicted_percentiles)
 
-# this takes these data and saves them all into a single file/s
-source("code/functions/f_ffc_collapse.R")
-
-ffcs <- gagelist %>%
-  select(site_id, comid) %>% # pull just ID column
-  pmap(.l = ., .f = ~ffc_possible(.x, startDate = st_date, ffctoken=ffctoken, comid=.y, dirToSave="output/ffc_run_alt", save=TRUE)) %>%
-  # add names to list
-  set_names(x = ., nm=gagelist$site_id_name)
-toc() # end time
-
+# run and get obs percentiles
+ffc <- FFCProcessor$new()  # make a new object we can use to run the commands
+ffc$gage_start_date = "1979-10-01"
+ffc$set_up(gage_id=gageNo, token = ffctoken, comid = COMID)
+ffc$run()
+ffc$ffc_percentiles %>% as.data.frame()
 
 # Save Out Data -----------------------------------------------------------
 
