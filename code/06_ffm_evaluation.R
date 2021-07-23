@@ -23,17 +23,17 @@ gages_ref <- read_csv("data/usgs/gages_ref_223_period_record.csv") %>%
   mutate(refgage="Ref")
 
 # ffc data (alteration status)
-ffc_alt <- read_rds(file = url("https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_alteration.rds")) %>%
+ffc_alt <- read_rds(file = "https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_alteration.rds") %>%
   mutate(gage=as.numeric(gageid),
          status=as.factor(status),
          alteration_type=as.factor(alteration_type))
 
 # import observed FFM data for period of record
-ffc_obs <- read_rds(file = url("https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_ffc_percentiles.rds")) %>%
+ffc_obs <- read_rds(file = "https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_ffc_percentiles.rds") %>%
   mutate(gage=as.numeric(gageid))
 
 # import predicted percentiles for period of record
-ffc_pred <- read_rds(file=url("https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_predicted_percentiles.rds")) %>% 
+ffc_pred <- read_rds(file="https://github.com/ryanpeek/ffm_comparison/raw/main/output/ffc_combined/usgs_combined_predicted_percentiles.rds") %>% 
   mutate(gage=as.numeric(gageid))
 
 # 02: TIDY AND CLEAN ----------------------------------------------------------
@@ -177,16 +177,32 @@ ffm_delta_hyd <- left_join(ffc_obs_filt, ffc_pred_filt)
 
 # join with the ref/alt status data
 ffm_final_dat <- left_join(ffm_delta_hyd, ffc_alt %>% 
-                             select(metric:gageid, refgage))
+                             select(metric:gageid, refgage)) %>% 
+  mutate(refgage = case_when(
+    is.na(refgage) ~ "Ref",
+    TRUE ~ refgage
+  ))
 
 
 ffm_final_dat %>% group_by(metric, refgage) %>% tally() %>% View()
+
+# gages with both Ref and non-ref records?
+ffm_final_dat %>% group_by(gageid) %>% distinct(refgage) %>% tally() %>% filter(n>1) %>% View()
+
+ffm_final_dat %>% group_by(gageid) %>% distinct(refgage) %>% tally() %>% filter(n>1) %>%
+  left_join(., ffm_final_dat[,c("gageid","comid")]) %>% 
+  distinct(gageid, .keep_all = TRUE) %>% 
+  write_csv(., file = "data_output/06_ffm_gages_w_ref_and_alt_records.csv")
 
 
 # Filter and Fix ----------------------------------------------------------
 
 # how  many total gages?
 ffm_final_dat %>% distinct(gageid) %>% tally()
+
+# write out list of gages:
+ffm_final_dat %>% distinct(gageid, comid, refgage) %>% #View()
+  write_csv(., file = "data_output/06_list_of_all_gages_w_ffmdat.csv")
 
 # drop 10 gages with missing SP metrics
 gages_to_drop <- ffm_final_dat %>% 
@@ -218,12 +234,14 @@ ffm_missing_metrics <- ffm_final_dat_v2 %>% filter(is.na(p50_pred)) %>%
   full_join(., (
     ffm_final_dat_v2 %>% 
       filter(is.na(p50_obs)) %>%
-      group_by(metric) %>% tally(name="n_obs"))) #%>% 
+      group_by(metric))) %>% 
+  filter(!is.na(gageid))
+      #tally(name="n_obs"))) #%>% 
   # get number of gages that are missing these metrics
-#ffm_missing_metrics %>% View()
+ffm_missing_metrics %>% View()
 
 # write out:
-#write_csv(ffm_missing_metrics, file = "data_output/06_ffm_gages_missing_per_metrics_pred_obs.csv")
+write_csv(ffm_missing_metrics, file = "data_output/06_ffm_gages_missing_per_metrics_pred_obs.csv")
 
 # get number of metrics missing per gage
 ffm_final_dat_v2 %>% filter(is.na(p50_pred)| is.na(p50_obs)) %>% 
