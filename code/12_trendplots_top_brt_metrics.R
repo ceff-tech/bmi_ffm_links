@@ -15,17 +15,27 @@ library(cowplot)
 
 # Load Data ---------------------------------------------------------------
 
-# load updated data w EcoRegions:
-csci_ffm_sf <- read_rds("data_output/06_csci_por_trim_final_dataset.rds")
+
+# load data
+csci_ffm<- read_rds("https://github.com/ryanpeek/flow_seasonality/blob/main/output/ffc_filtered_final_combined.rds?raw=true")
+
+# need to add a "delta hydro: delta_p50 = (p50_obs-p50_pred)/p50_pred)"
+csci_ffm <- csci_ffm %>% 
+  mutate(delta_p50 = (p50_obs-p50_pred) / p50_pred) %>% 
+  # fix zeros and NaNs
+  mutate(delta_p50 = case_when(
+    is.infinite(delta_p50) ~ 0, # replace as zero
+    delta_p50 == NaN ~ NA_real_,
+    TRUE ~ delta_p50
+  )) %>% 
+  relocate(delta_p50, .after = "p50_pred") %>% 
+  mutate(delta_p50_scale = as.vector(scale(delta_p50, scale=TRUE)), 
+         .after="delta_p50")
+
 
 load("models/09_csci_por_all_ri_all_regions.rda")
+csci_ri_all <- ri_all_regions
 #load("models/10_csci_asci_ri_por_trim_all_regions.rda")
-
-# get status codes 
-#load("data_output/05_bmi_csci_por_trim_ecoreg.rda")
-
-# rename for ease of use and drop sf
-csci_ffm <- csci_ffm_sf %>% st_drop_geometry()
 
 # add specific ASCI vs CSCI col
 asci_ri_all <- asci_ri_all %>% mutate(index="ASCI")
@@ -38,25 +48,14 @@ ri_all <- bind_rows(asci_ri_all, csci_ri_all) %>%
     grepl("H_ASCI.x", Ymetric) ~ "asci",
     TRUE ~ Ymetric
   ))
+ri_all <- csci_ri_all
 
 # get names
 library(readxl)
 ff_defs <- readxl::read_xlsx("docs/Functional_Flow_Metrics_List_and_Definitions_final.xlsx", range = "A1:F25", .name_repair = "universal", trim_ws = TRUE) 
 
-# load FFC Metrics Data
-# ffm_dat <- read_rds("data_output/usgs_combined_ffc_results_long.rds")
-
-# get how many unique years for each gage exist
-# ffm_dat %>% group_by(gageid, year) %>% distinct(year) %>% 
-#   group_by(gageid) %>% mutate(yr_begin = first(year),
-#                               yr_end = last(year)) %>% 
-#   arrange(gageid, year) %>%
-#   add_tally() %>% 
-#   distinct(gageid, .keep_all=TRUE) %>% select(-year) #%>% View()
-
 # join defs with data
 csci_table <- left_join(ri_all, ff_defs, by=c("var"="Flow.Metric.Code"))
-
 csci_ffm <- left_join(csci_ffm, ff_defs, by=c("metric"="Flow.Metric.Code"))
 
 # Tidy RI Data ---------------------------------------------------------------
@@ -66,13 +65,38 @@ ri_table <- left_join(ri_all, ff_defs, by=c("var"="Flow.Metric.Code"))
 
 # drop unused factors in flow component:
 ri_table <- ri_table %>% 
-  filter(method=="mse") %>% 
+  filter(method=="mse",
+         flow_component !="General") %>% 
   mutate(flow_component=forcats::fct_drop(flow_component),
          var = as.factor(var),
          var = fct_reorder2(var, flow_component, var),
          model=as.factor(model),
          Flow.Metric.Name = as.factor(Flow.Metric.Name),
          Flow.Metric.Name = forcats::fct_reorder2(Flow.Metric.Name, model, RI))
+
+
+# Trendplot ---------------------------------------------------------------
+
+# data points
+csci_ffm %>% 
+  filter(metric=="Wet_BFL_Dur") %>% 
+  ggplot() + geom_point(aes(x=delta_p50, y=csci, shape=as.factor(gagetype),
+                             color=as.factor(gagetype)), 
+           size=2.8, alpha=0.8, show.legend = TRUE) +
+  # scale_shape_manual("Alteration\nStatus", 
+  #                    labels=c("Likely Altered","Likely Unaltered"), 
+  #                    values=c("-1"=23,"1"=21), guide=FALSE) +
+  # gam smooth
+  stat_smooth(aes(x=delta_p50, y=csci, group=gagetype, 
+                  color=as.factor(gagetype)),
+              #method = "loess", span = 0.95,
+              #method = "glm", level = 0.89,
+              method = "gam",
+              #formula = y ~ s(x, bs = "cs"), 
+              #color="gray40", 
+              fill="gray80", 
+              show.legend = FALSE)
+ggsave(filename = "figs/top_brt_vs_csci_delta_hydro_trendplot_gam.png", width = 11, height = 8, dpi=300)
 
 ## Check Records by Year --------------------------------
 
