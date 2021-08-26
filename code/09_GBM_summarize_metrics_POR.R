@@ -221,7 +221,8 @@ modname <- "all_ca_ffc_only"
 # Faceted by hydrodat and flow metrics:
 ri_table %>% 
   filter(model=="all_ca", 
-         method=="mse") %>% 
+         method=="mse",
+         flow_component != "General") %>% 
   ggplot() +
   #geom_hline(yintercept = 5, color="gray40", lwd=0.8, lty=2, alpha=0.5)+
   geom_linerange(aes(x=reorder(Flow.Metric.Name, RI), ymax=RI, ymin=0, group=flowdat, color=flow_component), 
@@ -243,7 +244,7 @@ ri_table %>%
         legend.background = element_rect(color="white"))
 
 # save out
-ggsave(filename=tolower(paste0("models/", plot_savename, "_all_ri_sized_points_w_lines_ranked_seas.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(paste0("models/", plot_savename, "_all_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 # Summary Plot Regions ------------------------------------------------------------
 
