@@ -16,15 +16,20 @@ library(purrr)
 # Load Data ---------------------------------------------------------------
 
 # load updated data w regions:
-csci_ffm<- read_rds("data_output/06_csci_por_trim_final_dataset.rds")
+csci_ffm<- read_rds("https://github.com/ryanpeek/flow_seasonality/blob/main/output/ffc_filtered_final_combined.rds?raw=true")
 
-# get ecoregions and join
-# eco_revised <- read_rds("data/spatial/ecoregions_combined_L3.rds")
-# csci_ffm <- st_join(csci_ffm, left = FALSE, eco_revised["US_L3_mod"])
-
-# make a simpler layer for mapping
-csci_sites <- csci_ffm %>% 
-  dplyr::distinct(StationCode, .keep_all = TRUE)
+# need to add a "delta hydro: delta_p50 = (p50_obs-p50_pred)/p50_pred)"
+csci_ffm <- csci_ffm %>% 
+  mutate(delta_p50 = (p50_obs-p50_pred) / p50_pred) %>% 
+  # fix zeros and NaNs
+  mutate(delta_p50 = case_when(
+    is.infinite(delta_p50) ~ 0, # replace as zero
+    delta_p50 == NaN ~ NA_real_,
+    TRUE ~ delta_p50
+  )) %>% 
+  relocate(delta_p50, .after = "p50_pred") %>% 
+  mutate(delta_p50_scale = as.vector(scale(delta_p50, scale=TRUE)), 
+         .after="delta_p50")
 
 # REGIONS
 # if section below already run:
@@ -35,8 +40,6 @@ modname <- "all_ca_ffc_only" # model name
 bmiVar <- quote(csci) # select response var
 
 # Make Regional RI Dataset --------------------------------------------------------
-
-unique(csci_ffm$US_L3_mod)
 
 ## ALL CA ----------------------
 
@@ -93,6 +96,7 @@ ri_socal <- top_ris %>% mutate(model="so_cal")
 ## COMBINE ALL -----------------------
 
 ## bind
+ri_all_regions <- bind_rows(ri_all_ca)
 ri_all_regions <- bind_rows(ri_all_ca, ri_socal, ri_ncoast, ri_centcoast, ri_sierra)
 
 ## save out for later
@@ -239,7 +243,7 @@ ri_table %>%
         legend.background = element_rect(color="white"))
 
 # save out
-ggsave(filename=tolower(paste0("models/", plot_savename, "_all_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(paste0("models/", plot_savename, "_all_ri_sized_points_w_lines_ranked_seas.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 # Summary Plot Regions ------------------------------------------------------------
 
@@ -283,56 +287,3 @@ ri_table %>%
 ggsave(filename=tolower(glue("figs/{plot_savename}_ri_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 
-# Other Plots -------------------------------------------------------------
-
-#ggsave(filename = "figs/09_faceted_RI_by_flowcomp_hydrodat.png", width = 9, height = 6, units = "in", dpi = 300)
-
-# Faceted by BMI metrics and flow components:
-# ri_table %>% group_by(flowdat, var, Ymetric, flow_component) %>% 
-#   summarize(meanRI = mean(RI)) %>% 
-#   #top_n(6) %>% 
-#   arrange(desc(meanRI)) %>% 
-#   filter(flow_component!="General", flowdat=="Annual") %>%  
-#   ggplot(.) +
-#   geom_col(aes(x=var, y=meanRI, fill=flow_component), color="gray20", lwd=.1, position="dodge") +
-#   coord_flip() +
-#   scale_fill_viridis_d("Flow Components")+
-#   labs(x="", y="Mean Relative Inf (%)", subtitle="ANNUAL: Top Flow Metrics across BMI Metrics") +
-#   theme_classic(base_family = "Roboto Condensed") +
-#   facet_grid(.~Ymetric)
-# 
-# ggsave(filename = "figs/faceted_RI_by_flowcomp_bmi_ANNUAL.png", width = 9, height = 6, units = "in", dpi = 300)
-  
-# Faceted by BMI metrics and flow components:
-# ri_table %>% group_by(flowdat, var, Ymetric, flow_component) %>% 
-#   summarize(meanRI = mean(RI)) %>% 
-#  # top_n(6) %>% 
-#   arrange(desc(meanRI)) %>% 
-#   filter(flow_component!="General", flowdat=="Lag1") %>%  
-#   ggplot(.) +
-#   geom_col(aes(x=var, y=meanRI, fill=flow_component), color="gray20", lwd=.1, position="dodge") +
-#   coord_flip() +
-#   scale_fill_viridis_d("Flow Components")+
-#   labs(x="", y="Mean Relative Inf (%)", subtitle="LAG-1: Top Flow Metrics across BMI Metrics") +
-#   theme_classic(base_family = "Roboto Condensed") +
-#   facet_grid(.~Ymetric)
-# 
-# ggsave(filename = "figs/faceted_RI_by_flowcomp_bmi_LAG1.png", width = 9, height = 6, units = "in", dpi = 300)
-#   
-# # Faceted by BMI metrics and flow components:
-# ri_table %>% group_by(flowdat, var, Ymetric, flow_component) %>% 
-#   summarize(meanRI = mean(RI)) %>% 
-#   # top_n(6) %>% 
-#   arrange(desc(meanRI)) %>% 
-#   filter(flow_component!="General", flowdat=="Lag2") %>%  
-#   ggplot(.) +
-#   geom_col(aes(x=var, y=meanRI, fill=flow_component), color="gray20", lwd=.1, position="dodge") +
-#   coord_flip() +
-#   scale_fill_viridis_d("Flow Components")+
-#   labs(x="", y="Mean Relative Inf (%)", subtitle="LAG-2: Top Flow Metrics across BMI Metrics") +
-#   theme_classic(base_family = "Roboto Condensed") +
-#   facet_grid(.~Ymetric)
-# 
-# ggsave(filename = "figs/faceted_RI_by_flowcomp_bmi_LAG2.png", width = 9, height = 6, units = "in", dpi = 300)
-# 
-# 

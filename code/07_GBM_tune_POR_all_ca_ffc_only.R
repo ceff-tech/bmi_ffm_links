@@ -3,6 +3,9 @@
 # Generates models to select "final" model based on tuning criteria
 # then makes final model, saved in models/
 
+# this is building off of flow_seasonality repo 
+# see data here: https://github.com/ryanpeek/flow_seasonality/tree/main/output
+
 # Libraries ---------------------------------------------------------------
 
 library(purrr) # for working with lists/loops
@@ -13,6 +16,16 @@ library(tidyverse) # load quietly
 library(viridis) # colors
 library(sf) # spatial operations
 library(mapview) # web maps
+# set background basemaps/default options:
+basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery",
+                  "OpenTopoMap", "OpenStreetMap", 
+                  "CartoDB.Positron")
+
+mapviewOptions(homebutton = FALSE, 
+               basemaps=basemapsList, 
+               viewer.suppress = FALSE,
+               fgb = FALSE)
+
 library(gbm) # boosted regression trees
 library(rsample) # sampling
 library(rlang)
@@ -25,20 +38,56 @@ set.seed(321) # reproducibility
 # 01. Load Data ---------------------------------------------------------------
 
 # load updated data:
-csci_ffm<- read_rds("data_output/06_csci_por_trim_final_dataset.rds")
+#csci_ffm<- read_rds("data_output/06_csci_por_trim_final_dataset.rds")
+csci_ffm<- read_rds("https://github.com/ryanpeek/flow_seasonality/blob/main/output/ffc_filtered_final_combined.rds?raw=true")
 
-# ecoregions:
-unique(csci_ffm$US_L3_mod)
+# need to add a "delta hydro: delta_p50 = (p50_obs-p50_pred)/p50_pred)"
+csci_ffm <- csci_ffm %>% 
+  mutate(delta_p50 = (p50_obs-p50_pred) / p50_pred) %>% 
+  # fix zeros and NaNs
+  mutate(delta_p50 = case_when(
+    is.infinite(delta_p50) ~ 0, # replace as zero
+    delta_p50 == NaN ~ NA_real_,
+    TRUE ~ delta_p50
+  )) %>% 
+  relocate(delta_p50, .after = "p50_pred") %>% 
+  mutate(delta_p50_scale = as.vector(scale(delta_p50, scale=TRUE)), 
+         .after="delta_p50")
 
-# set background basemaps/default options:
-basemapsList <- c("Esri.WorldTopoMap", "Esri.WorldImagery",
-                  "OpenTopoMap", "OpenStreetMap", 
-                  "CartoDB.Positron")
+summary(csci_ffm$delta_p50, useNA="ifany")
+summary(csci_ffm$delta_p50_scale, useNA="ifany")
+csci_ffm %>% select(contains("p50")) %>% summary
 
-mapviewOptions(homebutton = FALSE, 
-               basemaps=basemapsList, 
-               viewer.suppress = FALSE,
-               fgb = FALSE)
+# plot
+csci_ffm %>% 
+  ggplot() +
+  geom_point(aes(x=csci, y=delta_p50_scale, fill=gagetype, color=gagetype, shape=gagetype), alpha=0.7)+
+  geom_smooth(method = "gam",
+              aes(x=csci, y=delta_p50_scale, color=gagetype, fill=gagetype), 
+              lwd=.5, show.legend = FALSE) +
+  theme_classic() +
+  #scale_y_log10() +
+  scale_shape("Gage Type", solid = TRUE) +
+  ggthemes::scale_fill_colorblind("Gage Type") +
+  ggthemes::scale_color_colorblind("Gage Type") +
+  facet_wrap(.~metric, scales = "free_y")
+
+# still some very extreme values...filter to everything below 95% quantile
+(delta_p50_95 <- quantile(csci_ffm$delta_p50, na.rm=TRUE, 0.95))
+
+csci_ffm %>% 
+  filter(delta_p50 < delta_p50_95) %>% 
+  ggplot() +
+  geom_point(aes(x=csci, y=delta_p50_scale, fill=gagetype, color=gagetype, shape=gagetype), alpha=0.7)+
+  geom_smooth(method = "gam",
+              aes(x=csci, y=delta_p50_scale, color=gagetype, fill=gagetype), 
+              lwd=.5, show.legend = FALSE) +
+  theme_classic() +
+  #scale_y_log10() +
+  scale_shape("Gage Type", solid = TRUE) +
+  ggthemes::scale_fill_colorblind("Gage Type") +
+  ggthemes::scale_color_colorblind("Gage Type") +
+  facet_wrap(.~metric, scales = "free_y")
 
 # 02. Select BMI Response Variable for GBM ------------------------------
 
@@ -53,29 +102,30 @@ bmiVar <- quote(csci) # select response var from list above
 # 03. Setup POR Data for Model ----------------------------------------------------------------
 
 # summarize
-#csci_ffm %>% group_by(metric, alteration_type) %>% tally() %>% 
-csci_ffm %>% st_drop_geometry() %>% 
-  distinct(StationCode, metric, refgage, .keep_all = TRUE) %>% 
-  select(StationCode, refgage, metric, delta_p50, csci) %>% 
-  group_by(metric, refgage) %>% add_tally() %>% 
-  #View()
-  distinct(refgage, n, .keep_all=TRUE) %>% 
-  ggplot() + geom_col(aes(x=metric, y=n, fill=refgage))
+
+# csci_ffm %>%
+#   distinct(StationCode, metric, gagetype, .keep_all = TRUE) %>% 
+#   select(StationCode, gagetype, metric, delta_p50_scale, csci) %>% 
+#   group_by(metric, gagetype) %>% add_tally() %>% 
+#   #View()
+#   distinct(gagetype, n, .keep_all=TRUE) %>% 
+#   ggplot() + geom_col(aes(x=metric, y=n, fill=gagetype))
 
 # need to select and spread data: 
-data_por <- csci_ffm %>% st_drop_geometry() %>% 
-  dplyr::select(StationCode, SampleID, HUC_12, site_id, 
-                comid, COMID_bmi, refgage,
+data_por <- csci_ffm %>% 
+  dplyr::select(StationCode, SampleID, HUC_12, gageid, 
+                comid, COMID_bmi, gagetype,
                 YYYY, csci,
-                metric, delta_p50
-                ) %>% 
+                metric, delta_p50_scale, MP_metric, class3_name, 
+                Power.avg) %>% 
   # need to spread the metrics wide
-  pivot_wider(names_from = metric, values_from = delta_p50) %>% 
-  mutate(refgage = as.factor(refgage)) %>% 
+  pivot_wider(names_from = metric, values_from = delta_p50_scale) %>% 
+  mutate(gagetype = as.factor(gagetype),
+         class3_name = as.factor(class3_name)) %>% 
   # just non-ref sites
-  filter(refgage=="Non-Ref") %>% 
+  filter(gagetype=="ALT") %>% 
   as.data.frame()
-# n=521 obs
+# n=290 obs
 
 # check how many rows/cols: KEEP ALL FOR NOW
 dim(data_por)
@@ -89,7 +139,7 @@ dim(data_por)
 setdiff(data_names, names(data_por))
 # remove rows that have more than 70% NA
 data_por <- data_por[which(rowMeans(!is.na(data_por))>0.7),]
-dim(data_por) # n=518
+dim(data_por) # n=0
 
 # 04. RANDOMIZE AND TIDY Data ----------------------------------------------------
 
@@ -105,6 +155,7 @@ data_por_train <- data_por %>% # use all data
          
 # double check cols are what we want
 names(data_por_train) # should be 25 (CSCI + 24 metrics)
+str(data_por_train)
 
 # 05. GBM.STEP MODEL  ------------------------------------------------------------
 

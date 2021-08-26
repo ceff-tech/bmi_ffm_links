@@ -313,7 +313,7 @@ csci_trim <- csci_trim %>% select(StationCode:huc8, date_begin, date_end, comid_
 
 # now join
 csci_mod_dat <- left_join(csci_trim, ffm_final_dat_v2, by=c("site_id"="gageid")) %>% 
-  mutate(delta_p50 = p50_obs/p50_pred) %>% 
+  mutate(delta_p50 = (p50_obs-p50_pred)/p50_pred) %>% 
   filter(!is.na(delta_p50)) %>% 
   filter(!is.infinite(delta_p50))
 
