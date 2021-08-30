@@ -18,41 +18,49 @@ library(glue)
 sf_use_s2(FALSE)
 
 # load updated data w regions:
-csci_ffm<- read_rds("https://github.com/ryanpeek/flow_seasonality/blob/main/output/ffc_filtered_final_combined.rds?raw=true")
+bio_ffm<- read_rds("https://github.com/ryanpeek/flow_seasonality/blob/main/output/10_ffc_filtered_final_combined.rds?raw=true")
 
 # need to add a "delta hydro: delta_p50 = (p50_obs-p50_pred)/p50_pred)"
-csci_ffm <- csci_ffm %>% 
+bio_ffm <- bio_ffm %>% 
+  # add delta hydro
   mutate(delta_p50 = (p50_obs-p50_pred) / p50_pred) %>% 
   # fix zeros and NaNs
   mutate(delta_p50 = case_when(
-    is.infinite(delta_p50) ~ 0, # replace as zero
+    is.infinite(delta_p50) ~ 0, # replace "Not a Number" w zero
+    is.nan(delta_p50) ~ 0, # replace "Not a Number" w zero
     delta_p50 == NaN ~ NA_real_,
     TRUE ~ delta_p50
   )) %>% 
   relocate(delta_p50, .after = "p50_pred") %>% 
-  mutate(delta_p50_scale = as.vector(scale(delta_p50, scale=TRUE)), 
-         .after="delta_p50")
+  mutate(delta_p50_scale = 
+           as.vector(scale(delta_p50, scale=TRUE)), 
+         .after="delta_p50") %>% 
+  filter(!is.na(delta_p50))
 
-# simple just sites:
 # make a simpler layer for mapping
-csci_sites <- csci_ffm %>% 
+csci_sites <- bio_ffm %>% 
+  filter(bioindicator=="CSCI") %>% 
   dplyr::distinct(SampleID, gageid, .keep_all = TRUE)
 table(csci_sites$class3_name) # list of unique stations
+
+asci_sites <- bio_ffm %>% 
+  filter(bioindicator=="ASCI") %>% 
+  dplyr::distinct(SampleID, gageid, .keep_all = TRUE)
+table(asci_sites$class3_name) # list of unique stations
 
 
 # Load Data --------------------------------------------------------------------
 
 ## VARIABLES:
 # "all_ca_ffc_only"
-
 hydroDat <- "POR"
-modname <- "all_ca_ffc_only" # model name 
+modname <- "csci_por_all_ca_ffc_only" # model name 
 plotname <- "All Site Pairs: CSCI"  #"All Site Pairs"
 bmiVar <- quote(csci) # select response var
 
 # make pathnames
-(mod_pathname <- glue("07_gbm_final_{tolower(bmiVar)}_{tolower(hydroDat)}_{modname}"))
-(mod_savename <- tolower(glue("08_gbm_{as_name(bmiVar)}_{hydroDat}_{modname}")))
+(mod_pathname <- glue("07_gbm_final_{modname}"))
+(mod_savename <- tolower(glue("08_gbm_{modname}")))
 
 # get the gbm model:
 (brt <- list.files(path="models/", pattern = paste0("^", mod_pathname,".*\\.rds$")))
@@ -85,9 +93,12 @@ gbm_fin_RI <- gbm_fin_RI %>%
     grepl("Peak_", var) ~ "Peak flow",
     grepl("Wet_", var) ~ "Wet-season baseflow",
     grepl("FA_", var) ~ "Fall pulse flow",
+    grepl("MP_metric|Power.avg", var) ~ "Seasonality",
+    grepl("class3_name", var) ~ "Stream Class",
     TRUE ~ "General"
   ),
-  flow_component = factor(flow_component, levels = c("Fall pulse flow", "Wet-season baseflow", "Peak flow", "Spring recession flow", "Dry-season baseflow", "General")),
+  flow_component = factor(flow_component, levels = c("Fall pulse flow", "Wet-season baseflow", "Peak flow", "Spring recession flow", "Dry-season baseflow", "Seasonality", 
+                                                     "Stream Class", "General")),
   var = as.factor(var),
   var = fct_reorder2(var, flow_component, var)) %>% 
   rename(RI = rel.inf)
@@ -95,10 +106,10 @@ gbm_fin_RI <- gbm_fin_RI %>%
 ## Now Plot ALL
 (fin_ri <- gbm_fin_RI %>% 
   arrange(desc(RI)) %>% 
-  #filter(RI > 3) %>% #View()
   filter(flow_component!="General") %>% 
+  #filter(RI > 3) %>% #View()
   ggplot(.) +
-  geom_col(aes(x=var,
+  geom_col(aes(x=forcats::fct_reorder(var, RI),
                y=RI, fill=flow_component), color="gray20", lwd=.1,
            position="dodge") +
   coord_flip() +
@@ -133,7 +144,7 @@ ggsave(filename=tolower(glue("models/{mod_savename}_all_RI_mse.png")), width = 9
     theme_classic(base_family = "Roboto Condensed")) 
 
 # save out
-# ggsave(filename=tolower(glue("models/{mod_savename}_top_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(glue("models/{mod_savename}_top_RI_mse.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 
 # 02A. RI PERMUTATION TEST PLOTS ALL VARS ------------------------------------------------
@@ -151,9 +162,12 @@ gbm_fin_PT <- gbm_fin_PT %>%
     grepl("Peak_", var) ~ "Peak flow",
     grepl("Wet_", var) ~ "Wet-season baseflow",
     grepl("FA_", var) ~ "Fall pulse flow",
+    grepl("MP_metric|Power.avg", var) ~ "Seasonality",
+    grepl("class3_name", var) ~ "Stream Class",
     TRUE ~ "General"
   ),
-  flow_component = factor(flow_component, levels = c("Fall pulse flow", "Wet-season baseflow", "Peak flow", "Spring recession flow", "Dry-season baseflow", "General")),
+  flow_component = factor(flow_component, levels = c("Fall pulse flow", "Wet-season baseflow", "Peak flow", "Spring recession flow", "Dry-season baseflow", "Seasonality", 
+                                                     "Stream Class", "General")),
   var = as.factor(var),
   var = fct_reorder2(var, flow_component, var)) %>% 
   rename(RI = rel.inf)
@@ -220,7 +234,7 @@ gbm_fin_PT <- gbm_fin_PT %>%
    theme_classic(base_family = "Roboto Condensed")) 
 
 
-(pg1 <- plot_grid(fin_ri_top_noleg, fin_pt_top, rel_widths = c(0.7, 1), align = "h", labels=c("A","B")))
+#(pg1 <- plot_grid(fin_ri_top_noleg, fin_pt_top, rel_widths = c(0.7, 1), align = "h", labels=c("A","B")))
  
 #cowplot::save_plot(pg1, filename = tolower(paste0("models/08_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_both", ".png")), base_width = 8, units = "in", dpi = 300)
 

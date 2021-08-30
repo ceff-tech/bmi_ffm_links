@@ -16,91 +16,48 @@ library(purrr)
 # Load Data ---------------------------------------------------------------
 
 # load updated data w regions:
-csci_ffm<- read_rds("https://github.com/ryanpeek/flow_seasonality/blob/main/output/ffc_filtered_final_combined.rds?raw=true")
+bio_ffm<- read_rds("https://github.com/ryanpeek/flow_seasonality/blob/main/output/10_ffc_filtered_final_combined.rds?raw=true")
 
 # need to add a "delta hydro: delta_p50 = (p50_obs-p50_pred)/p50_pred)"
-csci_ffm <- csci_ffm %>% 
+bio_ffm <- bio_ffm %>% 
+  # add delta hydro
   mutate(delta_p50 = (p50_obs-p50_pred) / p50_pred) %>% 
   # fix zeros and NaNs
   mutate(delta_p50 = case_when(
-    is.infinite(delta_p50) ~ 0, # replace as zero
+    is.infinite(delta_p50) ~ 0, # replace "Not a Number" w zero
+    is.nan(delta_p50) ~ 0, # replace "Not a Number" w zero
     delta_p50 == NaN ~ NA_real_,
     TRUE ~ delta_p50
   )) %>% 
   relocate(delta_p50, .after = "p50_pred") %>% 
-  mutate(delta_p50_scale = as.vector(scale(delta_p50, scale=TRUE)), 
-         .after="delta_p50")
+  mutate(delta_p50_scale = 
+           as.vector(scale(delta_p50, scale=TRUE)), 
+         .after="delta_p50") %>% 
+  filter(!is.na(delta_p50))
 
-# REGIONS
-# if section below already run:
-# ri_all_regions 
-load("models/09_csci_por_all_ri_all_regions.rda")
-hydroDat <- "POR"
-modname <- "all_ca_ffc_only" # model name
-bmiVar <- quote(csci) # select response var
 
 # Make Regional RI Dataset --------------------------------------------------------
 
 ## ALL CA ----------------------
 
-modname <- "all_ca_ffc_only" # model name
-bmiVar <- quote(csci) # select response var
+modname <- "csci_por_all_ca_ffc_only" # model name 
+bioVar <- "csci"
 
 # make pathnames
-(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
+(mod_savename <- tolower(glue("08_gbm_{modname}")))
 
 # get the gbm model:
-(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-top_ris <- read_rds(file=paste0("models/", top_ri))
+(top_ri <- list.files(path="models/", pattern = glue("^{mod_savename}_RI_combined.*\\.rds$")))
+top_ris <- read_rds(file=glue("models/{top_ri}"))
 
 # make sep and combine
 ri_all_ca <- top_ris %>% mutate(model="all_ca")
  
-## CENTRAL COAST ------------------
-modname <- "cent_coast" # model name
-(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-top_ris <- read_rds(file=paste0("models/", top_ri))
-
-# make sep and combine
-ri_centcoast <- top_ris %>% mutate(model="cent_coast")
-
-## NORTH COAST -----------------
-modname <- "north_coast" # model name
-(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-top_ris <- read_rds(file=paste0("models/", top_ri))
-
-# make sep and combine
-ri_ncoast <- top_ris %>% mutate(model="north_coast")
-
-## SIERRA NEVADA -----------------
-modname <- "sierras" # model name
-(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-top_ris <- read_rds(file=paste0("models/", top_ri))
-
-# make sep and combine
-ri_sierra <- top_ris %>% mutate(model="sierras")
-
-## SO CAL ---------------------------
-modname <- "so_cal" # model name
-(mod_savename <- tolower(paste0("08_gbm_", as_name(bmiVar), "_",hydroDat, "_",modname)))
-(top_ri <- list.files(path="models/", pattern = paste0("^", mod_savename,"_RI_combined",".*\\.rds$")))
-top_ris <- read_rds(file=paste0("models/", top_ri))
-
-# make sep and combine
-ri_socal <- top_ris %>% mutate(model="so_cal")
-## not enough samples for cent valley or cascades
-
-## COMBINE ALL -----------------------
-
 ## bind
 ri_all_regions <- bind_rows(ri_all_ca)
-ri_all_regions <- bind_rows(ri_all_ca, ri_socal, ri_ncoast, ri_centcoast, ri_sierra)
 
 ## save out for later
-save(ri_all_regions, file = tolower(glue::glue("models/09_{bmiVar}_{hydroDat}_all_ri_all_regions.rda")))
+save(ri_all_regions, file = tolower(glue::glue("models/09_{bioVar}_ri_all_ca.rda")))
 
 # Make a Table of RI's ----------------------------------------------------
 
@@ -116,6 +73,11 @@ ri_table <- ri_table %>%
          var = as.factor(var),
          var = fct_reorder2(var, flow_component, var),
          model=as.factor(model),
+         Flow.Metric.Name = case_when(
+           flow_component == "Stream Class" ~ "Stream Class",
+           var == "Power.avg" ~ "Wavelet Interannual",
+           var == "MP_metric" ~ "Colwell's M/P Intrannual",
+           TRUE ~ Flow.Metric.Name),
          Flow.Metric.Name = as.factor(Flow.Metric.Name),
          Flow.Metric.Name = forcats::fct_reorder2(Flow.Metric.Name, model, RI)) 
 
@@ -163,12 +125,12 @@ model_name <- "All CA"
 ## ALL CA Table
 # Create a gt table based on preprocessed table
 ri_table %>%
-  dplyr::filter(method=="mse", Ymetric=="csci", model=="all_ca") %>%
+  dplyr::filter(method=="mse", Ymetric==bioVar, model=="all_ca") %>%
     #model=="all_ca", 
-  dplyr::select(-c(Ymetric, flowdat, flow_component, method, Flow.Characteristic)) %>%
-  dplyr::select(Flow.Component, var, Flow.Metric.Name:Flow.Metric.Description, RI) %>%
+  dplyr::select(-c(Ymetric, -Flow.Component, flowdat,  method, Flow.Characteristic)) %>%
+  dplyr::select(flow_component, var, Flow.Metric.Name:Flow.Metric.Description, RI) %>%
   #arrange(Flow.Component, var) %>% #View() 
-  arrange(RI, Flow.Component) %>% #View() 
+  arrange(RI, flow_component) %>% #View() 
   select(-var) %>% 
   gt() %>%
   tab_header(
@@ -176,29 +138,7 @@ ri_table %>%
     subtitle = glue::glue("Model {model_name}")
   ) %>%
   fmt_number(
-    columns = vars(RI), decimals = 1, 
-    drop_trailing_zeros = T
-  )
-
-# Summary Table Regional -----------------------------------------------------------
-
-model_name <- "EcoRegions"
-
-# Create a gt table based on preprocessed table
-ri_table %>%
-  dplyr::filter(!model=="all_ca", method=="mse") %>%
-  dplyr::select(-c(Ymetric, flowdat, flow_component, method, Flow.Characteristic)) %>% #View()
-  pivot_wider(names_from = model, values_from = RI) %>%  #View()
-  mutate(Flow.Metric.Name.units = glue("{Flow.Metric.Name} ({Unit})")) %>% 
-  dplyr::select(Flow.Component, Flow.Metric.Name.units, so_cal:sierras) %>%
-  arrange(Flow.Component, Flow.Metric.Name.units) %>% # View()
-  gt() %>%
-  tab_header(
-    title = "Relative Influence of Functional Flow Metrics on CSCI",
-    subtitle = glue::glue("Model {model_name}")
-  ) %>%
-  fmt_number(
-    columns = vars(so_cal, north_coast, cent_coast, sierras, so_cal), decimals = 1,
+    columns = c(RI), decimals = 1, 
     drop_trailing_zeros = T
   )
 
@@ -212,11 +152,12 @@ ri_table %>%
 # darker for peak flow
 flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" = "#56B4E9",
                           "Peak flow" = "#404788FF", "Spring recession flow" = "#009E73", 
-                          "Dry-season baseflow" = "#D55E00")
+                          "Dry-season baseflow" = "#D55E00", 
+                          "Stream Class" = "skyblue", "Seasonality" = "gray")
 
 plotname <- "All CA"
 modname <- "all_ca_ffc_only"
-(plot_savename <- tolower(glue("09_gbm_{as_name(bmiVar)}_{hydroDat}_{modname}")))
+(plot_savename <- tolower(glue("09_gbm_{bioVar}_{modname}")))
 
 # Faceted by hydrodat and flow metrics:
 ri_table %>% 
@@ -236,55 +177,56 @@ ri_table %>%
   #scale_shape_manual("Method", values=c("mse"=16, "permtest"=17))+
   coord_flip() +
   ylim(c(0,25))+
-  labs(title = glue::glue('{plotname}: {hydroDat}'),
+  labs(title = glue::glue('{plotname}: {toupper(bioVar)}'),
        x="", y="Relative Influence (%)") +
   guides(fill = guide_legend(override.aes = list(size = 4))) +
   theme_minimal(base_family = "Roboto Condensed") +
   theme(legend.position = c(0.8, 0.3),
+        plot.background = element_rect(fill="white"),
         legend.background = element_rect(color="white"))
 
 # save out
-ggsave(filename=tolower(paste0("models/", plot_savename, "_all_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 # Summary Plot Regions ------------------------------------------------------------
 
-plotname <- "Regional"
-modname <- "regional"
-(plot_savename <- tolower(glue("09_gbm_{as_name(bmiVar)}_{hydroDat}_{modname}")))
-
-
-# now plot w facets (but use same ordering for ALL CA)
-ri_table %>% 
-  filter(#model!="all_ca", 
-         #model=="all_ca", 
-         method=="mse") %>% 
-  left_join(., forder, by="Flow.Metric.Name") %>% 
-  arrange(id) %>% #View() 
-  ggplot() +
-  facet_grid(cols = vars(model), labeller = labeller(model=c("all_ca"="All CA", "north_coast"="N. Coast",
-                                                             "cent_coast"="C. Coast/Foothills", "sierras"="Sierras", "so_cal"="Southern California"))) +
-  geom_linerange(aes(x=reorder(Flow.Metric.Name, desc(id)), ymax=RI, ymin=0, color=flow_component, group=model), 
-                  lwd=.5, show.legend = F, alpha=0.7, lty=1)+
-  geom_point(aes(x=reorder(Flow.Metric.Name, desc(id)), y=RI, fill=flow_component, size=RI, group=model), 
-             #size=4, 
-             show.legend = TRUE, pch=21) +
-  #scale_x_continuous(breaks=forder$id, labels=forder$Flow.Metric.Name) +
-  scale_fill_manual("Flow Component", values=flowcomponent_colors) +
-  scale_color_manual("Flow Component", values=flowcomponent_colors) +
-  scale_size_binned("", guide="none", range=c(0.5, 6.5)) +
-  coord_flip() +
-  ylim(c(0,30))+
-  labs(subtitle = "CSCI Models",
-       x="", y="Relative Influence (%)") +
-  #theme_bw(base_family = "Roboto Condensed")
-  theme_minimal(base_family = "Roboto Condensed") +
-  theme(legend.position = "bottom", legend.box = "horizontal", 
-        plot.background = element_rect(fill = 'white')) +
-  guides(fill = guide_legend(override.aes = list(size = 4), 
-                             title.position = "top"))
-  #facet_grid(cols = vars(model), labeller = labeller(model=c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="N. Coast", "south_coast"="S. Coast")))
-
-# save out
-ggsave(filename=tolower(glue("figs/{plot_savename}_ri_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
-
+# plotname <- "Regional"
+# modname <- "regional"
+# (plot_savename <- tolower(glue("09_gbm_{as_name(bmiVar)}_{hydroDat}_{modname}")))
+# 
+# 
+# # now plot w facets (but use same ordering for ALL CA)
+# ri_table %>% 
+#   filter(#model!="all_ca", 
+#          #model=="all_ca", 
+#          method=="mse") %>% 
+#   left_join(., forder, by="Flow.Metric.Name") %>% 
+#   arrange(id) %>% #View() 
+#   ggplot() +
+#   facet_grid(cols = vars(model), labeller = labeller(model=c("all_ca"="All CA", "north_coast"="N. Coast",
+#                                                              "cent_coast"="C. Coast/Foothills", "sierras"="Sierras", "so_cal"="Southern California"))) +
+#   geom_linerange(aes(x=reorder(Flow.Metric.Name, desc(id)), ymax=RI, ymin=0, color=flow_component, group=model), 
+#                   lwd=.5, show.legend = F, alpha=0.7, lty=1)+
+#   geom_point(aes(x=reorder(Flow.Metric.Name, desc(id)), y=RI, fill=flow_component, size=RI, group=model), 
+#              #size=4, 
+#              show.legend = TRUE, pch=21) +
+#   #scale_x_continuous(breaks=forder$id, labels=forder$Flow.Metric.Name) +
+#   scale_fill_manual("Flow Component", values=flowcomponent_colors) +
+#   scale_color_manual("Flow Component", values=flowcomponent_colors) +
+#   scale_size_binned("", guide="none", range=c(0.5, 6.5)) +
+#   coord_flip() +
+#   ylim(c(0,30))+
+#   labs(subtitle = "CSCI Models",
+#        x="", y="Relative Influence (%)") +
+#   #theme_bw(base_family = "Roboto Condensed")
+#   theme_minimal(base_family = "Roboto Condensed") +
+#   theme(legend.position = "bottom", legend.box = "horizontal", 
+#         plot.background = element_rect(fill = 'white')) +
+#   guides(fill = guide_legend(override.aes = list(size = 4), 
+#                              title.position = "top"))
+#   #facet_grid(cols = vars(model), labeller = labeller(model=c("central_valley"="Central Valley", "great_basin"="Great Basin", "north_coast"="N. Coast", "south_coast"="S. Coast")))
+# 
+# # save out
+# ggsave(filename=tolower(glue("figs/{plot_savename}_ri_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
+# 
 
