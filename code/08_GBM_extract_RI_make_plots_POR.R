@@ -54,9 +54,9 @@ table(asci_sites$class3_name) # list of unique stations
 ## VARIABLES:
 # "all_ca_ffc_only"
 hydroDat <- "POR"
-modname <- "csci_por_all_ca_ffc_only" # model name 
-plotname <- "All Site Pairs: CSCI"  #"All Site Pairs"
-bmiVar <- quote(csci) # select response var
+modname <- "asci_all_ca_seasonality" # model name 
+plotname <- "All Site Pairs: ASCI"  #"All Site Pairs"
+bmiVar <- quote(asci) # select response var
 
 # make pathnames
 (mod_pathname <- glue("07_gbm_final_{modname}"))
@@ -190,7 +190,7 @@ gbm_fin_PT <- gbm_fin_PT %>%
     theme_classic(base_family = "Roboto Condensed")) 
 
 # save out
-#ggsave(filename=tolower(paste0("models/", mod_savename, "_all_RI_permtest.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(paste0("models/", mod_savename, "_all_RI_permtest.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 
 # 02B. RI PERMUTATION TEST PLOTS TOP VARS ------------------------------------------------
@@ -234,7 +234,7 @@ gbm_fin_PT <- gbm_fin_PT %>%
    theme_classic(base_family = "Roboto Condensed")) 
 
 
-#(pg1 <- plot_grid(fin_ri_top_noleg, fin_pt_top, rel_widths = c(0.7, 1), align = "h", labels=c("A","B")))
+(pg1 <- plot_grid(fin_ri_top_noleg, fin_pt_top, rel_widths = c(0.7, 1), align = "h", labels=c("A","B")))
  
 #cowplot::save_plot(pg1, filename = tolower(paste0("models/08_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_both", ".png")), base_width = 8, units = "in", dpi = 300)
 
@@ -245,7 +245,7 @@ assign(x = tolower(glue("{as_name(bmiVar)}_{hydroDat}_RI")), value=bind_rows(gbm
 
 (filepattern <- ls(pattern = paste0("^",tolower(as_name(bmiVar)))))
 
-write_rds(x = csci_por_ri, file = glue("models/{mod_savename}_RI_combined.rds"))
+write_rds(x = asci_por_ri, file = glue("models/{mod_savename}_RI_combined.rds"))
 
 # 04. MARGINAL FX Plots ----------------------------------------------
 
@@ -259,39 +259,3 @@ gbm.plot(gbm_final, rug = T, n.plots = 9, show.contrib = T,
          y.label = as_name(bmiVar), plot.layout = c(3,3))
 title(main=glue("Flow Data: {plotname}"), outer = T, line = -1.5)
 dev.off()
-
-# # 05. ICE PLOTS -----------------------------------------
-# 
-# ## displays avg change in predicted Y VAR as we vary an X VAR while holding everything else constant
-# 
-# library(pdp)
-# 
-# # get top var
-# (bestHydro_ri <- gbm_fin_RI %>% top_n(n = 3, RI))
-# (bestHydro_pt <- gbm_fin_PT %>% top_n(n = 3, RI))
-# 
-# ## ICE (Individual conditional expectation) plots: rather than plot the average marginal effect on the response variable, we plot the change in the predicted response variable for each observation as we vary each predictor variable.
-# 
-# ## The equivalent to a PDP for individual data instances is called individual conditional expectation (ICE) plot (Goldstein et al. 2017). An ICE plot visualizes the dependence of the prediction on a feature for each instance separately, resulting in one line per instance, compared to one line overall in partial dependence plots.
-# 
-# # When the curves have a wide range of intercepts and are consequently “stacked” on each other, heterogeneity in the response variable values due to marginal changes in the predictor variable of interest can be difficult to discern, thus centering can help
-# 
-# varNo <- 1 # single number makes single plot
-# 
-# # RI
-# (ice_ri <- gbm_final %>%
-#   partial(
-#     pred.var = as.character(bestHydro_ri$var[varNo]), 
-#     n.trees = gbm_final$n.trees, train=gbm_out_train,
-#     grid.resolution = 100,
-#     ice = TRUE
-#   ) %>%
-#   autoplot(rug = TRUE, train = gbm_out_train, alpha = .1, center = TRUE) +
-#     labs(subtitle = paste0("ICE Centered (RI): ", bestHydro_ri$var[varNo], " for ", hydroDat),
-#          y=paste0("Predicted ", as_name(bmiVar))) +
-#   ggdark::dark_theme_classic(base_family = "Roboto Condensed"))
-# 
-# # RI save:
-# ggsave(filename=paste0("models/", mod_savename, "_pdp_ice_",
-#                        as.character(bestHydro_ri$var[varNo]),
-#                        ".png"), width = 11, height = 7, units = "in", dpi=300)
