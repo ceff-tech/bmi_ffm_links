@@ -15,41 +15,50 @@ library(cowplot)
 
 # Load Data ---------------------------------------------------------------
 
-# load data
-load("models/10_csci_asci_ri_por_trim_all_regions.rda")
+# load updated data
+bio_ffm<- read_rds("https://github.com/ryanpeek/flow_seasonality/blob/main/output/10_ffc_filtered_final_combined.rds?raw=true")
+
+# need to add a "delta hydro: delta_p50 = (p50_obs-p50_pred)/p50_pred)"
+bio_ffm <- bio_ffm %>% 
+  # add delta hydro
+  mutate(delta_p50 = (p50_obs-p50_pred) / p50_pred) %>% 
+  # fix zeros and NaNs
+  mutate(delta_p50 = case_when(
+    is.infinite(delta_p50) ~ 0, # replace "Not a Number" w zero
+    is.nan(delta_p50) ~ 0, # replace "Not a Number" w zero
+    delta_p50 == NaN ~ NA_real_,
+    TRUE ~ delta_p50
+  )) %>% 
+  relocate(delta_p50, .after = "p50_pred") %>% 
+  mutate(delta_p50_scale = 
+           as.vector(scale(delta_p50, scale=TRUE)), 
+         .after="delta_p50") %>% 
+  filter(!is.na(delta_p50))
+
+
+ri_table <- read_rds("models/09_combined_ri_all_ca_seasonality.rds")
 
 # get names
 library(readxl)
 ff_defs <- readxl::read_xlsx("docs/Functional_Flow_Metrics_List_and_Definitions_final.xlsx", range = "A1:F25", .name_repair = "universal", trim_ws = TRUE) 
 
-# Tidy RI Data ---------------------------------------------------------------
+# Tidy Data ---------------------------------------------------------------
 
-ri_all <- bind_rows(asci_ri_all, csci_ri_all)
-
-# join with the full RI table
-ri_table <- left_join(ri_all, ff_defs, by=c("var"="Flow.Metric.Code"))
+# join with the full definitions
+bio_ffm <- left_join(bio_ffm, ff_defs, by=c("metric"="Flow.Metric.Code"))
 
 # drop unused factors in flow component:
-ri_table <- ri_table %>% 
-  mutate(flow_component=forcats::fct_drop(flow_component),
-         var = as.factor(var),
-         var = fct_reorder2(var, flow_component, var),
-         model=as.factor(model),
-         Flow.Metric.Name = case_when(
-           flow_component == "Stream Class" ~ "Stream Class",
-           var == "Power.avg" ~ "Wavelet Interannual",
-           var == "MP_metric" ~ "Colwell's M/P Intrannual",
-           TRUE ~ Flow.Metric.Name),
-         Flow.Metric.Name = as.factor(Flow.Metric.Name),
-         Flow.Metric.Name = forcats::fct_reorder2(Flow.Metric.Name, model, RI)) 
-
-
+bio_ffm <- bio_ffm %>% 
+  mutate(Flow.Component=forcats::fct_drop(Flow.Component),
+         Flow.Metric.Name = as.factor(Flow.Metric.Name))
 
 # Plot ---------------------------------------------------------------
 
 # trendplot
+metric_select <- "Dry-season baseflow"
+
 bio_ffm %>% 
-  filter(metric=="FA_Tim", gagetype=="ALT") %>% 
+  filter(Flow.Metric.Name==metric_select, gagetype=="ALT") %>% 
   ggplot() + geom_point(aes(y=delta_p50, x=biovalue, shape=bioindicator,
                              fill=bioindicator), 
            size=2.8, alpha=0.8, show.legend = TRUE) +
@@ -57,9 +66,9 @@ bio_ffm %>%
   scale_shape_manual("Index", 
                      labels=c("ASCI","CSCI"),
                      values=c("ASCI"=23,"CSCI"=21)) +
-  # scale_shape_manual("Alteration\nStatus", 
-  #                    labels=c("Likely Altered","Likely Unaltered"), 
-  #                    values=c("-1"=23,"1"=21), guide=FALSE) +
+  #scale_y_continuous(limits=c(-1,5))+ # wet season baseflow
+  scale_y_continuous(limits=c(-1,30))+ # dry season baseflow
+  #scale_y_log10() +
   # gam smooth
   stat_smooth(aes(y=delta_p50, x=biovalue, group=bioindicator, 
                   color=bioindicator),
@@ -70,42 +79,61 @@ bio_ffm %>%
               #color="gray40", 
               fill="gray80", 
               show.legend = FALSE) + 
-  ggthemes::scale_color_colorblind("Index")+
-  facet_grid(.~class3_name)
+  ggthemes::scale_color_colorblind("Index") +
+  labs(subtitle = metric_select,
+    x="Index Value (CSCI or ASCI)", 
+    y = "Delta Hydrology (Obs-Exp)/Exp",
+    caption="Delta Hydrology is (Obs-Exp)/Exp, 
+       so negative values indicate observed flow metrics are reduced or early in
+       relation to the prediction, while positive values indicate increased or later
+       flows in relation to the predicted unimpaired flows.") +
+  facet_grid(.~bioindicator, scales="free")
 
-ggsave(filename = "figs/top_brt_vs_csci_delta_hydro_trendplot_gam.png", width = 11, height = 8, dpi=300)
+ggsave(filename = glue("figs/trend_plot_{janitor::make_clean_names(metric_select)}_vs_delta_hydro_gam.png"), width = 11, height = 8, dpi=300)
 
 
 # boxplot
 bio_ffm %>% 
-  filter(metric=="FA_Tim", gagetype=="ALT") %>% 
+  filter(Flow.Metric.Name==metric_select, gagetype=="ALT") %>% 
   ggplot() + 
-  geom_boxplot(aes(y=delta_p50, x=class3_name,
-                   fill=bioindicator), show.legend = TRUE) +
+  geom_boxplot(aes(y=delta_p50, x=bioindicator,fill=bioindicator), 
+               #outlier.shape = NA, 
+               show.legend = TRUE) +
+  scale_y_continuous(limits = c(-1,20))+
   ggthemes::scale_fill_colorblind("Index")+
   ggthemes::scale_color_colorblind("Index") +
-  labs(subtitle="Fall Pulse Timing", y="Delta Hydrology", x="") +
+  labs(subtitle=metric_select, y="Delta Hydrology", x="") +
   theme_classic()
 
 bio_ffm %>% 
-  filter(gagetype=="ALT") %>% 
+  filter(Flow.Metric.Name==metric_select, gagetype=="ALT") %>% 
   ggplot() + 
   geom_boxplot(aes(y=biovalue, x=class3_name,
                    fill=bioindicator), show.legend = TRUE) +
   ggthemes::scale_fill_colorblind("Index")+
   ggthemes::scale_color_colorblind("Index") +
-  labs(subtitle="Fall Pulse Timing", y="BioValue", x="") +
+  labs(subtitle=metric_select, y="BioValue", x="") +
   theme_classic()
 
 ## Check Records by Year --------------------------------
 
-# calc records by SampleID (how many mult years)
-csci_ffm %>% select(SampleID, site_id, YYYY) %>% 
+# calc records by StationCode (how many mult years)
+bio_ffm %>% select(StationCode, gageid, SampleID, sampledate, bioindicator) %>% 
   distinct(.keep_all=TRUE) %>% 
-  group_by(SampleID) %>% 
+  filter(bioindicator=="CSCI") %>% 
+  group_by(StationCode, gageid) %>% 
   tally() %>% 
   arrange(desc(n)) %>% 
-  filter(n>1)
+  filter(n>0) # CSCI n= 364 sites total
+  filter(n>1) # CSCI n= 147 sites w dups
+
+bio_ffm %>% select(StationCode, gageid, SampleID, sampledate, bioindicator) %>% 
+  distinct(.keep_all=TRUE) %>% 
+  filter(bioindicator=="ASCI") %>% 
+  group_by(StationCode, gageid) %>% 
+  tally() %>% 
+  arrange(desc(n)) %>% 
+  filter(n>0) # CSCI n= 356 unique sites
 
 # JOIN ASCI WITH FF ANNUAL ------------------------------
 
