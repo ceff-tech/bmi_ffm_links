@@ -52,11 +52,12 @@ table(asci_sites$class3_name) # list of unique stations
 # Load Data --------------------------------------------------------------------
 
 ## VARIABLES:
-# "all_ca_ffc_only"
 hydroDat <- "POR"
-modname <- "asci_all_ca_seasonality" # model name 
-plotname <- "All Site Pairs: ASCI"  #"All Site Pairs"
-bmiVar <- quote(asci) # select response var
+bioVar <- "csci" # select response var
+# "all_ca_seasonality", "mixed_seasonality", "rain_seasonality"
+modelname <- "rain_seasonality" 
+(modname <- glue("{bioVar}_{modelname}")) # model name 
+(plotname <- glue("{toupper(bioVar)}: {modelname}"))  #"All Site Pairs"
 
 # make pathnames
 (mod_pathname <- glue("07_gbm_final_{modname}"))
@@ -72,7 +73,8 @@ class(gbm_final)
 load(glue("models/{mod_pathname}_model_data.rda"))
 
 # rename datasets for plotting:
-gbm_out_train <- data_por_train # NEED TO CHANGE THESE
+gbm_out_train <- data_strmclass_train # NEED TO CHANGE THESE
+#gbm_out_train <- data_por_train # NEED TO CHANGE THESE
 
 # % percent explained
 (gbm_final$self.statistics$mean.null - gbm_final$cv.statistics$deviance.mean) / gbm_final$self.statistics$mean.null 
@@ -81,9 +83,10 @@ gbm_out_train <- data_por_train # NEED TO CHANGE THESE
 
 ## RI: improvement by MSE (split criterion), vars with largest avg decrease in MSE are important
 gbm_fin_RI<-as.data.frame(summary(gbm_final, plotit = F, method=relative.influence)) %>% 
-  mutate("Ymetric"= as_name(bmiVar),
+  mutate("Ymetric"= as_name(bioVar),
          "flowdat" = hydroDat,
-         "method" = "mse")
+         "method" = "mse",
+         "model" = glue("{modelname}"))
 
 # add flow components for plotting purposes
 gbm_fin_RI <- gbm_fin_RI %>% 
@@ -114,11 +117,10 @@ gbm_fin_RI <- gbm_fin_RI %>%
            position="dodge") +
   coord_flip() +
   geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
-  ylim(c(0,30))+
+  #ylim(c(0,30))+
   scale_fill_viridis_d("Flow Component")+
   labs(title = plotname,
-       #title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Metrics: ", modname),
-       #subtitle="MSE Criterion",
+       subtitle="MSE Criterion",
        x="", y="Relative Influence (%)") +
   theme_classic(base_family = "Roboto Condensed")) 
 
@@ -137,9 +139,9 @@ ggsave(filename=tolower(glue("models/{mod_savename}_all_RI_mse.png")), width = 9
              position="dodge") +
     coord_flip() +
     geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
-    ylim(c(0,30))+
+    #ylim(c(0,30))+
     scale_fill_viridis_d("Flow Component")+
-    labs(title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Top Metrics: ", modname),
+    labs(title= plotname,
          x="", y="Relative Influence (%)", subtitle="MSE Criterion") +
     theme_classic(base_family = "Roboto Condensed")) 
 
@@ -152,9 +154,10 @@ ggsave(filename=tolower(glue("models/{mod_savename}_top_RI_mse.png")), width = 9
 ## PT: permutation test, decrease in accuracy is averaged and vars with largest avg decrease in accuracy are import
 
 gbm_fin_PT<-as.data.frame(summary(gbm_final, plotit = F, method=permutation.test.gbm)) %>% 
-  mutate("Ymetric"= as_name(bmiVar),
+  mutate("Ymetric"= as_name(bioVar),
          "flowdat" = hydroDat,
-         "method" = "permtest")
+         "method" = "permtest",
+         "model" = glue("{modelname}"))
 gbm_fin_PT <- gbm_fin_PT %>% 
   mutate(flow_component = case_when(
     grepl("DS_", var) ~ "Dry-season baseflow",
@@ -182,15 +185,15 @@ gbm_fin_PT <- gbm_fin_PT %>%
              position="dodge") +
     coord_flip() +
     geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
-    ylim(c(0,50))+
+    #ylim(c(0,50))+
     scale_fill_viridis_d("Flow Component")+
-    labs(title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Metrics: ", modname),
+    labs(title= plotname,
          y="Relative Influence (%) (perm test)", x="",
          subtitle = "Permutation Test") +
     theme_classic(base_family = "Roboto Condensed")) 
 
 # save out
-ggsave(filename=tolower(paste0("models/", mod_savename, "_all_RI_permtest.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(glue("models/{mod_savename}_all_RI_permtest.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 
 # 02B. RI PERMUTATION TEST PLOTS TOP VARS ------------------------------------------------
@@ -205,57 +208,36 @@ ggsave(filename=tolower(paste0("models/", mod_savename, "_all_RI_permtest.png"))
             position="dodge") +
    coord_flip() +
    geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
-   ylim(c(0,50))+
+   #ylim(c(0,50))+
    scale_fill_viridis_d("Flow Component")+
-   labs(title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Top Metrics: ", modname),
+   labs(title=plotname,
         y="Relative Influence (%) (perm test)", x="",
         subtitle = "Permutation Test") +
    theme_classic(base_family = "Roboto Condensed")) 
 
 # save out
-#ggsave(filename=tolower(paste0("models/", mod_savename, "_top_RI_permtest.png")), width = 9, height = 7, units = "in", dpi = 300)
-
-## Plot Side by Side -------------------------------------------------------
-
-# plot w/out legend
-(fin_ri_top_noleg <- gbm_fin_RI %>% 
-   arrange(desc(RI)) %>% 
-   filter(flow_component!="General", RI>5) %>% 
-   ggplot(.) +
-   geom_col(aes(x=reorder(var, RI),
-                y=RI, fill=flow_component), color="gray20", lwd=.1,
-            position="dodge", show.legend = FALSE) +
-   coord_flip() +
-   geom_hline(yintercept = 5, color="gray40", lwd=1, lty=2, alpha=0.8)+
-   ylim(c(0,30))+
-   scale_fill_viridis_d("Flow Component")+
-   labs(title=paste0(hydroDat, " (", toupper(as_label(bmiVar)),") Top Metrics: ", modname),
-        x="", y="Relative Influence (%)", subtitle="MSE Criterion") +
-   theme_classic(base_family = "Roboto Condensed")) 
-
-
-(pg1 <- plot_grid(fin_ri_top_noleg, fin_pt_top, rel_widths = c(0.7, 1), align = "h", labels=c("A","B")))
- 
-#cowplot::save_plot(pg1, filename = tolower(paste0("models/08_gbm_", as_name(bmiVar), "_", hydroDat,"_top_RI_both", ".png")), base_width = 8, units = "in", dpi = 300)
+ggsave(filename=tolower(glue("models/{mod_savename}_top_RI_permtest.png")), width = 9, height = 7, units = "in", dpi = 300)
 
 # 03. COMBINE RIs AND SAVE -----------------------------------------------------
 
 # reassign names for RI outputs and save:
-assign(x = tolower(glue("{as_name(bmiVar)}_{hydroDat}_RI")), value=bind_rows(gbm_fin_PT, gbm_fin_RI))
+tolower(glue("{as_name(bioVar)}_{hydroDat}_RI"))
+assign(x = tolower(glue("{as_name(bioVar)}_{hydroDat}_RI")), value=bind_rows(gbm_fin_PT, gbm_fin_RI))
 
-(filepattern <- ls(pattern = paste0("^",tolower(as_name(bmiVar)))))
+(filepattern <- ls(pattern = paste0("^",tolower(as_name(bioVar)))))
 
-write_rds(x = asci_por_ri, file = glue("models/{mod_savename}_RI_combined.rds"))
+write_rds(x = csci_por_ri, file = glue("models/{mod_savename}_RI_combined.rds"))
+#write_rds(x = asci_por_ri, file = glue("models/{mod_savename}_RI_combined.rds"))
 
 # 04. MARGINAL FX Plots ----------------------------------------------
 
 # MARGINAL FX:: partial dependency or marginal effect plots (ALL)
 
-pdf(file=paste0("models/", mod_savename,"_partial_depend_plots.pdf"),
-    width = 11, height = 8)
+#pdf(file=paste0("models/", mod_savename,"_partial_depend_plots.pdf"),
+#    width = 11, height = 8)
                 
-gbm.plot(gbm_final, rug = T, n.plots = 9, show.contrib = T, 
-         smooth=T, write.title = F, common.scale = T,
-         y.label = as_name(bmiVar), plot.layout = c(3,3))
-title(main=glue("Flow Data: {plotname}"), outer = T, line = -1.5)
-dev.off()
+# gbm.plot(gbm_final, rug = T, n.plots = 9, show.contrib = T, 
+#          smooth=T, write.title = F, common.scale = T,
+#          y.label = as_name(bioVar), plot.layout = c(3,3))
+#title(main=glue("Flow Data: {plotname}"), outer = T, line = -1.5)
+#dev.off()

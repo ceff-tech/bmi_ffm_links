@@ -10,8 +10,8 @@ library(sf)
 sf_use_s2(FALSE)
 
 library(viridis) # colors
-library(rlang)
-library(purrr)
+library(cowplot)
+library(patchwork)
 
 # Load Data ---------------------------------------------------------------
 
@@ -36,7 +36,7 @@ bio_ffm <- bio_ffm %>%
   filter(!is.na(delta_p50))
 
 
-# ALL CA: Seasonality ----------------------
+# CSCI: ALL CA Seasonality ----------------------
 
 bioVar <- "csci"
 (modname <- glue("{bioVar}_all_ca_seasonality")) # model name 
@@ -49,7 +49,9 @@ bioVar <- "csci"
 top_ris <- read_rds(file=glue("models/{top_ri}"))
 
 # make sep and combine
-ri_csci_all_ca <- top_ris %>% mutate(model="all_ca")
+ri_csci_all_ca <- top_ris
+
+# ASCI: ALL CA Seasonality ----------------------
 
 # change biovar
 bioVar <- "asci"
@@ -63,13 +65,82 @@ bioVar <- "asci"
 top_ris <- read_rds(file=glue("models/{top_ri}"))
 
 # make sep and combine
-ri_asci_all_ca <- top_ris %>% mutate(model="all_ca")
+ri_asci_all_ca <- top_ris
+
+# CSCI: Mixed Seasonality ----------------------
+
+# change biovar
+bioVar <- "csci"
+(modname <- glue("{bioVar}_mixed_seasonality")) # model name 
+
+# make pathnames
+(mod_savename <- tolower(glue("08_gbm_{modname}")))
+
+# get the gbm model:
+(top_ri <- list.files(path="models/", pattern = glue("^{mod_savename}_RI_combined.*\\.rds$")))
+top_ris <- read_rds(file=glue("models/{top_ri}"))
+
+# make sep and combine
+ri_csci_mixed <- top_ris
+
+
+# ASCI: Mixed Seasonality ----------------------
+
+# change biovar
+bioVar <- "asci"
+(modname <- glue("{bioVar}_mixed_seasonality")) # model name 
+
+# make pathnames
+(mod_savename <- tolower(glue("08_gbm_{modname}")))
+
+# get the gbm model:
+(top_ri <- list.files(path="models/", pattern = glue("^{mod_savename}_RI_combined.*\\.rds$")))
+top_ris <- read_rds(file=glue("models/{top_ri}"))
+
+# make sep and combine
+ri_asci_mixed <- top_ris
+
+# CSCI: RAIN Seasonality ----------------------
+
+# change biovar
+bioVar <- "csci"
+(modname <- glue("{bioVar}_rain_seasonality")) # model name 
+
+# make pathnames
+(mod_savename <- tolower(glue("08_gbm_{modname}")))
+
+# get the gbm model:
+(top_ri <- list.files(path="models/", pattern = glue("^{mod_savename}_RI_combined.*\\.rds$")))
+top_ris <- read_rds(file=glue("models/{top_ri}"))
+
+# make sep and combine
+ri_csci_rain <- top_ris
+
+
+# ASCI: RAIN Seasonality ----------------------
+
+# change biovar
+bioVar <- "asci"
+(modname <- glue("{bioVar}_rain_seasonality")) # model name 
+
+# make pathnames
+(mod_savename <- tolower(glue("08_gbm_{modname}")))
+
+# get the gbm model:
+(top_ri <- list.files(path="models/", pattern = glue("^{mod_savename}_RI_combined.*\\.rds$")))
+top_ris <- read_rds(file=glue("models/{top_ri}"))
+
+# make sep and combine
+ri_asci_rain <- top_ris
+
+
+# BIND ALL TOGETHER -------------------------------------------------------
 
 ## bind
-ri_all_regions <- bind_rows(ri_csci_all_ca, ri_asci_all_ca)
+ri_all_regions <- bind_rows(ri_csci_all_ca, ri_asci_all_ca,
+                            ri_csci_rain, ri_asci_rain,
+                            ri_csci_mixed, ri_asci_mixed)
 
-## save out for later
-#save(ri_all_regions, file = tolower(glue::glue("models/09_combined_ri_all_ca_seasonality.rda")))
 
 # Make a Table of RI's ----------------------------------------------------
 
@@ -86,7 +157,7 @@ ri_table <- ri_table %>%
          var = fct_reorder2(var, flow_component, var),
          model=as.factor(model),
          Flow.Metric.Name = case_when(
-           flow_component == "Stream Class" ~ "Stream Class",
+           #flow_component == "Stream Class" ~ "Stream Class",
            var == "Power.avg" ~ "Wavelet Interannual",
            var == "MP_metric" ~ "Colwell's M/P Intrannual",
            TRUE ~ Flow.Metric.Name),
@@ -100,11 +171,11 @@ summary(ri_table)
 
 # save out:
 write_rds(ri_table, file = glue("models/09_combined_ri_all_ca_seasonality.rds"))
-
+save(ri_table, file = tolower(glue("models/09_combined_ri_all_ca_seasonality.rda")))
 
 # generate order by CA wide RI for flow metrics:
 forder <- ri_table %>% 
-  filter(model=="all_ca", 
+  filter(model=="all_ca_seasonality", 
          method=="mse") %>% 
   mutate(model=as.factor(modname),
          Flow.Metric.Name = as.factor(Flow.Metric.Name),
@@ -118,20 +189,29 @@ forder <- ri_table %>%
 
 # Plot & Summarize All RI Combined ----------------------------------------
 
-# most common hydrometric by flowdata type?
-ri_table %>% group_by(flowdat, var) %>% 
+# most common hydrometric by model
+ri_table %>% group_by(model, var) %>% 
   summarize(meanRI = mean(RI),
             sumRI = sum(RI)) %>% 
   top_n(5) %>% 
-  arrange(flowdat, desc(meanRI))
+  arrange(model, desc(meanRI))
 
 # so best hydrometric across model?
-ri_table %>% group_by(var) %>% 
+ri_table %>% group_by(var, model) %>% 
   summarize(meanRI = mean(RI),
             medianRI = median(RI),
             maxRI = max(RI),
             SD = sd(RI)) %>% 
-  top_n(5) %>% group_by(var) %>% tally() %>% arrange(desc(n))
+  group_by(model) %>% 
+  arrange(model, desc(meanRI)) %>% top_n(5)
+
+ri_table %>% group_by(var, model) %>% 
+  summarize(meanRI = mean(RI),
+            medianRI = median(RI),
+            maxRI = max(RI),
+            SD = sd(RI)) %>% 
+  group_by(model) %>% 
+  arrange(model, desc(meanRI)) %>% top_n(5)
 
 
 # Summary Table ALL CA -----------------------------------------------------------
@@ -142,8 +222,7 @@ model_name <- "All CA"
 ## ALL CA Table
 # Create a gt table based on preprocessed table
 ri_table %>%
-  dplyr::filter(method=="mse", model=="all_ca") %>%
-    #model=="all_ca", 
+  dplyr::filter(method=="mse", model=="all_ca_seasonality") %>%
   dplyr::select(-c(Flow.Component, flowdat,  method, Flow.Characteristic)) %>%
   dplyr::select(Ymetric, flow_component, var, Flow.Metric.Name:Flow.Metric.Description, RI) %>%
   #arrange(Flow.Component, var) %>% #View() 
@@ -151,13 +230,69 @@ ri_table %>%
   select(-var) %>% 
   gt() %>%
   tab_header(
-    title = "Relative Influence of Functional Flow Metrics on CSCI",
-    subtitle = glue::glue("Model {model_name}")
+    title = "Relative Influence of Functional Flow Metrics",
+    subtitle = glue::glue("{model_name}")
   ) %>%
   fmt_number(
     columns = c(RI), decimals = 1, 
     drop_trailing_zeros = T
   )
+
+# Lollipop Plot: ALL CA WITHOUT seasonality ------------------------------------------------------------
+
+# darker for peak flow
+flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" = "#56B4E9",
+                          "Peak flow" = "#404788FF", "Spring recession flow" = "#009E73", 
+                          "Dry-season baseflow" = "#D55E00")
+
+plotname <- "All CA"
+modname <- "all_ca_seasonality"
+(plot_savename <- tolower(glue("09_gbm_combined_all_ca_no_seasonality")))
+
+# plot
+ri_table %>% 
+  filter(model==modname, 
+         method=="mse",
+         !flow_component=="Seasonality") %>% 
+  ggplot() +
+  geom_linerange(aes(x=reorder(Flow.Metric.Name, RI),
+                     ymax=RI, ymin=0, group=model, color=flow_component), 
+                 lwd=.5, show.legend = F, alpha=0.7, lty=1)+
+  geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, 
+                 shape=Ymetric, 
+                 color=flow_component,
+                 fill=flow_component,
+                 size=RI)) +
+  geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, 
+                 shape=Ymetric, size=RI), 
+             color="black", show.legend = FALSE, alpha=0.8) +
+  scale_shape_manual("Index", values=c("asci"=23, "csci"=21),
+                     labels=c("ASCI","CSCI"))+
+  scale_color_manual("Flow Component", values=flowcomponent_colors) +
+  scale_fill_manual("Flow Component", values=flowcomponent_colors, guide="none") +
+  scale_size_area("", guide=FALSE) +
+  #scale_shape_manual("Method", values=c("mse"=16, "permtest"=17))+
+  coord_flip() +
+  ylim(c(0,20))+
+  labs(title = glue::glue('All Site Pairs (CA)'),
+       x="", y="Relative Influence (%)") +
+  # fix legend
+  guides(color = guide_legend(override.aes = list(size = 4, pch=21, 
+                                                  fill=flowcomponent_colors, color="gray40"),
+                              order = 1),
+         shape = guide_legend(override.aes = list(size = 4),
+                              order = 2),
+         size= "none") +
+  theme_minimal_grid(font_family = "Roboto Condensed") +
+  theme(legend.position = c(0.65, 0.35),
+        plot.background = element_rect(fill="white"),
+        panel.border = element_rect(color = "white"),
+        legend.box.background = element_rect(fill="white", color = "white"))
+
+
+# save out
+ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
+
 
 # Lollipop Plot: ALL CA with seasonality -----------------------------------------------
 
@@ -174,95 +309,177 @@ modname <- "all_ca_seasonality"
 (plot_savename <- tolower(glue("09_gbm_combined_{modname}")))
 
 # plot
-ri_table %>% 
-  filter(model=="all_ca", 
-         method=="mse") %>% 
-  ggplot() +
-  #geom_hline(yintercept = 5, color="gray40", lwd=0.8, lty=2, alpha=0.5)+
-  geom_linerange(aes(x=reorder(Flow.Metric.Name, RI),
-                     ymax=RI, ymin=0, group=model, color=flow_component), 
-                 lwd=.5, show.legend = F, alpha=0.7, lty=1)+
-  geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, 
-                 shape=Ymetric, 
-                 color=flow_component,
-                 fill=flow_component,
-                 size=RI)) +
-  geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, 
-                 shape=Ymetric, size=RI), 
-             color="black", show.legend = FALSE, alpha=0.8) +
-  scale_shape_manual("Index", values=c("asci"=23, "csci"=21))+
-  scale_color_manual("Flow Component", values=flowcomponent_colors) +
-  scale_fill_manual("Flow Component", values=flowcomponent_colors, guide="none") +
-  scale_size_area("", guide=FALSE) +
-  #scale_shape_manual("Method", values=c("mse"=16, "permtest"=17))+
-  coord_flip() +
-  ylim(c(0,20))+
-  labs(title = glue::glue('All Site Pairs (CA)'),
-       x="", y="Relative Influence (%)") +
-  # fix legend
-  guides(color = guide_legend(override.aes = list(size = 4, pch=21, 
-                                                  fill=flowcomponent_colors, color="gray40"),
-                              order = 1),
-         shape = guide_legend(override.aes = list(size = 4),
-                              order = 2),
-         size= "none") +
-  theme_minimal(base_family = "Roboto Condensed") +
-  theme(legend.position = c(0.8, 0.3),
-        plot.background = element_rect(fill="white"),
-        legend.background = element_rect(color="white"))
+(ri_table %>% 
+    filter(model==modname, 
+           method=="mse") %>% 
+    ggplot() +
+    #geom_hline(yintercept = 5, color="gray40", lwd=0.8, lty=2, alpha=0.5)+
+    geom_linerange(aes(x=reorder(Flow.Metric.Name, RI),
+                       ymax=RI, ymin=0, group=model, color=flow_component), 
+                   lwd=.5, show.legend = F, alpha=0.7, lty=1)+
+    geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, 
+                   shape=Ymetric, 
+                   color=flow_component,
+                   fill=flow_component,
+                   size=RI)) +
+    geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, 
+                   shape=Ymetric, size=RI), 
+               color="black", show.legend = FALSE, alpha=0.8) +
+    scale_shape_manual("Index", values=c("asci"=23, "csci"=21),
+                       labels=c("ASCI","CSCI"))+
+    scale_color_manual("Flow Component", values=flowcomponent_colors) +
+    scale_fill_manual("Flow Component", values=flowcomponent_colors, guide="none") +
+    scale_size_area("", guide=FALSE) +
+    #scale_shape_manual("Method", values=c("mse"=16, "permtest"=17))+
+    coord_flip() +
+    ylim(c(0,20))+
+    labs(title = glue::glue('{plotname}'),
+         x="", y="Relative Influence (%)") +
+    # fix legend
+    guides(color = guide_legend(override.aes = list(size = 4, pch=21, 
+                                                    fill=flowcomponent_colors, color="gray40"),
+                                order = 1),
+           shape = guide_legend(override.aes = list(size = 4),
+                                order = 2),
+           size= "none") +
+    theme_minimal_grid(font_family = "Roboto Condensed") +
+    theme(legend.position = c(0.7, 0.35),
+          plot.background = element_rect(fill="white"),
+          panel.border = element_rect(color = "white"),
+          legend.box.background = element_rect(fill="white", color = "white")) -> gg1)
+
 
 # save out
 ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
 
-# Lollipop Plot: ALL CA WITHOUT seasonality ------------------------------------------------------------
+
+# Lollipop Plot: MIXED with seasonality -----------------------------------------------
 
 # darker for peak flow
 flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" = "#56B4E9",
                           "Peak flow" = "#404788FF", "Spring recession flow" = "#009E73", 
-                          "Dry-season baseflow" = "#D55E00")
+                          "Dry-season baseflow" = "#D55E00", 
+                          #"Stream Class" = "skyblue", 
+                          "Seasonality" = "gray")
 
-plotname <- "All CA"
-modname <- "all_ca_ffc_only"
+# set up values
+plotname <- "All CA: Mixed"
+modname <- "mixed_seasonality"
 (plot_savename <- tolower(glue("09_gbm_combined_{modname}")))
 
 # plot
-ri_table %>% 
-  filter(model=="all_ca", 
-         method=="mse",
-         !flow_component=="Seasonality") %>% 
-  ggplot() +
-  geom_linerange(aes(x=reorder(Flow.Metric.Name, RI),
-                     ymax=RI, ymin=0, group=model, color=flow_component), 
-                 lwd=.5, show.legend = F, alpha=0.7, lty=1)+
-  geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, 
-                 shape=Ymetric, 
-                 color=flow_component,
-                 fill=flow_component,
-                 size=RI)) +
-  geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, 
-                 shape=Ymetric, size=RI), 
-             color="black", show.legend = FALSE, alpha=0.8) +
-  scale_shape_manual("Index", values=c("asci"=23, "csci"=21))+
-  scale_color_manual("Flow Component", values=flowcomponent_colors) +
-  scale_fill_manual("Flow Component", values=flowcomponent_colors, guide="none") +
-  scale_size_area("", guide=FALSE) +
-  #scale_shape_manual("Method", values=c("mse"=16, "permtest"=17))+
-  coord_flip() +
-  ylim(c(0,20))+
-  labs(title = glue::glue('All Site Pairs (CA)'),
-       x="", y="Relative Influence (%)") +
-  # fix legend
-  guides(color = guide_legend(override.aes = list(size = 4, pch=21, 
-                                                  fill=flowcomponent_colors, color="gray40"),
-                              order = 1),
-         shape = guide_legend(override.aes = list(size = 4),
-                              order = 2),
-         size= "none") +
-  theme_minimal(base_family = "Roboto Condensed") +
-  theme(legend.position = c(0.8, 0.3),
-        plot.background = element_rect(fill="white"),
-        legend.background = element_rect(color="white"))
-
+(ri_table %>% 
+    filter(model==modname, 
+           method=="mse") %>% 
+    ggplot() +
+    #geom_hline(yintercept = 5, color="gray40", lwd=0.8, lty=2, alpha=0.5)+
+    geom_linerange(aes(x=reorder(Flow.Metric.Name, RI),
+                       ymax=RI, ymin=0, group=model, color=flow_component), 
+                   lwd=.5, show.legend = F, alpha=0.7, lty=1)+
+    geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, 
+                   shape=Ymetric, 
+                   color=flow_component,
+                   fill=flow_component,
+                   size=RI)) +
+    geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, 
+                   shape=Ymetric, size=RI), 
+               color="black", show.legend = FALSE, alpha=0.8) +
+    scale_shape_manual("Index", values=c("asci"=23, "csci"=21), labels=c("ASCI","CSCI"))+
+    scale_color_manual("Flow Component", values=flowcomponent_colors) +
+    scale_fill_manual("Flow Component", values=flowcomponent_colors, guide="none") +
+    scale_size_area("", guide=FALSE) +
+    coord_flip() +
+    ylim(c(0,25))+
+    labs(title = glue::glue('{plotname}'),
+         x="", y="Relative Influence (%)") +
+    # fix legend
+    guides(color = guide_legend(override.aes = list(size = 4, pch=21, 
+                                                    fill=flowcomponent_colors, color="gray40"),
+                                order = 1),
+           shape = guide_legend(override.aes = list(size = 4),
+                                order = 2),
+           size= "none") +
+    theme_minimal_grid(font_family = "Roboto Condensed") +
+    theme(legend.position = c(0.65, 0.35),
+          plot.background = element_rect(fill="white"),
+          panel.border = element_rect(color = "white"),
+          legend.box.background = element_rect(fill="white", color = "white")) -> gg2)
 
 # save out
 ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
+
+
+# Lollipop Plot: RAIN with seasonality -----------------------------------------------
+
+# darker for peak flow
+flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" = "#56B4E9",
+                          "Peak flow" = "#404788FF", "Spring recession flow" = "#009E73", 
+                          "Dry-season baseflow" = "#D55E00", 
+                          #"Stream Class" = "skyblue", 
+                          "Seasonality" = "gray")
+
+# set up values
+plotname <- "All CA: Rain"
+modname <- "rain_seasonality"
+(plot_savename <- tolower(glue("09_gbm_combined_{modname}")))
+
+# plot
+(ri_table %>% 
+    filter(model==modname, 
+           method=="mse") %>% 
+    ggplot() +
+    #geom_hline(yintercept = 5, color="gray40", lwd=0.8, lty=2, alpha=0.5)+
+    geom_linerange(aes(x=reorder(Flow.Metric.Name, RI),
+                       ymax=RI, ymin=0, group=model, color=flow_component), 
+                   lwd=.5, show.legend = F, alpha=0.7, lty=1)+
+    geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, 
+                   shape=Ymetric, 
+                   color=flow_component,
+                   fill=flow_component,
+                   size=RI)) +
+    geom_point(aes(x=Flow.Metric.Name, y=RI, group=model, 
+                   shape=Ymetric, size=RI), 
+               color="black", show.legend = FALSE, alpha=0.8) +
+    scale_shape_manual("Index", values=c("asci"=23, "csci"=21), labels=c("ASCI","CSCI"))+
+    scale_color_manual("Flow Component", values=flowcomponent_colors) +
+    scale_fill_manual("Flow Component", values=flowcomponent_colors, guide="none") +
+    scale_size_area("", guide=FALSE) +
+    coord_flip() +
+    ylim(c(0,40))+
+    labs(title = glue::glue('{plotname}'),
+         x="", y="Relative Influence (%)") +
+    # fix legend
+    guides(color = guide_legend(override.aes = list(size = 4, pch=21, 
+                                                    fill=flowcomponent_colors, color="gray40"),
+                                order = 1),
+           shape = guide_legend(override.aes = list(size = 4),
+                                order = 2),
+           size= "none") +
+    theme_minimal_grid(font_family = "Roboto Condensed") +
+    theme(legend.position = c(0.50, 0.35),
+          plot.background = element_rect(fill="white"),
+          panel.border = element_rect(color = "white"),
+          legend.box.background = element_rect(fill="white", color = "white")) -> gg3)
+
+# save out
+ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 10, height = 7, units = "in", dpi = 300)
+
+
+
+# COMBINE REGIONS ---------------------------------------------------------
+
+library(cowplot)
+my_legend <- get_legend(gg2)
+library(ggpubr)
+as_ggplot(my_legend)
+
+library(patchwork)
+# remove legend from gg2
+gg2_noleg <- gg2 + theme(legend.position = "none")
+
+gg2_noleg + gg3 + 
+  #plot_layout(guides = 'collect') +
+  plot_annotation(tag_levels = 'A')
+
+ggsave(filename = glue("models/09_gbm_combined_rain_mixed_seasonality_all_ri_sized_points_w_lines.png"),
+       width = 11, height = 7, scale = 1.1, units="in", dpi=300)
