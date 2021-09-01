@@ -4,50 +4,78 @@
  
 Performing cross-validation optimisation of a boosted regression tree model 
 for biovalue and using a family of gaussian 
-Using 420 observations and 18 predictors 
+Using 613 observations and 17 predictors 
 creating 10 initial models of 100 trees 
 
  folds are unstratified 
-total mean deviance =  0.0482 
+total mean deviance =  0.047 
 tolerance is fixed at  0 
 ntrees resid. dev. 
-100    0.0411 
+100    0.0392 
 now adding trees... 
-200   0.0376 
-300   0.0356 
-400   0.0344 
-500   0.0337 
-600   0.0332 
-700   0.0329 
-800   0.0326 
-900   0.0324 
-1000   0.0323 
-1100   0.0323 
-1200   0.0323 
-1300   0.0323 
-1400   0.0323 
-1500   0.0323 
-1600   0.0324 
-1700   0.0325 
-1800   0.0325 
-1900   0.0326 
-2000   0.0326 
-2100   0.0326 
-2200   0.0327 
-2300   0.0327 
-2400   0.0328 
+200   0.0351 
+300   0.033 
+400   0.0315 
+500   0.0306 
+600   0.0299 
+700   0.0294 
+800   0.0291 
+900   0.0287 
+1000   0.0284 
+1100   0.0282 
+1200   0.0281 
+1300   0.0279 
+1400   0.0278 
+1500   0.0277 
+1600   0.0276 
+1700   0.0276 
+1800   0.0275 
+1900   0.0275 
+2000   0.0274 
+2100   0.0274 
+2200   0.0273 
+2300   0.0273 
+2400   0.0273 
+2500   0.0273 
+2600   0.0273 
+2700   0.0272 
+2800   0.0272 
+2900   0.0272 
+3000   0.0272 
+3100   0.0272 
+3200   0.0272 
+3300   0.0272 
+3400   0.0272 
+3500   0.0272 
+3600   0.0272 
+3700   0.0272 
+3800   0.0271 
+3900   0.0271 
+4000   0.0271 
+4100   0.0272 
+4200   0.0271 
+4300   0.0271 
+4400   0.0271 
+4500   0.0271 
+4600   0.0271 
+4700   0.0271 
+4800   0.0271 
+4900   0.0271 
+5000   0.0271 
+5100   0.0271 
+5200   0.0271 
 
-mean total deviance = 0.048 
-mean residual deviance = 0.019 
+mean total deviance = 0.047 
+mean residual deviance = 0.014 
  
-estimated cv deviance = 0.032 ; se = 0.001 
+estimated cv deviance = 0.027 ; se = 0.002 
  
-training data correlation = 0.79 
-cv correlation =  0.566 ; se = 0.04 
+training data correlation = 0.843 
+cv correlation =  0.653 ; se = 0.028 
  
-elapsed time -  0.18 minutes 
+elapsed time -  0.41 minutes 
 
 Best parameters for GBM.STEP:
 
 shrinkage	interaction.depth	n.minobsinnode	bag.fraction	dev_explained
-0.005	5	3	0.75	0.33004335688930225
+0.005	5	10	0.75	0.4239365121507461

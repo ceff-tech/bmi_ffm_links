@@ -40,7 +40,7 @@ set.seed(321) # reproducibility
 #bio_ffm<- read_rds("data_output/06_csci_por_trim_final_dataset.rds")
 bio_ffm<- read_rds("https://github.com/ryanpeek/flow_seasonality/blob/main/output/10_ffc_filtered_final_combined.rds?raw=true")
 
-## ADD DELTA HYDRO AND PLOT ------------------------------------------------
+## ADD DELTA HYDRO ------------------------------------------------
 
 # need to add a "delta hydro: delta_p50 = (p50_obs-p50_pred)/p50_pred)"
 bio_ffm <- bio_ffm %>% 
@@ -63,6 +63,22 @@ bio_ffm <- bio_ffm %>%
 summary(bio_ffm$delta_p50, useNA="ifany")
 summary(bio_ffm$delta_p50_scale, useNA="ifany")
 bio_ffm %>% select(contains("p50")) %>% summary
+
+# check for duplicates and take median val
+# calc records by StationCode (how many mult years)
+bio_ffm %>% 
+  filter(bioindicator=="ASCI") %>% 
+  select(gageid:StationCode, class3_name, SampleID, bioindicator:asci) %>% 
+  distinct(StationCode, gageid, SampleID, .keep_all=TRUE) %>% 
+  group_by(StationCode, gageid) %>% 
+  tally() %>% 
+  arrange(desc(n)) %>% 
+  #filter(n>0) # ASCI n= 356 sites total
+  filter(n>1) %>% 
+  nrow() # zero dups
+
+
+# Point Plots --------------------------------------------------------------
 
 
 # # plot
