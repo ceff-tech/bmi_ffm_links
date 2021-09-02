@@ -851,7 +851,7 @@ bio_ffm %>%
 data_strmclass <- bio_ffm %>% 
   filter(bioindicator==bioindi, 
          class3_name == strmclass) %>% 
-  filter(delta_p50 < quantile(delta_p50, na.rm=TRUE, 0.96)) %>% 
+  filter(delta_p50 < quantile(delta_p50, na.rm=TRUE, 0.97)) %>% 
   dplyr::select(StationCode, SampleID, sampledate,
                 HUC_12, gageid, comid, 
                 COMID_bio, gagetype,
@@ -908,40 +908,9 @@ hyper_grid <- expand.grid(
   shrinkage = c(0.001, 0.003, 0.005),
   interaction.depth = c(5),
   n.minobsinnode = c(3, 5, 10),
-  bag.fraction = c(0.75)
+  n.trees = c(seq(100, 5000, by=100))
 )
-
-# double check and view
 hyper_grid
-
-# load the GBM.step function (requires dismo and function loaded)
-#source("code/functions/My.gbm.step.snow.R")
-
-gbm_fit_step <- function(
-  shrinkage, interaction.depth, n.minobsinnode, bag.fraction, data) {
-  set.seed(123) # make it reproducible
-  m_step <- My.gbm.step(
-    gbm.y = 1, # response in training data
-    gbm.x = 2:ncol(data), # hydro dat
-    family = "gaussian",
-    data = data,
-    learning.rate = shrinkage,
-    tree.complexity = interaction.depth,
-    n.minobsinnode = n.minobsinnode,
-    bag.fraction = bag.fraction,
-    plot.main = FALSE,
-    verbose = FALSE
-  )
-  
-  # Compute the Deviance Explained: (total dev - cv dev) / total dev
-  if(!is.null(m_step)){ # this helps if there's an error above
-    (m_step$self.statistics$mean.null - m_step$cv.statistics$deviance.mean) /
-      m_step$self.statistics$mean.null
-  } else {
-    return(NA)
-  }
-}
-
 
 ## D. SNOW: Iterate with Caret GBM ----------------------------------------
 
@@ -949,51 +918,27 @@ gbm_fit_step <- function(
 library(caret)
 fitControl <- trainControl(method = "cv",
                            number = 10)
-(tune_Grid <-  expand.grid(interaction.depth = c(3,5),
-                           n.trees = (1:30)*200,
-                           shrinkage = c(0.001, 0.003, 0.005),
-                           n.minobsinnode = c(3, 5, 10)))
 
+# run model
 gbm_caretfit <- train(biovalue ~ ., data = data_strmclass_train_nona,
-             method = "gbm",
-             trControl = fitControl,
-             verbose = FALSE,
-             tuneGrid = tune_Grid)
+                      method = "gbm",
+                      trControl = fitControl,
+                      verbose = FALSE,
+                      tuneGrid = hyper_grid)
 
 caret_ri_out <- summary(gbm_caretfit)
 
-gbm_caretfit # best n.trees = 200, interaction.depth = 3, shrinkage= 0.001 and n.minobsinnode = 10
+gbm_caretfit 
+# best model: 
+# n.trees = 100, interaction.depth = 5, shrinkage= 0.001, n.minobsinnode = 3
 
 # plot
-# trellis.par.set(caretTheme())
+trellis.par.set(caretTheme())
 # plot(gbm_caretfit) 
 ggplot(gbm_caretfit)  
 
-
-# get MSE and compute RMSE
-#sqrt(min(gbm.fit2$cv.error))
-# find index for n trees with minimum CV error
-#min_MSE <- which.min(gbm.fit2$cv.error)
-# get MSE and compute RMSE
-#sqrt(gbm.fit2$cv.error[min_MSE])
-
+# extract results
 hyper_grid_caret <- gbm_caretfit$results
-
-## D. SNOW: Iterate gbm.step ---------------------------------------------
-
-# this isn't working, opting for caret GBM
-
-# use PURRR: this part can take awhile...get some coffee
-# hyper_grid$dev_explained <-purrr::pmap_dbl(
-#   hyper_grid,
-#   ~ gbm_fit_step(
-#     shrinkage = ..1,
-#     interaction.depth = ..2,
-#     n.minobsinnode = ..3,
-#     bag.fraction = ..4,
-#     data = data_strmclass_train_s) # CHECK AND CHANGE!!
-# )
-
 
 ## E. SNOW: View and save model results -----------------------------------------
 
