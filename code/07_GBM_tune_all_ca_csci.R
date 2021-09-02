@@ -125,6 +125,35 @@ bio_ffm %>%
 #        dpi=300, units="in")
 
 
+# Boxplots Evaluate Outliers -------------------------------------------------------
+
+bio_ffm %>%
+  # some extreme values so filter to everything below 98 quantile
+  filter(bioindicator == "CSCI") %>% 
+  filter(delta_p50 > quantile(delta_p50, na.rm=TRUE, 0.99)) %>% 
+  ggplot() +
+  geom_jitter(aes(x=metric, y=delta_p50, fill=metric), pch=21,
+              alpha=0.8, show.legend = FALSE, size=4) +
+  cowplot::theme_cowplot(font_family = "Roboto Condensed") +
+  labs(x="", y="Delta Hydrology", subtitle = ">98 percentile values") +
+  scale_fill_viridis_d("FFM") +
+  coord_flip() +
+  facet_grid(.~bioindicator)
+
+# where are they?
+bio_ffm %>%
+  filter(bioindicator == "CSCI") %>% 
+  # some extreme values so filter to everything below 98 quantile
+  filter(delta_p50 > quantile(delta_p50, na.rm=TRUE, 0.98)) %>% 
+  filter(delta_p50 > 30) %>% 
+  distinct(delta_p50, .keep_all=TRUE) %>% 
+  #distinct(gageid, .keep_all=TRUE) %>% 
+  st_as_sf(coords=c("usgs_lon", "usgs_lat"), crs=4326, remove=FALSE) %>% 
+  #group_by(gageid, station_nm) %>% tally() %>% 
+  #group_by(gageid, metric) %>% tally() %>% 
+  #View()
+  mapview(zcol="delta_p50")
+
 # ALL CA: GBM ------------------------------
 
 # get metrics
@@ -323,6 +352,8 @@ write_tsv(hyper_best, file = gbm_best_file,
 
 # % percent explained
 (gbm_fin_out$self.statistics$mean.null - gbm_fin_out$cv.statistics$deviance.mean) / gbm_fin_out$self.statistics$mean.null 
+
+summary(gbm_fin_out)
 
 ## G. ALL CA: Save final GBM and Data ------------------------------------------
 
@@ -832,11 +863,6 @@ data_strmclass <- bio_ffm %>%
   mutate(gagetype = as.factor(gagetype)) %>% 
   as.data.frame()
 
-bio_ffm %>% filter(bioindicator=="CSCI") %>%
-  distinct(gageid, SampleID, .keep_all=TRUE) %>%
-  select(class3_name) %>% table()
-
-
 
 # check how many rows/cols: KEEP ALL FOR NOW
 dim(data_strmclass) # should match above
@@ -864,19 +890,24 @@ data_strmclass_train <- data_strmclass %>% # use all data
 names(data_strmclass_train)
 
 summary(data_strmclass_train)
+dim(data_strmclass_train)
 
-# try scaling?
-data_strmclass_train_s <- scale(data_strmclass_train) %>% as.data.frame()
+# try dropping all nas?
+data_strmclass_train_nona <- data_strmclass_train[complete.cases(data_strmclass_train),]
+dim(data_strmclass_train_nona)
+summary(data_strmclass_train_nona)
 
+# scale
+data_strmclass_train_s <- scale(data_strmclass_train_nona) %>% as.data.frame()
 summary(data_strmclass_train_s)
 
 ## C. SNOW: Setup gbm.step model  ------------------------------------------------------------
 
 # set up tuning params
 hyper_grid <- expand.grid(
-  shrinkage = c(0.001),
+  shrinkage = c(0.001, 0.003, 0.005),
   interaction.depth = c(5),
-  n.minobsinnode = c(3),
+  n.minobsinnode = c(3, 5, 10),
   bag.fraction = c(0.75)
 )
 
@@ -884,16 +915,16 @@ hyper_grid <- expand.grid(
 hyper_grid
 
 # load the GBM.step function (requires dismo and function loaded)
-source("code/functions/My.gbm.step.snow.R")
+#source("code/functions/My.gbm.step.snow.R")
+
 gbm_fit_step <- function(
   shrinkage, interaction.depth, n.minobsinnode, bag.fraction, data) {
   set.seed(123) # make it reproducible
-  m_step <- My.gbm.step.snow(
+  m_step <- My.gbm.step(
     gbm.y = 1, # response in training data
     gbm.x = 2:ncol(data), # hydro dat
     family = "gaussian",
     data = data,
-    #max.trees = 3000, # can specify but don't for now
     learning.rate = shrinkage,
     tree.complexity = interaction.depth,
     n.minobsinnode = n.minobsinnode,
@@ -906,34 +937,74 @@ gbm_fit_step <- function(
   if(!is.null(m_step)){ # this helps if there's an error above
     (m_step$self.statistics$mean.null - m_step$cv.statistics$deviance.mean) /
       m_step$self.statistics$mean.null
-  } else { 
+  } else {
     return(NA)
   }
 }
 
+
+## D. SNOW: Iterate with Caret GBM ----------------------------------------
+
+## ALT GBM OPTION:
+library(caret)
+fitControl <- trainControl(method = "cv",
+                           number = 10)
+(tune_Grid <-  expand.grid(interaction.depth = c(3,5),
+                           n.trees = (1:30)*200,
+                           shrinkage = c(0.001, 0.003, 0.005),
+                           n.minobsinnode = c(3, 5, 10)))
+
+gbm_caretfit <- train(biovalue ~ ., data = data_strmclass_train_nona,
+             method = "gbm",
+             trControl = fitControl,
+             verbose = FALSE,
+             tuneGrid = tune_Grid)
+
+caret_ri_out <- summary(gbm_caretfit)
+
+gbm_caretfit # best n.trees = 200, interaction.depth = 3, shrinkage= 0.001 and n.minobsinnode = 10
+
+# plot
+# trellis.par.set(caretTheme())
+# plot(gbm_caretfit) 
+ggplot(gbm_caretfit)  
+
+
+# get MSE and compute RMSE
+#sqrt(min(gbm.fit2$cv.error))
+# find index for n trees with minimum CV error
+#min_MSE <- which.min(gbm.fit2$cv.error)
+# get MSE and compute RMSE
+#sqrt(gbm.fit2$cv.error[min_MSE])
+
+hyper_grid_caret <- gbm_caretfit$results
+
 ## D. SNOW: Iterate gbm.step ---------------------------------------------
 
+# this isn't working, opting for caret GBM
+
 # use PURRR: this part can take awhile...get some coffee
-hyper_grid$dev_explained <-purrr::pmap_dbl(
-  hyper_grid,
-  ~ gbm_fit_step_snow(
-    shrinkage = ..1,
-    interaction.depth = ..2,
-    n.minobsinnode = ..3,
-    bag.fraction = ..4,
-    data = data_strmclass_train) # CHECK AND CHANGE!!
-)
+# hyper_grid$dev_explained <-purrr::pmap_dbl(
+#   hyper_grid,
+#   ~ gbm_fit_step(
+#     shrinkage = ..1,
+#     interaction.depth = ..2,
+#     n.minobsinnode = ..3,
+#     bag.fraction = ..4,
+#     data = data_strmclass_train_s) # CHECK AND CHANGE!!
+# )
+
 
 ## E. SNOW: View and save model results -----------------------------------------
 
 # look at results:
-hyper_grid %>% 
-  dplyr::arrange(desc(dev_explained)) %>%
+hyper_grid_caret %>% 
+  dplyr::arrange(RMSE) %>%
   head(5) # top 5 models
 
 # pick the best solution
-(hyper_best <- hyper_grid %>% 
-    dplyr::arrange(desc(dev_explained)) %>% #
+(hyper_best <- hyper_grid_caret %>% 
+    dplyr::arrange(RMSE) %>% #
     head(n=1))
 
 # write these all out to a file for reference later
@@ -948,83 +1019,33 @@ if(fs::file_exists(path = paste0(gbm_file,".csv"))){
 }
 
 # save out
-write_csv(hyper_grid, file = glue("{gbm_file}.csv"), append = TRUE)
+write_csv(hyper_grid_caret, file = glue("{gbm_file}.csv"), append = TRUE)
 
 # read in
-hyper_grid <- readr::read_csv(file = paste0(gbm_file,".csv"), col_names = c("shrinkage", "interaction.depth", "n.minobsinnode", "bag.fraction", "dev_explained"))
+hyper_grid <- readr::read_csv(file = paste0(gbm_file,".csv"),
+                              col_names = c("shrinkage", "interaction.depth", 
+                                            "n.minobsinnode","n.trees","RMSE",
+                                            "Rsquared","MAE","RMSESD","RsquaredSD",
+                                            "MAESD"))
 
 # get best model solution
-(hyper_best <- hyper_grid %>% 
-    dplyr::arrange(desc(dev_explained)) %>% #
+(hyper_best <- hyper_grid_caret %>% 
+    dplyr::arrange((RMSE)) %>% #
     head(n=1))
-
-## F. SNOW: Run best BRT ---------------------------------------------------------------
-
-# based on above, run final BRT and save:
-gbm_final_step <- function(
-  shrinkage, interaction.depth, n.minobsinnode, bag.fraction, data) {
-  set.seed(123) # make it reproducible
-  m_final <- My.gbm.step(
-    gbm.y = 1, # response in training data
-    gbm.x = 2:ncol(data), # hydro dat
-    family = "gaussian",
-    data = data,
-    learning.rate = shrinkage,
-    tree.complexity = interaction.depth,
-    n.minobsinnode = n.minobsinnode,
-    bag.fraction = bag.fraction,
-    plot.main = TRUE,
-    verbose = TRUE
-  )
-}
-
-# set up filename for best model outputs
-(gbm_best_file <- glue("models/07_gbm_final_{tolower(as_name(bioVar))}_{tolower(modname)}_model_output.txt"))
-
-# check for file and delete?
-if(fs::file_exists(path = gbm_best_file)){
-  fs::file_delete(path = gbm_best_file)
-  print("File deleted, time for a fresh start!")
-} else {
-  print("No file saved yet")
-}
-
-# run best option with PURR
-capture.output(gbm_fin_out <- purrr::pmap(
-  hyper_best,
-  ~ gbm_final_step(
-    shrinkage = ..1,
-    interaction.depth = ..2,
-    n.minobsinnode = ..3,
-    bag.fraction = ..4,
-    data = data_strmclass_train # CHECK AND CHANGE!!
-  )
-), file=gbm_best_file, append=T)
-
-#strip off a list layer to view data
-(gbm_fin_out <- gbm_fin_out[[1]])
-
-# add hyperbest to capture output file:
-cat("\nBest parameters for GBM.STEP:\n\n", 
-    file = gbm_best_file, append=TRUE)
-
-# add the parameters used to run the model
-write_tsv(hyper_best, file = gbm_best_file,
-          col_names = TRUE, append=TRUE)
-
-# % percent explained
-(gbm_fin_out$self.statistics$mean.null - gbm_fin_out$cv.statistics$deviance.mean) / gbm_fin_out$self.statistics$mean.null 
 
 ## G. SNOW: Save Final GBM and Data ---------------------------------------------
 
 # reassign names for RI outputs and save:
-assign(x = tolower(glue("gbm_final_{as_name(bioVar)}_{modname}")), value=gbm_fin_out)
+assign(x = tolower(glue("gbm_final_{as_name(bioVar)}_{modname}")), value=gbm_caretfit)
 
 # get file name
 (fileToSave <- ls(pattern = glue("gbm_final_{tolower(as_name(bioVar))}_{modname}")))
 
 # save to RDS
 write_rds(x = get(fileToSave), file = glue("models/07_{fileToSave}_model.rds"), compress = "gz")
+
+# list files
+ls(pattern="data_strmclass")
 
 # Save all the datasets used in the model:
 save(list = ls(pattern="data_strmclass"), file = glue("models/07_{fileToSave}_model_data.rda"))
