@@ -203,8 +203,8 @@ levels(ri_table$Flow.Metric.Name)
 summary(ri_table)
 
 # save out:
-write_rds(ri_table, file = glue("models/09_combined_ri_all_ca_seasonality.rds"))
-save(ri_table, file = tolower(glue("models/09_combined_ri_all_ca_seasonality.rda")))
+#write_rds(ri_table, file = glue("models/09_combined_ri_all_ca_seasonality.rds"))
+#save(ri_table, file = tolower(glue("models/09_combined_ri_all_ca_seasonality.rda")))
 
 # generate order by CA wide RI for flow metrics:
 forder <- ri_table %>% 
@@ -284,7 +284,7 @@ flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" =
 # set up values
 plotname <- "All CA"
 modname <- "all_ca_seasonality"
-(plot_savename <- tolower(glue("09_gbm_combined_{modname}")))
+(plot_savename <- tolower(glue("09_gbm_{modname}")))
 
 # plot
 (ri_table %>% 
@@ -321,29 +321,22 @@ modname <- "all_ca_seasonality"
                                 order = 2),
            size= "none") +
     theme_minimal_grid(font_family = "Roboto Condensed") +
-    theme(legend.position = c(0.7, 0.35),
+    theme(legend.position = c(0.7, 0.25),
           plot.background = element_rect(fill="white"),
           panel.border = element_rect(color = "white"),
           legend.box.background = element_rect(fill="white", color = "white")) -> gg1)
 
 
 # save out
-ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 10, height = 7, units = "in", dpi = 300)
 
 
 # Lollipop Plot: MIXED with seasonality -----------------------------------------------
 
-# darker for peak flow
-flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" = "#56B4E9",
-                          "Peak flow" = "#404788FF", "Spring recession flow" = "#009E73", 
-                          "Dry-season baseflow" = "#D55E00", 
-                          #"Stream Class" = "skyblue", 
-                          "Seasonality" = "gray")
-
 # set up values
 plotname <- "All CA: Mixed"
 modname <- "mixed_seasonality"
-(plot_savename <- tolower(glue("09_gbm_combined_{modname}")))
+(plot_savename <- tolower(glue("09_gbm_{modname}")))
 
 # plot
 (ri_table %>% 
@@ -378,28 +371,21 @@ modname <- "mixed_seasonality"
                                 order = 2),
            size= "none") +
     theme_minimal_grid(font_family = "Roboto Condensed") +
-    theme(legend.position = c(0.65, 0.35),
+    theme(legend.position = c(0.6, 0.25),
           plot.background = element_rect(fill="white"),
           panel.border = element_rect(color = "white"),
           legend.box.background = element_rect(fill="white", color = "white")) -> gg2)
 
 # save out
-ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 9, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 10, height = 7, units = "in", dpi = 300)
 
 
 # Lollipop Plot: RAIN with seasonality -----------------------------------------------
 
-# darker for peak flow
-flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" = "#56B4E9",
-                          "Peak flow" = "#404788FF", "Spring recession flow" = "#009E73", 
-                          "Dry-season baseflow" = "#D55E00", 
-                          #"Stream Class" = "skyblue", 
-                          "Seasonality" = "gray")
-
 # set up values
 plotname <- "All CA: Rain"
 modname <- "rain_seasonality"
-(plot_savename <- tolower(glue("09_gbm_combined_{modname}")))
+(plot_savename <- tolower(glue("09_gbm_{modname}")))
 
 # plot
 (ri_table %>% 
@@ -435,7 +421,7 @@ modname <- "rain_seasonality"
            size= "none") +
     theme_minimal_grid(font_family = "Roboto Condensed") +
     theme(legend.margin=margin(),
-          legend.position = c(0.5, 0.25),
+          legend.position = c(0.6, 0.25),
           plot.background = element_rect(fill="white"),
           panel.border = element_rect(color = "white"),
           legend.box.background = element_rect(fill="white", color = "white")) -> gg3)
@@ -445,17 +431,10 @@ ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines
 
 # Lollipop Plot: SNOW with seasonality -----------------------------------------------
 
-# darker for peak flow
-flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" = "#56B4E9",
-                          "Peak flow" = "#404788FF", "Spring recession flow" = "#009E73", 
-                          "Dry-season baseflow" = "#D55E00", 
-                          #"Stream Class" = "skyblue", 
-                          "Seasonality" = "gray")
-
 # set up values
 plotname <- "All CA: Snowmelt"
 modname <- "snow_seasonality"
-(plot_savename <- tolower(glue("09_gbm_combined_{modname}")))
+(plot_savename <- tolower(glue("09_gbm_{modname}")))
 
 # plot
 (ri_table %>% 
@@ -490,8 +469,9 @@ modname <- "snow_seasonality"
                                 order = 2),
            size= "none") +
     theme_minimal_grid(font_family = "Roboto Condensed") +
-    theme(legend.position = c(0.50, 0.2),
-          legend.text = element_text(size=10),
+    theme(#legend.position = c(0.6, 0.25),
+          legend.position = c(0.45, 0.2), # for combined plot
+          #legend.text = element_text(size=10),
           plot.background = element_rect(fill="white"),
           panel.border = element_rect(color = "white"),
           legend.box.background = element_rect(fill="white", color = "white")) -> gg4)
@@ -517,5 +497,23 @@ gg2_noleg + gg3_noleg + gg4 +
   #plot_layout(guides = 'collect') +
   plot_annotation(tag_levels = 'A')
 
-ggsave(filename = glue("models/09_gbm_combined_rain_mixed_seasonality_all_ri_sized_points_w_lines.png"),
+ggsave(filename = glue("models/09_gbm_combined_snow_rain_mixed_seasonality_all_ri_sized_points_w_lines_horiz.png"),
        width = 16, height = 8, scale = 1, units="in", dpi=300)
+
+
+# add trend plot of seasonality
+
+# Seasonality Plot --------------------------------------------------------
+
+bio_ffm %>% 
+  ggplot() + 
+  geom_point(aes(y=MP_metric, x=biovalue, fill=bioindicator), pch=21, size=2.7, alpha=0.9, show.legend = TRUE) +
+  stat_smooth(aes(y=MP_metric, x=biovalue, color=bioindicator), 
+              method = "loess", show.legend=FALSE) +
+  theme_classic(base_family = "Roboto Condensed") +
+  scale_color_viridis_d(option = "B", "Index") +
+  scale_fill_viridis_d(option = "A", "Index") +
+  labs(y="Seasonality \n(Colwell's M/P)", x="Bio Index",
+       caption = "Standardized seasonality in relation to overall predictability \nby dividing seasonality (M) by overall predictability \n(the sum of (M) and constancy (C)), as per Tonkin et al. (2017)")
+
+ggsave(filename = "figs/colwells_vs_csci_asci_all_gages_trend.png", width = 11, height = 8, dpi = 300, units = "in")
