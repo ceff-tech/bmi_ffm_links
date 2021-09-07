@@ -171,12 +171,12 @@ ri_asci_snow <- top_ris
 # BIND ALL TOGETHER -------------------------------------------------------
 
 ## bind
-ri_all_regions <- bind_rows(ri_csci_all_ca, ri_asci_all_ca)
+#ri_all_regions <- bind_rows(ri_csci_all_ca, ri_asci_all_ca)
 
-# ri_all_regions <- bind_rows(ri_csci_all_ca, ri_asci_all_ca,
-#                             ri_csci_rain, ri_asci_rain,
-#                             ri_csci_mixed, ri_asci_mixed,
-#                             ri_csci_snow, ri_asci_snow)
+ri_all_regions <- bind_rows(ri_csci_all_ca, ri_asci_all_ca,
+                            ri_csci_rain, ri_asci_rain,
+                            ri_csci_mixed, ri_asci_mixed,
+                            ri_csci_snow, ri_asci_snow)
 
 # Make a Table of RI's ----------------------------------------------------
 
@@ -363,7 +363,8 @@ modname <- "mixed_seasonality"
     scale_fill_manual("Flow Component", values=flowcomponent_colors, guide="none") +
     scale_size_area("", guide=FALSE) +
     coord_flip() +
-    ylim(c(0,42))+
+    #ylim(c(0,40)) +
+    scale_y_continuous(breaks = c(seq(0,40,5)))+
     labs(title = glue::glue('{plotname}'),
          x="", y="Relative Influence (%)") +
     # fix legend
@@ -504,20 +505,65 @@ ggsave(filename = glue("models/09_gbm_combined_snow_rain_mixed_seasonality_all_r
        width = 16, height = 8, scale = 1, units="in", dpi=300)
 
 
-# add trend plot of seasonality
+# TREND PLOTS -----------------------------------------
 
-# Seasonality Plot --------------------------------------------------------
+library(ggpmisc) # for R2
+
+## Seasonality --------------------------------------------------------
 
 bio_ffm %>% 
   ggplot() + 
   geom_point(aes(y=MP_metric, x=biovalue, fill=bioindicator), pch=21, size=2.7, alpha=0.9, show.legend = TRUE) +
   stat_smooth(aes(y=MP_metric, x=biovalue, color=bioindicator), 
               method = "glm", show.legend=FALSE) +
+  #stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator)) +
   theme_classic(base_family = "Roboto Condensed") +
-  scale_color_viridis_d(option = "B", "Index") +
-  scale_fill_viridis_d(option = "A", "Index") +
+  scale_color_viridis_d(option = "D", "Index") +
+  scale_fill_viridis_d(option = "D", "Index") +
   labs(y="Seasonality \n(Colwell's M/P)", x="Bio Index",
        caption = "Standardized seasonality in relation to overall predictability \nby dividing seasonality (M) by overall predictability \n(the sum of (M) and constancy (C)), as per Tonkin et al. (2017)") + 
   facet_wrap(.~class3_name)
 
-ggsave(filename = "figs/colwells_vs_csci_asci_all_gages_trend.png", width = 11, height = 8, dpi = 300, units = "in")
+ggsave(filename = "figs/colwells_vs_csci_asci_all_gages_trend_glm.png", width = 11, height = 8, dpi = 300, units = "in")
+
+
+
+## Fall Pulse Timing -------------------------------------------------------
+
+
+bio_ffm %>% 
+  filter(metric == "FA_Tim") %>% 
+  ggplot() + 
+  geom_point(aes(y=delta_p50, x=biovalue, fill=bioindicator), pch=21, size=2.7, alpha=0.9, show.legend = TRUE) +
+  stat_smooth(aes(y=delta_p50, x=biovalue, color=bioindicator), 
+              method = "glm", show.legend=FALSE) +
+  #stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator)) +
+  theme_classic(base_family = "Roboto Condensed") +
+  scale_color_viridis_d(option = "D", "Index") +
+  scale_fill_viridis_d(option = "D", "Index") +
+  labs(y="Fall Pulse Timing", x="Bio Index") + 
+  facet_wrap(.~class3_name)
+
+#ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_all_gages_trend_gam.png", width = 11, height = 8, dpi = 300, units = "in")
+ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_all_gages_trend_glm.png", width = 11, height = 8, dpi = 300, units = "in")
+
+
+## Dry Season Baseflow -------------------------------------------------------
+
+
+bio_ffm %>% 
+  filter(metric == "DS_Mag_50") %>% 
+  ggplot() + 
+  geom_point(aes(y=delta_p50, x=biovalue, fill=bioindicator), pch=21, size=2.7, alpha=0.9, show.legend = TRUE) +
+  stat_smooth(aes(y=delta_p50, x=biovalue, color=bioindicator), 
+              method = "glm", show.legend=FALSE) +
+  scale_y_continuous(limits = c(-1,2.5)) +
+  #stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator)) +
+  theme_classic(base_family = "Roboto Condensed") +
+  scale_color_viridis_d(option = "D", "Index") +
+  scale_fill_viridis_d(option = "D", "Index") +
+  labs(y="Dry Season Baseflow", x="Bio Index") + 
+  facet_wrap(.~class3_name)
+
+#ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_all_gages_trend_gam.png", width = 11, height = 8, dpi = 300, units = "in")
+ggsave(filename = "figs/dry_season_baseflow_vs_csci_asci_all_gages_trend_glm.png", width = 11, height = 8, dpi = 300, units = "in")

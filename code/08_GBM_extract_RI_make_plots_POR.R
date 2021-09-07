@@ -148,7 +148,7 @@ write_rds(x = get(filepattern), file = glue("models/{mod_savename}_RI_combined_a
 
 ## VARIABLES:
 hydroDat <- "POR"
-bioVar <- "asci" # select response var
+bioVar <- "csci" # select response var
 
 ## Get Model Data -------------------------------------------------
 
@@ -244,7 +244,7 @@ write_rds(x = get(filepattern), file = glue("models/{mod_savename}_RI_combined.r
 
 ## VARIABLES:
 hydroDat <- "POR"
-bioVar <- "asci" # select response var
+bioVar <- "csci" # select response var
 
 ## Get Model Data -------------------------------------------------
 
@@ -336,7 +336,7 @@ write_rds(x = get(filepattern), file = glue("models/{mod_savename}_RI_combined.r
 
 ## VARIABLES:
 hydroDat <- "POR"
-bioVar <- "asci" # select response var
+bioVar <- "csci" # select response var
 
 ## Get Model Data -------------------------------------------------
 
