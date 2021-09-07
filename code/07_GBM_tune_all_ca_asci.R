@@ -145,7 +145,7 @@ bioVar <- quote(asci) # select response var from list above
 # need to select and spread data: 
 data_por <- bio_ffm %>% 
   filter(bioindicator==bioindi) %>% 
-  filter(delta_p50 < quantile(delta_p50, na.rm=TRUE, 0.96)) %>% 
+  #filter(delta_p50 < quantile(delta_p50, na.rm=TRUE, 0.96)) %>% 
   #filter(gagetype=="ALT") %>% all gages
   dplyr::select(StationCode, SampleID, sampledate,
                 HUC_12, gageid, comid, 

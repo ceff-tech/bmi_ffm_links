@@ -52,7 +52,7 @@ bio_ffm <- bio_ffm %>%
 
 ## VARIABLES:
 hydroDat <- "POR"
-bioVar <- "asci" # select response var
+bioVar <- "csci" # select response var
 
 ## Get Model Data -------------------------------------------------
 
@@ -141,7 +141,8 @@ assign(x = tolower(glue("{as_name(bioVar)}_{hydroDat}_RI")),
 
 (filepattern <- ls(pattern = paste0("^",tolower(as_name(bioVar)))))
 
-write_rds(x = get(filepattern), file = glue("models/{mod_savename}_RI_combined.rds"))
+#write_rds(x = get(filepattern), file = glue("models/{mod_savename}_RI_combined.rds"))
+write_rds(x = get(filepattern), file = glue("models/{mod_savename}_RI_combined_all.rds"))
 
 # 02: Mixed ---------------------------------------
 

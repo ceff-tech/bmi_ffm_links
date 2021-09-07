@@ -4,48 +4,49 @@
  
 Performing cross-validation optimisation of a boosted regression tree model 
 for biovalue and using a family of gaussian 
-Using 353 observations and 17 predictors 
+Using 356 observations and 17 predictors 
 creating 10 initial models of 100 trees 
 
  folds are unstratified 
-total mean deviance =  0.0431 
+total mean deviance =  0.0434 
 tolerance is fixed at  0 
 ntrees resid. dev. 
-100    0.037 
+100    0.0377 
 now adding trees... 
-200   0.034 
-300   0.0324 
-400   0.0314 
-500   0.0308 
+200   0.0345 
+300   0.0326 
+400   0.0316 
+500   0.0309 
 600   0.0304 
-700   0.0303 
-800   0.0302 
-900   0.0301 
-1000   0.0301 
-1100   0.0301 
-1200   0.0302 
-1300   0.0303 
-1400   0.0304 
-1500   0.0304 
-1600   0.0305 
-1700   0.0306 
-1800   0.0307 
-1900   0.0308 
-2000   0.0309 
-2100   0.031 
-2200   0.0311 
+700   0.0302 
+800   0.0301 
+900   0.03 
+1000   0.03 
+1100   0.03 
+1200   0.0301 
+1300   0.0301 
+1400   0.0302 
+1500   0.0302 
+1600   0.0303 
+1700   0.0304 
+1800   0.0304 
+1900   0.0305 
+2000   0.0306 
+2100   0.0307 
+2200   0.0308 
+2300   0.0309 
 
 mean total deviance = 0.043 
-mean residual deviance = 0.017 
+mean residual deviance = 0.016 
  
-estimated cv deviance = 0.03 ; se = 0.003 
+estimated cv deviance = 0.03 ; se = 0.002 
  
-training data correlation = 0.801 
-cv correlation =  0.559 ; se = 0.044 
+training data correlation = 0.814 
+cv correlation =  0.552 ; se = 0.041 
  
 elapsed time -  0.11 minutes 
 
 Best parameters for GBM.STEP:
 
 shrinkage	interaction.depth	n.minobsinnode	bag.fraction	dev_explained
-0.005	5	10	0.8	0.30191344346170595
+0.005	5	3	0.75	0.3085722648739353

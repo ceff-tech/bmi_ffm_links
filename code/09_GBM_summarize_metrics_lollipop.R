@@ -46,7 +46,8 @@ bioVar <- "csci"
 
 # get the gbm model:
 (top_ri <- list.files(path="models/", pattern = glue("^{mod_savename}_RI_combined.*\\.rds$")))
-top_ris <- read_rds(file=glue("models/{top_ri}"))
+#top_ris <- read_rds(file=glue("models/{top_ri}"))
+top_ris <- read_rds(file=glue("models/{top_ri[1]}"))
 
 # make sep and combine
 ri_csci_all_ca <- top_ris
@@ -62,7 +63,8 @@ bioVar <- "asci"
 
 # get the gbm model:
 (top_ri <- list.files(path="models/", pattern = glue("^{mod_savename}_RI_combined.*\\.rds$")))
-top_ris <- read_rds(file=glue("models/{top_ri}"))
+#top_ris <- read_rds(file=glue("models/{top_ri}"))
+top_ris <- read_rds(file=glue("models/{top_ri[1]}"))
 
 # make sep and combine
 ri_asci_all_ca <- top_ris
@@ -169,11 +171,12 @@ ri_asci_snow <- top_ris
 # BIND ALL TOGETHER -------------------------------------------------------
 
 ## bind
-ri_all_regions <- bind_rows(ri_csci_all_ca, ri_asci_all_ca,
-                            ri_csci_rain, ri_asci_rain,
-                            ri_csci_mixed, ri_asci_mixed,
-                            ri_csci_snow, ri_asci_snow)
+ri_all_regions <- bind_rows(ri_csci_all_ca, ri_asci_all_ca)
 
+# ri_all_regions <- bind_rows(ri_csci_all_ca, ri_asci_all_ca,
+#                             ri_csci_rain, ri_asci_rain,
+#                             ri_csci_mixed, ri_asci_mixed,
+#                             ri_csci_snow, ri_asci_snow)
 
 # Make a Table of RI's ----------------------------------------------------
 
@@ -284,7 +287,7 @@ flowcomponent_colors <- c("Fall pulse flow" = "#F0E442", "Wet-season baseflow" =
 # set up values
 plotname <- "All CA"
 modname <- "all_ca_seasonality"
-(plot_savename <- tolower(glue("09_gbm_{modname}")))
+(plot_savename <- tolower(glue("09_gbm_{modname}_all")))
 
 # plot
 (ri_table %>% 
@@ -310,7 +313,7 @@ modname <- "all_ca_seasonality"
     scale_size_area("", guide=FALSE) +
     #scale_shape_manual("Method", values=c("mse"=16, "permtest"=17))+
     coord_flip() +
-    ylim(c(0,20))+
+    ylim(c(0,25))+
     labs(title = glue::glue('{plotname}'),
          x="", y="Relative Influence (%)") +
     # fix legend
@@ -509,11 +512,12 @@ bio_ffm %>%
   ggplot() + 
   geom_point(aes(y=MP_metric, x=biovalue, fill=bioindicator), pch=21, size=2.7, alpha=0.9, show.legend = TRUE) +
   stat_smooth(aes(y=MP_metric, x=biovalue, color=bioindicator), 
-              method = "loess", show.legend=FALSE) +
+              method = "glm", show.legend=FALSE) +
   theme_classic(base_family = "Roboto Condensed") +
   scale_color_viridis_d(option = "B", "Index") +
   scale_fill_viridis_d(option = "A", "Index") +
   labs(y="Seasonality \n(Colwell's M/P)", x="Bio Index",
-       caption = "Standardized seasonality in relation to overall predictability \nby dividing seasonality (M) by overall predictability \n(the sum of (M) and constancy (C)), as per Tonkin et al. (2017)")
+       caption = "Standardized seasonality in relation to overall predictability \nby dividing seasonality (M) by overall predictability \n(the sum of (M) and constancy (C)), as per Tonkin et al. (2017)") + 
+  facet_wrap(.~class3_name)
 
 ggsave(filename = "figs/colwells_vs_csci_asci_all_gages_trend.png", width = 11, height = 8, dpi = 300, units = "in")

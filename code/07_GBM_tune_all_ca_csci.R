@@ -129,7 +129,7 @@ bio_ffm %>%
 
 bio_ffm %>%
   # some extreme values so filter to everything below 98 quantile
-  filter(bioindicator == "CSCI") %>% 
+  #filter(bioindicator == "ASCI") %>% 
   filter(delta_p50 > quantile(delta_p50, na.rm=TRUE, 0.99)) %>% 
   ggplot() +
   geom_jitter(aes(x=metric, y=delta_p50, fill=metric), pch=21,
@@ -140,19 +140,24 @@ bio_ffm %>%
   coord_flip() +
   facet_grid(.~bioindicator)
 
+#ggsave(filename = "figs/asci_csci_delta_hydro_outliers_98th_percentile.png", 
+#       width = 11, height = 8.5, dpi=300)
+
+
 # where are they?
 bio_ffm %>%
-  filter(bioindicator == "CSCI") %>% 
+  #filter(bioindicator == "CSCI") %>% 
   # some extreme values so filter to everything below 98 quantile
   filter(delta_p50 > quantile(delta_p50, na.rm=TRUE, 0.98)) %>% 
-  filter(delta_p50 > 30) %>% 
+  #filter(delta_p50 > 30) %>% 
   distinct(delta_p50, .keep_all=TRUE) %>% 
   #distinct(gageid, .keep_all=TRUE) %>% 
   st_as_sf(coords=c("usgs_lon", "usgs_lat"), crs=4326, remove=FALSE) %>% 
+  distinct(gageid, .keep_all=TRUE) %>% nrow() # n=32 gages with outliers
   #group_by(gageid, station_nm) %>% tally() %>% 
   #group_by(gageid, metric) %>% tally() %>% 
   #View()
-  mapview(zcol="delta_p50")
+  #mapview(zcol="delta_p50", layer.name="Delta Hyd:<br>Outliers")
 
 # ALL CA: GBM ------------------------------
 
@@ -166,7 +171,7 @@ bioVar <- quote(csci) # select response var from list above
 # need to select and spread data: 
 data_por <- bio_ffm %>% 
   filter(bioindicator==bioindi) %>% 
-  filter(delta_p50 < quantile(delta_p50, na.rm=TRUE, 0.96)) %>% 
+#  filter(delta_p50 < quantile(delta_p50, na.rm=TRUE, 0.96)) %>% 
   #filter(gagetype=="ALT") %>% all gages
   dplyr::select(StationCode, SampleID, sampledate,
                 HUC_12, gageid, comid, 
@@ -851,7 +856,7 @@ bio_ffm %>%
 data_strmclass <- bio_ffm %>% 
   filter(bioindicator==bioindi, 
          class3_name == strmclass) %>% 
-  filter(delta_p50 < quantile(delta_p50, na.rm=TRUE, 0.97)) %>% 
+  #filter(delta_p50 < quantile(delta_p50, na.rm=TRUE, 0.97)) %>% 
   dplyr::select(StationCode, SampleID, sampledate,
                 HUC_12, gageid, comid, 
                 COMID_bio, gagetype,
@@ -903,16 +908,63 @@ summary(data_strmclass_train_s)
 
 ## C. SNOW: Setup gbm.step model  ------------------------------------------------------------
 
-# set up tuning params
+# set up tuning params: caret
 hyper_grid <- expand.grid(
   shrinkage = c(0.001, 0.003, 0.005),
   interaction.depth = c(5),
   n.minobsinnode = c(3, 5, 10),
   n.trees = c(seq(100, 5000, by=100))
 )
-hyper_grid
 
-## D. SNOW: Iterate with Caret GBM ----------------------------------------
+# # set up tuning params: custom BRT
+# hyper_grid <- expand.grid(
+#   shrinkage = c(0.001, 0.003, 0.005), 
+#   interaction.depth = c(5), 
+#   n.minobsinnode = c(3, 5, 10), 
+#   bag.fraction = c(0.75, 0.8) 
+# )
+# 
+# # load the GBM.step function (requires dismo and function loaded)
+# gbm_fit_step <- function(
+#   shrinkage, interaction.depth, n.minobsinnode, bag.fraction, data) {
+#   set.seed(123) # make it reproducible
+#   m_step <- My.gbm.step(
+#     gbm.y = 1, # response in training data
+#     gbm.x = 2:ncol(data), # hydro dat
+#     family = "gaussian",
+#     data = data,
+#     #max.trees = 8000, # can specify but don't for now
+#     learning.rate = shrinkage,
+#     tree.complexity = interaction.depth,
+#     n.minobsinnode = n.minobsinnode,
+#     bag.fraction = bag.fraction,
+#     plot.main = FALSE,
+#     verbose = FALSE
+#   )
+#   
+#   # Compute the Deviance Explained: (total dev - cv dev) / total dev
+#   if(!is.null(m_step)){ # this helps if there's an error above
+#     (m_step$self.statistics$mean.null - m_step$cv.statistics$deviance.mean) /
+#       m_step$self.statistics$mean.null
+#   } else { 
+#     return(NA)
+#   }
+# }
+
+## D1. SNOW: Iterate gbm.step ---------------------------------------------
+
+# use PURRR: this part can take awhile...get some coffee
+# hyper_grid$dev_explained <-purrr::pmap_dbl(
+#   hyper_grid,
+#   ~ gbm_fit_step(
+#     shrinkage = ..1,
+#     interaction.depth = ..2,
+#     n.minobsinnode = ..3,
+#     bag.fraction = ..4,
+#     data = data_strmclass_train_s) # CHECK AND CHANGE!!
+# )
+
+## D2. SNOW: Iterate with Caret GBM ----------------------------------------
 
 ## ALT GBM OPTION:
 library(caret)
