@@ -52,7 +52,7 @@ bio_ffm <- bio_ffm %>%
 
 ## VARIABLES:
 hydroDat <- "POR"
-bioVar <- "csci" # select response var
+bioVar <- "asci" # select response var
 
 ## Get Model Data -------------------------------------------------
 
