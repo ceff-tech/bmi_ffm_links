@@ -115,7 +115,7 @@ mapviewOptions(fgb = FALSE)
 #mapshot(m3, url = paste0(here::here(),"/figs/03_map_of_final_bmi_csci_sites.html"))
 
 
-# TMAP Ecoregions  ---------------------------------------------------------------
+# TMAP StreamClass  ---------------------------------------------------------------
 
 library(tmap)
 library(USAboundaries)
@@ -132,7 +132,7 @@ rivs_ca <- st_intersection(rivs, ca) %>%
   tm_shape(rivs_ca) + tm_lines(col="darkblue", lwd = .7, alpha = 0.8) +
   tm_layout(frame=FALSE))
 
-#  CA with revised ecoregions
+#  CA with revised streamclass
 (map_ecoca <- tm_shape(ca) + tm_polygons(border.alpha = 0.3) +
     tm_layout(frame=FALSE) +
     tm_shape(stream_class_3) + 
@@ -237,29 +237,116 @@ tmap::tmap_save(tm = map_bioall,
 
 # TMAP Selected ASCI-CSCI stations --------------------------------------------------------
 
+# asci (N=233)
+asci_sites <- bio_ffm %>% filter(bioindicator=="ASCI") %>% 
+  select(gageid:csci) %>% distinct(.keep_all=TRUE) %>% 
+  left_join(., algae_stations_distinct) %>% 
+  distinct(StationCode, .keep_all=TRUE) %>% 
+  st_as_sf(coords=c("Longitude","Latitude"), crs=4269, remove=FALSE)
+
+# csci (N=231)
+csci_sites <- bio_ffm %>% filter(bioindicator=="CSCI") %>% 
+  select(gageid:csci) %>% distinct(.keep_all=TRUE) %>% 
+  left_join(., bmi_stations_distinct) %>% 
+  distinct(StationCode, .keep_all=TRUE) %>% 
+  st_as_sf(coords=c("longitude","latitude"), crs=4269, remove=FALSE)
+
+# gages (N=222)
+gages_sites <- bio_ffm %>% 
+  select(gageid:csci) %>% distinct(gageid, .keep_all=TRUE) %>% 
+  st_as_sf(coords=c("usgs_lon","usgs_lat"), crs=4269, remove=FALSE)
+
+
 # make a tmap
 (map_bioselect <- map_ca +
-   # tm_shape(gages_selected_v2) +
-   # tm_dots(col="cyan3", shape=21, size=0.4, alpha=1) +
-   tm_shape(asci) +
-   tm_dots(col = "red2", shape = 21, size = 0.3, alpha=1, border.alpha=0.3, legend.show = TRUE) + 
-   tm_shape(bmi_final_dat) +
-   tm_dots(col="#FDE725FF", shape=21, size=0.3, alpha=0.7, border.alpha=0.3, legend.show = TRUE) +
-   tm_compass(type = "arrow", size = 2,
-              position = c(0.1,0.18)) +
-   tm_scale_bar(breaks = c(0, 100, 200), 
-                text.size = 0.6,
-                position = c(0.12, 0.1)) +
-   tm_layout(title = glue("Stations\n (ASCI: n=243\n  CSCI: n=275)"), 
-             frame = FALSE, title.size = 0.8,
-             legend.outside = FALSE, attr.outside = FALSE,
-             inner.margins = 0.01, outer.margins = (0.01),
-             fontfamily = "Roboto Condensed", title.position = c(0.65, 0.7)))
+    tm_shape(csci_sites) +
+    tm_dots(col="chocolate3", shape=23, size=1, alpha=0.9, 
+            border.col="black",  border.alpha=0.8, legend.show = TRUE) +
+    tm_shape(asci_sites) +
+    tm_dots(col = "cornsilk", shape = 21, size = 0.8, alpha=.9, 
+            border.alpha=0.8, legend.show = TRUE) + 
+
+    # tm_add_legend(type = "symbol", title="Stations",
+    #               labels = c("CSCI (n=231)","ASCI (n=233)"),
+    #               col = c("chocolate3", "cornsilk"),
+    #               shape=c(23,21), size = 1.1) +
+
+    # legend w gages
+    tm_shape(gages_sites) +
+    tm_dots(col="cyan3", shape=22, size=0.3, alpha=1) +
+
+    tm_add_legend(type = "symbol", title="Stations",
+                  labels = c("CSCI (n=231)","ASCI (n=233)", "Gages (n=222)"),
+                  col = c("chocolate3", "cornsilk", "cyan3"),
+                  shape=c(23,21,22), size = 1.1) +
+    
+    tm_compass(type = "arrow", size = 2,
+               position = c(0.1,0.18)) +
+    tm_scale_bar(breaks = c(0, 100, 200), 
+                 text.size = 0.6,
+                 position = c(0.12, 0.1)) +
+    tm_layout(frame = FALSE, 
+              legend.title.size = 1.7,
+              legend.text.size = 1.2,
+              legend.position = c(0.65,0.7),
+              legend.outside = FALSE, attr.outside = FALSE,
+              inner.margins = 0.01, outer.margins = (0.01),
+              fontfamily = "Roboto Condensed")) #title.position = c(0.65, 0.9)))
 
 
 # Selected
 tmap::tmap_save(tm = map_bioselect, 
                 filename = "figs/03_tmap_selected_bio_sites_combined.png", width = 8, height = 11, units = "in", dpi = 300)  
+
+tmap::tmap_save(tm = map_bioselect, 
+                filename = "figs/03_tmap_selected_bio_sites_combined_wgages.png", width = 8, height = 11, units = "in", dpi = 300)  
+
+
+# BIO + STREAM CLASS MAP --------------------------------------------------
+
+(map_strmclass_bio <- map_ca +
+   tm_shape(stream_class_3) +
+   tm_lines(col = "class3_name", alpha = 0.7, palette="viridis",
+            title.col = "Stream Class") +
+   tm_shape(csci_sites) +
+   tm_dots(col="chocolate3", shape=23, size=1, alpha=0.9, 
+           border.col="black",  border.alpha=0.8, legend.show = TRUE) +
+   tm_shape(asci_sites) +
+   tm_dots(col = "cornsilk", shape = 21, size = 0.8, alpha=.9, 
+           border.alpha=0.8, legend.show = TRUE) + 
+   
+   tm_add_legend(type = "symbol", title="Stations",
+                 labels = c("CSCI (n=231)","ASCI (n=233)"),
+                 col = c("chocolate3", "cornsilk"),
+                 shape=c(23,21), size = 1.1) +
+   
+   # legend w gages
+   # tm_shape(gages_sites) +
+   # tm_dots(col="cyan3", shape=22, size=0.3, alpha=1) +
+   # 
+   # tm_add_legend(type = "symbol", title="Stations",
+   #               labels = c("CSCI (n=231)","ASCI (n=233)", "Gages (n=222)"),
+   #               col = c("chocolate3", "cornsilk", "cyan3"),
+   #               shape=c(23,21,22), size = 1.1) +
+   
+   tm_compass(type = "arrow", size = 2,
+              position = c(0.1,0.18)) +
+   tm_scale_bar(breaks = c(0, 100, 200), 
+                text.size = 0.6,
+                position = c(0.12, 0.1)) +
+   tm_layout(frame = FALSE, 
+             legend.title.size = 1.7,
+             legend.text.size = 1.2,
+             legend.position = c(0.65,0.7),
+             legend.outside = FALSE, attr.outside = FALSE,
+             inner.margins = 0.01, outer.margins = (0.01),
+             fontfamily = "Roboto Condensed")) #title.position = c(0.65, 0.9)))
+
+
+# Selected
+tmap::tmap_save(tm = map_strmclass_bio, 
+                filename = "figs/03_tmap_selected_bio_sites_strmclass.png", width = 8, height = 11, units = "in", dpi = 300)  
+
 
 
 # GAGES MAP ---------------------------------------------------------------
