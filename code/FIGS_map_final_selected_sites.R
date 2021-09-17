@@ -66,7 +66,6 @@ load("data_output/stream_class3_all_ca_w_comid.rda")
 # # save it out
 # save(stream_class_3, file = "data_output/stream_class3_all_ca_w_comid.rda")
 
-
 # ASCI --------------------------------------------------------------------
 
 load(url("https://github.com/ksirving/asci_ffm_2019/blob/master/output_data/05_algae_asci_por_trim_ecoreg.rda?raw=true")) 
@@ -159,18 +158,26 @@ load("data_output/01_bmi_stations_distinct.rda")
 # make a tmap
 (map_bmi <- map_ca +
     tm_shape(bmi_stations_distinct) +
-    tm_dots(col = "#FDE725FF", shape = 23, size = 0.2, alpha=0.8, border.alpha=0.9) + 
+    tm_dots(col="chocolate3", shape=21, size=1, alpha=0.9, 
+            border.col="black",  border.alpha=0.8, 
+            legend.show = TRUE) +
+    tm_add_legend(type = "symbol", title="Stations",
+                  labels = c("CSCI"),
+                  col = c("chocolate3"),
+                  shape=c(21), size = 1.1) +
     tm_compass(type = "arrow", size = 2,
                position = c(0.1,0.18)) +
-    #position = c(0.15, 0.2)) +
     tm_scale_bar(breaks = c(0, 100, 200), 
                  text.size = 0.6,
                  position = c(0.12, 0.1)) +
-    tm_layout(title = glue("Sampling Locations\n (CSCI: n={nrow(bmi_stations_distinct)})"), 
-              legend.show = FALSE, frame = FALSE, title.size = 0.8,
-              legend.outside = FALSE, attr.outside = FALSE,
-              inner.margins = 0.01, outer.margins = (0.01),
-              fontfamily = "Roboto Condensed", title.position = c(0.65, 0.7)))
+    tm_layout(
+      #title = glue("Sampling Locations\n (CSCI: n={nrow(bmi_stations_distinct)})"), 
+      #legend.show = FALSE, 
+      legend.position = c(0.65,0.7),
+      frame = FALSE, title.size = 0.8,
+      legend.outside = FALSE, attr.outside = FALSE,
+      inner.margins = 0.01, outer.margins = (0.01),
+      fontfamily = "Roboto Condensed", title.position = c(0.65, 0.7)))
 
 
 # FIRST TRYPTYCH
@@ -187,18 +194,26 @@ algae_distinct <- algae_stations_distinct %>%
 # make a tmap
 (map_asci <- map_ca +
     tm_shape(algae_distinct) +
-    tm_dots(col = "red2", shape = 21, size = 0.1, alpha=0.65, border.alpha=0.3) + 
+    tm_dots(col = "cornsilk", shape = 23, size = 0.8, alpha=.9, 
+            border.alpha=0.8, legend.show = TRUE) + 
+    
+    tm_add_legend(type = "symbol", title="Stations",
+                  labels = c("ASCI"),
+                  col = c("cornsilk"),
+                  shape=c(23), size = 1.1) +
+    
     tm_compass(type = "arrow", size = 2,
                position = c(0.1,0.18)) +
-    #position = c(0.15, 0.2)) +
     tm_scale_bar(breaks = c(0, 100, 200), 
                  text.size = 0.6,
                  position = c(0.12, 0.1)) +
-    tm_layout(title = glue("Sampling Locations\n (ASCI: n={nrow(algae_stations_distinct)})"), 
-              legend.show = FALSE, frame = FALSE, title.size = 0.8,
-              legend.outside = FALSE, attr.outside = FALSE,
-              inner.margins = 0.01, outer.margins = (0.01),
-              fontfamily = "Roboto Condensed", title.position = c(0.65, 0.7)))
+    tm_layout(
+      #title = glue("Sampling Locations\n (ASCI: n={nrow(algae_stations_distinct)})"), 
+      legend.position = c(0.65,0.7),
+      frame = FALSE, title.size = 0.8,
+      legend.outside = FALSE, attr.outside = FALSE,
+      inner.margins = 0.01, outer.margins = (0.01),
+      fontfamily = "Roboto Condensed", title.position = c(0.65, 0.7)))
 
 
 # FIRST TRYPTYCH
@@ -207,27 +222,37 @@ tmap::tmap_save(tm = map_asci,
 
 # TMAP ASCI and CSCI distinct stations ---------------------------------------
 
-
 # make a tmap
 (map_bioall <- map_ca +
    # tm_shape(stream_class_3) + 
    # tm_lines(col = "class3_name", alpha = 0.7, palette="viridis",
    #          title.col = "Stream Class") +
+   # CSCI
    tm_shape(bmi_stations_distinct) +
-   tm_dots(col="#FDE725FF", shape=23, size=0.3, alpha=0.6, border.alpha=0.3, legend.show = TRUE) +
+   tm_dots(col="chocolate3", shape=21, size=1, alpha=0.9, 
+           border.col="black",  border.alpha=0.8, 
+           legend.show = TRUE) +
+   # ASCI
    tm_shape(algae_distinct) +
-   tm_dots(col = "red2", shape = 21, size=0.1, alpha=0.9, border.alpha=0.3, legend.show = TRUE) + 
+   tm_dots(col = "cornsilk", shape = 23, size = 0.8, alpha=.9, 
+           border.alpha=0.8, legend.show = TRUE) + 
+   tm_add_legend(type = "symbol", title="Stations",
+                 labels = c("CSCI", "ASCI"),
+                 col = c("chocolate3", "cornsilk"),
+                 shape=c(21, 23), size = 1.1) +
    tm_compass(type = "arrow", size = 2,
               position = c(0.1,0.18)) +
-   #position = c(0.15, 0.2)) +
    tm_scale_bar(breaks = c(0, 100, 200), 
                 text.size = 0.6,
                 position = c(0.12, 0.1)) +
-   tm_layout(title = glue("Sampling Locations\n (ASCI: n={nrow(algae_stations_distinct)}\n  CSCI: n={nrow(bmi_stations_distinct)})"), 
-             legend.show = FALSE, frame = FALSE, title.size = 0.8,
-             legend.outside = FALSE, attr.outside = FALSE,
-             inner.margins = 0.01, outer.margins = (0.01),
-             fontfamily = "Roboto Condensed", title.position = c(0.65, 0.7)))
+   tm_layout(
+     #title = glue("Sampling Locations\n (ASCI: n={nrow(algae_stations_distinct)}\n  CSCI: n={nrow(bmi_stations_distinct)})"), 
+     frame = FALSE,  legend.outside = FALSE, 
+     legend.title.size = 1.3,
+     legend.text.size = 1,
+     attr.outside = FALSE, inner.margins = 0.01, 
+     outer.margins = (0.01), fontfamily = "Roboto Condensed", 
+     legend.position = c(0.65, 0.65)))
 
 
 # FIRST TRYPTYCH
@@ -235,7 +260,7 @@ tmap::tmap_save(tm = map_bioall,
                 filename = "figs/03_tmap_all_bio_sites.png", width = 8, height = 11, units = "in", dpi = 300)  
 
 
-# TMAP Selected ASCI-CSCI stations --------------------------------------------------------
+# TMAP Selected ASCI-CSCI stations w gages --------------------------------------------------------
 
 # asci (N=233)
 asci_sites <- bio_ffm %>% filter(bioindicator=="ASCI") %>% 
@@ -260,10 +285,10 @@ gages_sites <- bio_ffm %>%
 # make a tmap
 (map_bioselect <- map_ca +
     tm_shape(csci_sites) +
-    tm_dots(col="chocolate3", shape=23, size=1, alpha=0.9, 
+    tm_dots(col="chocolate3", shape=21, size=1, alpha=0.9, 
             border.col="black",  border.alpha=0.8, legend.show = TRUE) +
     tm_shape(asci_sites) +
-    tm_dots(col = "cornsilk", shape = 21, size = 0.8, alpha=.9, 
+    tm_dots(col = "cornsilk", shape = 23, size = 0.8, alpha=.9, 
             border.alpha=0.8, legend.show = TRUE) + 
 
     # tm_add_legend(type = "symbol", title="Stations",
@@ -278,7 +303,7 @@ gages_sites <- bio_ffm %>%
     tm_add_legend(type = "symbol", title="Stations",
                   labels = c("CSCI (n=231)","ASCI (n=233)", "Gages (n=222)"),
                   col = c("chocolate3", "cornsilk", "cyan3"),
-                  shape=c(23,21,22), size = 1.1) +
+                  shape=c(21,23,22), size = 1.1) +
     
     tm_compass(type = "arrow", size = 2,
                position = c(0.1,0.18)) +
@@ -286,17 +311,17 @@ gages_sites <- bio_ffm %>%
                  text.size = 0.6,
                  position = c(0.12, 0.1)) +
     tm_layout(frame = FALSE, 
-              legend.title.size = 1.7,
-              legend.text.size = 1.2,
-              legend.position = c(0.65,0.7),
+              legend.title.size = 1.3,
+              legend.text.size = 1,
+              legend.position = c(0.65,0.65),
               legend.outside = FALSE, attr.outside = FALSE,
               inner.margins = 0.01, outer.margins = (0.01),
-              fontfamily = "Roboto Condensed")) #title.position = c(0.65, 0.9)))
+              fontfamily = "Roboto Condensed"))
 
 
 # Selected
-tmap::tmap_save(tm = map_bioselect, 
-                filename = "figs/03_tmap_selected_bio_sites_combined.png", width = 8, height = 11, units = "in", dpi = 300)  
+# tmap::tmap_save(tm = map_bioselect, 
+#                 filename = "figs/03_tmap_selected_bio_sites_combined.png", width = 8, height = 11, units = "in", dpi = 300)  
 
 tmap::tmap_save(tm = map_bioselect, 
                 filename = "figs/03_tmap_selected_bio_sites_combined_wgages.png", width = 8, height = 11, units = "in", dpi = 300)  
@@ -309,16 +334,16 @@ tmap::tmap_save(tm = map_bioselect,
    tm_lines(col = "class3_name", alpha = 0.7, palette="viridis",
             title.col = "Stream Class") +
    tm_shape(csci_sites) +
-   tm_dots(col="chocolate3", shape=23, size=1, alpha=0.9, 
+   tm_dots(col="chocolate3", shape=21, size=1, alpha=0.9, 
            border.col="black",  border.alpha=0.8, legend.show = TRUE) +
    tm_shape(asci_sites) +
-   tm_dots(col = "cornsilk", shape = 21, size = 0.8, alpha=.9, 
+   tm_dots(col = "cornsilk", shape = 23, size = 0.8, alpha=.9, 
            border.alpha=0.8, legend.show = TRUE) + 
    
    tm_add_legend(type = "symbol", title="Stations",
                  labels = c("CSCI (n=231)","ASCI (n=233)"),
                  col = c("chocolate3", "cornsilk"),
-                 shape=c(23,21), size = 1.1) +
+                 shape=c(21,23), size = 1.1) +
    
    # legend w gages
    # tm_shape(gages_sites) +
@@ -352,56 +377,46 @@ tmap::tmap_save(tm = map_strmclass_bio,
 # GAGES MAP ---------------------------------------------------------------
 
 # get all possible FFC DV gages
-ref_gages <- read_csv("https://raw.githubusercontent.com/ryanpeek/ffm_comparison/main/output/usgs_ref_gages_list.csv") %>% mutate(CEFF_type="REF", site_id=as.character(site_id)) 
-alt_gages <- read_csv("https://raw.githubusercontent.com/ryanpeek/ffm_comparison/main/output/usgs_alt_gages_list.csv") %>% mutate(CEFF_type="ALT")
+ref_gages <- read_csv("https://raw.githubusercontent.com/ryanpeek/ffm_comparison/main/output/usgs_ref_gages_list.csv") %>% mutate(CEFF_type="REF", site_id=as.character(site_id)) %>% 
+  select(site_id:lon, CEFF_type)
+alt_gages <- read_csv("https://raw.githubusercontent.com/ryanpeek/ffm_comparison/main/output/usgs_alt_gages_list.csv") %>% mutate(CEFF_type="ALT") %>% select(site_id:lon, CEFF_type)
 
 usgs_gages <- bind_rows(ref_gages, alt_gages) %>% 
-  select(-geometry) %>% 
   st_as_sf(coords=c("lon", "lat"), remove=FALSE, crs=4326)
 
 # then add gage stations by ref type
 (map_usgs <- map_ca + 
     tm_shape(usgs_gages) +
-    tm_symbols(col= "steelblue",  border.col = "black",
-               size=0.1, border.alpha = 0.8) +
+    tm_dots(col= "cyan4",  border.col = "black",
+            shape=22, size=0.3, alpha=1, 
+            border.alpha = 0.8) +
+    tm_add_legend(type = "symbol", title="Stations",
+                  labels = c("Gages"),
+                  col = c( "cyan4"),
+                  shape=c(22), size = 1.1) +
+    
     # tm_logo(file = "figs/logo_cws_websafe.png", position = c("left","bottom"), height = 5) +
-    tm_layout(title = "USGS Sites \n(n=2316)", 
-              fontfamily = "Roboto Condensed",title.size = 0.8,
-              legend.outside = FALSE, attr.outside = FALSE,
-              inner.margins = 0.01, outer.margins = (0.01),
-              title.position = c(0.65, 0.7)))
+    tm_layout(
+      #title = "USGS Sites \n(n=2316)", 
+      fontfamily = "Roboto Condensed",
+      legend.title.size = 1.3,
+      legend.text.size = 1,
+      legend.outside = FALSE, attr.outside = FALSE,
+      inner.margins = 0.01, outer.margins = (0.01),
+      legend.position = c(0.65, 0.7)))
 
 
 tmap::tmap_save(tm = map_usgs, 
                 filename = "figs/03_tmap_usgs_sites_all.png", width = 8, height = 11, units = "in", dpi = 300)  
 
-# FINAL SITES (SELECTED GAGES ONLY) TMAP -------------------------------------------
-
-# make paired sites
-(map_final_sites <- map_ca +
-   tm_shape(gages_selected_v2) +
-   tm_dots(col="#21908CFF", shape=21, size=0.3, alpha=1) +
-   tm_shape(bmi_final_dat) +
-   tm_dots(col="orange", shape=21, size=0.1, alpha=1) +
-   tm_layout(title = "Selected Sites:\nGages (n=226)\nBMI (n=275)",
-             title.size = 0.8, frame = FALSE, 
-             fontfamily = "Roboto Condensed",
-             legend.outside = FALSE, attr.outside = FALSE,
-             inner.margins = 0.01, outer.margins = (0.01),
-             title.position = c(0.65, 0.7)))
-  #tm_compass(type = "4star", position = c("right","top"))+
-  #tm_scale_bar(position = c("left","bottom"))
-
-tmap::tmap_save(tm=map_final_sites, filename = "figs/03_tmap_selected_paired_sites_w_rivers.png", width = 8, height = 11, units = "in", dpi = 300)  
-
-
 # Put them all together ---------------------------------------------------
 
-final_triptych<-tmap::tmap_arrange(map_bioall, map_usgs, map_bioselect, ncol = 3, outer.margins = 0.001)
+final_triptych<-tmap::tmap_arrange(
+  map_bioall, map_usgs, map_bioselect, ncol = 3, outer.margins = 0.001)
 print(final_triptych)
 
 tmap::tmap_save(tm = final_triptych, 
-                filename = "figs/03_tmap_triptych_biosel_usgs.png", width = 11, height = 7, units = "in", dpi = 300)  
+                filename = "figs/03_tmap_triptych_biosel_usgs.png", width = 11, height = 8, units = "in", dpi = 300)  
 
 
 # TMAP PALETTE EXPLORER ---------------------------------------------------
