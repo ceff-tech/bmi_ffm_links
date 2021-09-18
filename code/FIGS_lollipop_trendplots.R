@@ -368,12 +368,19 @@ library(ggpmisc) # for R2
 
 ## Seasonality --------------------------------------------------------
 
+
 bio_ffm %>% 
   ggplot() + 
   geom_point(aes(y=MP_metric, x=biovalue, fill=bioindicator), pch=21, size=2.7, alpha=0.9, show.legend = TRUE) +
   stat_smooth(aes(y=MP_metric, x=biovalue, color=bioindicator), 
               method = "glm", show.legend=FALSE) +
-  #stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator)) +
+  # ggpmisc::stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator), 
+  #                       formula = y ~ x, na.rm = TRUE)+
+  # polynomial fit
+  # stat_smooth(aes(y=MP_metric, x=biovalue, color=bioindicator), 
+  #             method = "lm", formula=y ~ poly(x, 2), show.legend=FALSE) +
+  #ggpmisc::stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator), 
+  #                      formula = y ~ poly(x, 2), na.rm = TRUE)+
   theme_classic(base_family = "Roboto Condensed") +
   scale_color_viridis_d(option = "D", "Index") +
   scale_fill_viridis_d(option = "D", "Index") +
@@ -394,7 +401,7 @@ bio_ffm %>%
   geom_point(aes(y=delta_p50, x=biovalue, fill=bioindicator), pch=21, size=2.7, alpha=0.9, show.legend = TRUE) +
   stat_smooth(aes(y=delta_p50, x=biovalue, color=bioindicator), 
               method = "glm", show.legend=FALSE) +
-  #stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator)) +
+  stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator)) +
   theme_classic(base_family = "Roboto Condensed") +
   scale_color_viridis_d(option = "D", "Index") +
   scale_fill_viridis_d(option = "D", "Index") +
