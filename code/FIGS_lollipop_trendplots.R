@@ -194,7 +194,7 @@ ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines
 # Lollipop Plot: MIXED with seasonality -----------------------------------------------
 
 # set up values
-plotname <- "All CA: Mixed"
+plotname <- "Mixed"
 modname <- "mixed_seasonality"
 (plot_savename <- tolower(glue("09_gbm_{modname}")))
 
@@ -244,7 +244,7 @@ ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines
 # Lollipop Plot: RAIN with seasonality -----------------------------------------------
 
 # set up values
-plotname <- "All CA: Rain"
+plotname <- "Rain"
 modname <- "rain_seasonality"
 (plot_savename <- tolower(glue("09_gbm_{modname}")))
 
@@ -293,7 +293,7 @@ ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines
 # Lollipop Plot: SNOW with seasonality -----------------------------------------------
 
 # set up values
-plotname <- "All CA: Snowmelt"
+plotname <- "Snowmelt"
 modname <- "snow_seasonality"
 (plot_savename <- tolower(glue("09_gbm_{modname}")))
 
