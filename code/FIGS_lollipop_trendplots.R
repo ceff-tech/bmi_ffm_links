@@ -366,68 +366,295 @@ ggsave(filename = glue("models/09_gbm_combined_snow_rain_mixed_seasonality_all_r
 
 library(ggpmisc) # for R2
 
-## Seasonality --------------------------------------------------------
+
+# Reduce Replicates -------------------------------------------------------
+
+# calc records by StationCode (how many mult years)
+# bio_ffm %>%
+#   filter(bioindicator=="CSCI") %>% 
+#   distinct(StationCode, gageid, SampleID, .keep_all=TRUE) %>% 
+#   group_by(StationCode, gageid) %>% 
+#   tally() %>% 
+#   arrange(desc(n)) %>% 
+#   filter(n>1) -> csci_sites_to_combine # CSCI n= 147 sites w dups
+# 
+# csci_med <- bio_ffm %>% 
+#   filter(bioindicator=="CSCI") %>%
+#   select(-c(p50_obs:metric, result_type, HUC_12:CLASS_NAME)) %>% 
+#   distinct(.keep_all=TRUE) %>% 
+#   inner_join(., csci_sites_to_combine) %>% 
+#   group_by(StationCode, gageid) %>% 
+#   summarize(csci_med = median(csci))
+# 
+# # rejoin
+# csci_ffm <- bio_ffm %>% 
+#   filter(bioindicator=="CSCI") %>%
+#   left_join(., csci_med) %>% 
+#   relocate(csci_med, .after="csci") %>% 
+#   #clean up and reset bioindicator value
+#   mutate(csci2 = case_when(
+#     is.na(csci_med) ~ csci,
+#     TRUE ~ csci_med), .after="csci") %>% 
+#   mutate(biovalue = csci2) %>% 
+#   select(-csci2)
+# 
+# # rebind and save dataset
+# asci_ffm <- bio_ffm %>% 
+#   filter(bioindicator == "ASCI")
+# 
+# bio_ffm_rev <- bind_rows(asci_ffm, csci_ffm) %>% 
+#   relocate(csci_med, .after="csci") %>% 
+#   distinct(.keep_all = TRUE)
 
 
+## Trendplot Seasonality -----------------------------------------------------
+
+# reduce the replicates
 bio_ffm %>% 
+  select(biovalue, MP_metric, bioindicator, StationCode, gageid, class3_name) %>% 
+  group_by(StationCode, bioindicator, class3_name) %>% 
+  summarize(biovalue) %>% 
+  distinct(StationCode, .keep_all = TRUE) %>% 
+  ungroup() %>%
+  # ungroup() %>% group_by(bioindicator, class3_name) %>% tally() %>% View()
+  left_join(., bio_ffm %>% select(StationCode, gageid, MP_metric, class3_name, bioindicator) %>% distinct(.keep_all=TRUE)) %>% # n=720
   ggplot() + 
-  geom_point(aes(y=MP_metric, x=biovalue, fill=bioindicator), pch=21, size=2.7, alpha=0.9, show.legend = TRUE) +
+  geom_point(aes(y=MP_metric, x=biovalue, fill=bioindicator, shape=bioindicator), size=2.7, alpha=0.9, show.legend = TRUE) +
+  scale_shape_manual("Index", values=c(23,21)) +
   stat_smooth(aes(y=MP_metric, x=biovalue, color=bioindicator), 
-              method = "glm", show.legend=FALSE) +
-  # ggpmisc::stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator), 
-  #                       formula = y ~ x, na.rm = TRUE)+
-  # polynomial fit
-  # stat_smooth(aes(y=MP_metric, x=biovalue, color=bioindicator), 
-  #             method = "lm", formula=y ~ poly(x, 2), show.legend=FALSE) +
-  #ggpmisc::stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator), 
-  #                      formula = y ~ poly(x, 2), na.rm = TRUE)+
+              method = "glm", formula=y ~ poly(x, 2), se=FALSE, lwd=1.6, show.legend=FALSE) +
+  ggpmisc::stat_poly_eq(aes(y=MP_metric, x=biovalue, color=bioindicator), 
+                        formula = y ~ poly(x, 2), na.rm = TRUE)+
   theme_classic(base_family = "Roboto Condensed") +
-  scale_color_viridis_d(option = "D", "Index") +
-  scale_fill_viridis_d(option = "D", "Index") +
-  labs(y="Seasonality \n(Colwell's M/P)", x="Bio Index",
-       caption = "Standardized seasonality in relation to overall predictability \nby dividing seasonality (M) by overall predictability \n(the sum of (M) and constancy (C)), as per Tonkin et al. (2017)") + 
+  ggthemes::scale_color_colorblind("Index") +
+  ggthemes::scale_fill_colorblind("Index") +
+  labs(y="Seasonality \n(Colwell's M/P)", x="Bio Index") +
+       #caption = "Standardized seasonality in relation to overall predictability \nby dividing seasonality (M) by overall predictability \n(the sum of (M) and constancy (C)), as per Tonkin et al. (2017)") + 
   facet_wrap(.~class3_name)
 
-ggsave(filename = "figs/colwells_vs_csci_asci_all_gages_trend_glm.png", width = 11, height = 8, dpi = 300, units = "in")
+ggsave(filename = "figs/colwells_vs_csci_asci_all_gages_trend_gam.png", width = 11, height = 8, dpi = 300, units = "in")
+ggsave(filename = "figs/colwells_vs_csci_asci_all_gages_trend_glm_poly.png", width = 11, height = 8, dpi = 300, units = "in")
 
+# split into negative and positive delta hydrology -----------------------
+
+bio_ffm %>% 
+  filter(metric == "FA_Tim") %>% 
+  select(biovalue, metric, delta_p50, bioindicator, StationCode, gageid, class3_name) %>% 
+  group_by(StationCode, bioindicator, class3_name) %>% 
+  summarize(biovalue) %>% 
+  distinct(StationCode, .keep_all = TRUE) %>% 
+  ungroup() %>%
+  # ungroup() %>% group_by(bioindicator, class3_name) %>% tally() %>% View()
+  left_join(., 
+            bio_ffm %>% filter(metric=="FA_Tim") %>% 
+              select(StationCode, gageid, metric, delta_p50, class3_name, bioindicator) %>%
+              distinct(.keep_all=TRUE)) %>% #View()# n=718
+  mutate(delta_dir = if_else(delta_p50 >=0, "Delta Positive", "Delta Negative"),
+         delta_dir = factor(delta_dir, levels = c("Delta Positive", "Delta Negative"))) -> bio_ffm_df
+View(bio_ffm_df)
 
 
 ## Fall Pulse Timing -------------------------------------------------------
 
 
-bio_ffm %>% 
-  filter(metric == "FA_Tim") %>% 
+bio_ffm_df %>% 
   ggplot() + 
-  geom_point(aes(y=delta_p50, x=biovalue, fill=bioindicator), pch=21, size=2.7, alpha=0.9, show.legend = TRUE) +
+  geom_point(aes(y=delta_p50, x=biovalue, shape=bioindicator, fill=bioindicator), size=2.7, alpha=0.9, show.legend = TRUE) +
   stat_smooth(aes(y=delta_p50, x=biovalue, color=bioindicator), 
-              method = "glm", show.legend=FALSE) +
-  stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator)) +
+              # gam
+              #method = "gam", formula = y ~ s(x, k = 4), show.legend=FALSE, se = FALSE) +
+              # glm: poly 2
+              method = "glm", formula = y ~ poly(x, 2), show.legend=FALSE, lwd=1.3, se = FALSE) +
+  stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator), formula = y ~ poly(x, 2)) +
+  geom_hline(yintercept = 0, color="gray30", lwd=.5, lty=2, alpha=0.3) +
   theme_classic(base_family = "Roboto Condensed") +
-  scale_color_viridis_d(option = "D", "Index") +
-  scale_fill_viridis_d(option = "D", "Index") +
+  scale_shape_manual("Index", values=c(23,21)) +
+  ggthemes::scale_color_colorblind("Index") +
+  ggthemes::scale_fill_colorblind("Index") +
   labs(y="Fall Pulse Timing", x="Bio Index") + 
-  facet_wrap(.~class3_name)
+  facet_grid(delta_dir~class3_name, scales = "free_y")
 
 #ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_all_gages_trend_gam.png", width = 11, height = 8, dpi = 300, units = "in")
-ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_all_gages_trend_glm.png", width = 11, height = 8, dpi = 300, units = "in")
+ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_all_gages_trend_glm_poly.png", width = 11, height = 8, dpi = 300, units = "in")
 
 
 ## Dry Season Baseflow -------------------------------------------------------
 
-
 bio_ffm %>% 
   filter(metric == "DS_Mag_50") %>% 
+  select(biovalue, metric, delta_p50, bioindicator, StationCode, gageid, class3_name) %>% 
+  group_by(StationCode, bioindicator, class3_name) %>% 
+  summarize(biovalue) %>% 
+  distinct(StationCode, .keep_all = TRUE) %>% 
+  ungroup() %>%
+  # ungroup() %>% group_by(bioindicator, class3_name) %>% tally() %>% View()
+  left_join(., 
+            bio_ffm %>% filter(metric=="DS_Mag_50") %>% 
+              select(StationCode, gageid, metric, delta_p50, class3_name, bioindicator) %>%
+              distinct(.keep_all=TRUE)) %>% #View()# n=718
+  mutate(delta_dir = if_else(delta_p50 >=0, "Delta Positive", "Delta Negative"),
+         delta_dir = factor(delta_dir, levels = c("Delta Positive", "Delta Negative"))) %>% 
+  filter(delta_p50 < 3) %>% 
   ggplot() + 
-  geom_point(aes(y=delta_p50, x=biovalue, fill=bioindicator), pch=21, size=2.7, alpha=0.9, show.legend = TRUE) +
+  geom_point(aes(y=delta_p50, x=biovalue, shape=bioindicator, fill=bioindicator), 
+             size=2.7, alpha=0.9, show.legend = TRUE) +
   stat_smooth(aes(y=delta_p50, x=biovalue, color=bioindicator), 
-              method = "glm", show.legend=FALSE) +
-  scale_y_continuous(limits = c(-1,2.5)) +
-  #stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator)) +
+              # gam
+              #method = "gam", formula = y ~ s(x, k = 4), show.legend=FALSE, se = FALSE) +
+              # glm: poly 2
+              method = "glm", formula = y ~ poly(x, 2), show.legend=FALSE, lwd=1.3, se = FALSE) +
+  stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator), formula = y ~ poly(x, 2)) +
+  geom_hline(yintercept = 0, color="gray30", lwd=.5, lty=2, alpha=0.3) +
   theme_classic(base_family = "Roboto Condensed") +
-  scale_color_viridis_d(option = "D", "Index") +
-  scale_fill_viridis_d(option = "D", "Index") +
+  scale_shape_manual("Index", values=c(23,21)) +
+  ggthemes::scale_color_colorblind("Index") +
+  ggthemes::scale_fill_colorblind("Index") +
   labs(y="Dry Season Baseflow", x="Bio Index") + 
-  facet_wrap(.~class3_name)
+  facet_grid(delta_dir~class3_name, scales = "free_y")
 
 #ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_all_gages_trend_gam.png", width = 11, height = 8, dpi = 300, units = "in")
-ggsave(filename = "figs/dry_season_baseflow_vs_csci_asci_all_gages_trend_glm.png", width = 11, height = 8, dpi = 300, units = "in")
+ggsave(filename = "figs/dry_season_baseflow_vs_csci_asci_all_gages_trend_glm_poly.png", width = 11, height = 8, dpi = 300, units = "in")
+
+
+
+# Try Binning By Thresholds and then Boxplot ------------------------------
+
+# try binning ASCI/CSCI by thresholds (case when assignment based on value range)
+# then boxplot of variables by stream class (y is FFM, x threshold type (alt, likely alt, etc))
+
+# biological stream condition thresholds (Mazor et al. 2016, Theroux et al. 2020 - See Table 8)
+asci_breaks <- c(0, 0.75, 0.86, 0.94)
+csci_breaks <- c(0, 0.63, 0.79, 0.92)
+bio_labs <- c("Very likely altered", "Likely altered", "Possibly altered","Likely intact")
+
+bio_ffm_thresh <- bio_ffm %>% 
+  mutate(biothresh = case_when(
+    bioindicator == "ASCI" & biovalue < 0.75 ~ "Very likely altered",
+    bioindicator == "CSCI" & biovalue < 0.63 ~ "Very likely altered",
+    bioindicator == "ASCI" & biovalue >= 0.75 & biovalue <= 0.86 ~ "Likely altered",
+    bioindicator == "CSCI" & biovalue >= 0.63 & biovalue <= 0.79  ~ "Likely altered",
+    bioindicator == "ASCI" & biovalue > 0.86 & biovalue <= 0.94 ~ "Possibly altered",
+    bioindicator == "CSCI" & biovalue > 0.79 & biovalue <= 0.92  ~ "Possibly altered",
+    bioindicator == "ASCI" & biovalue > 0.94 ~ "Likely intact",
+    bioindicator == "CSCI" & biovalue > 0.92  ~ "Likely intact"
+  ),
+  biothresh = factor(biothresh, levels=c("Very likely altered", "Likely altered", "Possibly altered", "Likely intact")))
+
+
+
+## Boxplot: Dry Season Baseflow ----------------------------------------------------------------
+
+bio_ffm_thresh %>% 
+  filter(metric == "DS_Mag_50") %>% 
+  filter(delta_p50 < 3.5) %>% 
+  ggplot() + 
+  geom_boxplot(aes(x=biothresh, y=delta_p50, group=biothresh, fill=bioindicator), 
+             alpha=0.7, show.legend = FALSE) +
+  geom_hline(yintercept = 0, color="maroon", lwd=0.7, lty=1, alpha=0.8) +
+  # theme_classic(base_family = "Roboto Condensed") +
+  cowplot::theme_half_open() +
+  cowplot::background_grid(major="y") +
+  theme(plot.background = element_rect(fill = "white"),
+        axis.text.x = element_text(angle = 70, vjust = .5)) +
+  # scale_shape_manual("Index", values=c(23,21)) +
+  ggthemes::scale_color_colorblind("Index") +
+  ggthemes::scale_fill_colorblind("Index") +
+  labs(y="Dry Season Baseflow", x="") + 
+  facet_grid(bioindicator~class3_name, scales = "free_y")
+
+#ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_all_gages_trend_gam.png", width = 11, height = 8, dpi = 300, units = "in")
+ggsave(filename = "figs/dry_season_baseflow_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
+
+
+## Boxplot: Fall Pulse Timing ----------------------------------------------------------------
+
+
+bio_ffm_thresh %>% 
+  filter(metric == "FA_Tim") %>% 
+  #filter(delta_p50 < 3) %>% 
+  ggplot() + 
+  geom_boxplot(aes(x=biothresh, y=delta_p50, group=biothresh, fill=bioindicator), 
+               alpha=0.7, show.legend = FALSE) +
+  geom_hline(yintercept = 0, color="maroon", lwd=0.7, lty=1, alpha=0.8) +
+  # theme_classic(base_family = "Roboto Condensed") +
+  cowplot::theme_half_open() +
+  cowplot::background_grid(major="y") +
+  theme(plot.background = element_rect(fill = "white"),
+        axis.text.x = element_text(angle = 70, vjust = .5)) +
+  # scale_shape_manual("Index", values=c(23,21)) +
+  ggthemes::scale_color_colorblind("Index") +
+  ggthemes::scale_fill_colorblind("Index") +
+  labs(y="Fall Pulse Timing", x="") + 
+  facet_grid(bioindicator~class3_name, scales = "free_y")
+
+ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
+
+## Boxplot: Fall Pulse Magnitude ----------------------------------------------------------------
+
+
+bio_ffm_thresh %>% 
+  filter(metric == "FA_Mag") %>% 
+  filter(delta_p50 < 3) %>% 
+  ggplot() + 
+  geom_boxplot(aes(x=biothresh, y=delta_p50, group=biothresh, fill=bioindicator), 
+               alpha=0.7, show.legend = FALSE) +
+  geom_hline(yintercept = 0, color="maroon", lwd=0.7, lty=1, alpha=0.8) +
+  # theme_classic(base_family = "Roboto Condensed") +
+  cowplot::theme_half_open() +
+  cowplot::background_grid(major="y") +
+  theme(plot.background = element_rect(fill = "white"),
+        axis.text.x = element_text(angle = 70, vjust = .5)) +
+  # scale_shape_manual("Index", values=c(23,21)) +
+  ggthemes::scale_color_colorblind("Index") +
+  ggthemes::scale_fill_colorblind("Index") +
+  labs(y="Fall Pulse Magnitude", x="") + 
+  facet_grid(bioindicator~class3_name, scales = "free_y")
+
+ggsave(filename = "figs/fall_pulse_magnitude_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
+
+
+## Boxplot: Wet Season Timing ----------------------------------------------------------------
+
+
+bio_ffm_thresh %>% 
+  filter(metric == "Wet_Tim") %>% 
+  #filter(delta_p50 < 3) %>% 
+  ggplot() + 
+  geom_boxplot(aes(x=biothresh, y=delta_p50, group=biothresh, fill=bioindicator), 
+               alpha=0.7, show.legend = FALSE) +
+  geom_hline(yintercept = 0, color="maroon", lwd=0.7, lty=1, alpha=0.8) +
+  # theme_classic(base_family = "Roboto Condensed") +
+  cowplot::theme_half_open() +
+  cowplot::background_grid(major="y") +
+  theme(plot.background = element_rect(fill = "white"),
+        axis.text.x = element_text(angle = 70, vjust = .5)) +
+  # scale_shape_manual("Index", values=c(23,21)) +
+  ggthemes::scale_color_colorblind("Index") +
+  ggthemes::scale_fill_colorblind("Index") +
+  labs(y="Wet-Season Timing", x="") + 
+  facet_grid(bioindicator~class3_name, scales = "free_y")
+
+ggsave(filename = "figs/wet-season_timing_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
+
+## Boxplot: Spring Timing ----------------------------------------------------------------
+
+
+bio_ffm_thresh %>% 
+  filter(metric == "SP_Tim") %>% 
+  #filter(delta_p50 < 3) %>% 
+  ggplot() + 
+  geom_boxplot(aes(x=biothresh, y=delta_p50, group=biothresh, fill=bioindicator), 
+               alpha=0.7, show.legend = FALSE) +
+  geom_hline(yintercept = 0, color="maroon", lwd=0.7, lty=1, alpha=0.8) +
+  # theme_classic(base_family = "Roboto Condensed") +
+  cowplot::theme_half_open() +
+  cowplot::background_grid(major="y") +
+  theme(plot.background = element_rect(fill = "white"),
+        axis.text.x = element_text(angle = 70, vjust = .5)) +
+  # scale_shape_manual("Index", values=c(23,21)) +
+  ggthemes::scale_color_colorblind("Index") +
+  ggthemes::scale_fill_colorblind("Index") +
+  labs(y="Spring Timing", x="") + 
+  facet_grid(bioindicator~class3_name, scales = "free_y")
+
+ggsave(filename = "figs/spring_timing_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
