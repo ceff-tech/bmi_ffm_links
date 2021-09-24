@@ -98,6 +98,22 @@ ri_strmclass_table <- ri_table %>%
   select(var:Ymetric, model, flow_component, Flow.Metric.Name) %>% 
   pivot_wider(names_from=c(Ymetric, model), values_from = RI)
 
+# how many samples per stream class?
+bio_ffm %>% 
+  select(gageid, StationCode, class3_name, bioindicator) %>% 
+  distinct(.keep_all = TRUE) %>% 
+  #group_by(class3_name, bioindicator) %>% 
+  group_by(bioindicator) %>% View()
+  tally() %>% 
+  gt() %>%
+  tab_header(
+    title = "Samples by Stream Class",
+    subtitle = glue::glue("{model_name}")
+  ) %>% 
+  gt::cols_label(bioindicator = "Bioindicator")
+  
+
+
 # Create a gt table based on preprocessed table
 ri_strmclass_table %>% 
   arrange(flow_component, Flow.Metric.Name) %>% #View()

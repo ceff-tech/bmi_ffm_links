@@ -158,7 +158,7 @@ load("data_output/01_bmi_stations_distinct.rda")
 # make a tmap
 (map_bmi <- map_ca +
     tm_shape(bmi_stations_distinct) +
-    tm_dots(col="chocolate3", shape=21, size=1, alpha=0.9, 
+    tm_dots(col="chocolate3", shape=21, size=0.5, alpha=0.8, 
             border.col="black",  border.alpha=0.8, 
             legend.show = TRUE) +
     tm_add_legend(type = "symbol", title="Stations",
@@ -194,7 +194,7 @@ algae_distinct <- algae_stations_distinct %>%
 # make a tmap
 (map_asci <- map_ca +
     tm_shape(algae_distinct) +
-    tm_dots(col = "cornsilk", shape = 23, size = 0.8, alpha=.9, 
+    tm_dots(col = "cornsilk", shape = 23, size = 0.5, alpha=.9, 
             border.alpha=0.8, legend.show = TRUE) + 
     
     tm_add_legend(type = "symbol", title="Stations",
@@ -229,12 +229,12 @@ tmap::tmap_save(tm = map_asci,
    #          title.col = "Stream Class") +
    # CSCI
    tm_shape(bmi_stations_distinct) +
-   tm_dots(col="chocolate3", shape=21, size=1, alpha=0.9, 
+   tm_dots(col="chocolate3", shape=21, size=0.3, alpha=0.8, 
            border.col="black",  border.alpha=0.8, 
            legend.show = TRUE) +
    # ASCI
    tm_shape(algae_distinct) +
-   tm_dots(col = "cornsilk", shape = 23, size = 0.8, alpha=.9, 
+   tm_dots(col = "cornsilk", shape = 23, size = 0.15, alpha=.8, 
            border.alpha=0.8, legend.show = TRUE) + 
    tm_add_legend(type = "symbol", title="Stations",
                  labels = c("CSCI", "ASCI"),
