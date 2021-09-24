@@ -428,9 +428,13 @@ bio_ffm %>%
   theme_classic(base_family = "Roboto Condensed") +
   ggthemes::scale_color_colorblind("Index") +
   ggthemes::scale_fill_colorblind("Index") +
-  labs(y="Seasonality \n(Colwell's M/P)", x="Bio Index") +
+  labs(y="Seasonality \n(Colwell's M/P)", x="Bio Index") #+
        #caption = "Standardized seasonality in relation to overall predictability \nby dividing seasonality (M) by overall predictability \n(the sum of (M) and constancy (C)), as per Tonkin et al. (2017)") + 
-  facet_wrap(.~class3_name)
+  #facet_wrap(.~class3_name)
+
+# save
+
+#ggsave(filename = "figs/colwells_vs_csci_asci_all_ca_gages_trend_gam.png", width = 11, height = 8, dpi = 300, units = "in")
 
 ggsave(filename = "figs/colwells_vs_csci_asci_all_gages_trend_gam.png", width = 11, height = 8, dpi = 300, units = "in")
 ggsave(filename = "figs/colwells_vs_csci_asci_all_gages_trend_glm_poly.png", width = 11, height = 8, dpi = 300, units = "in")
@@ -465,7 +469,7 @@ bio_ffm_df %>%
               #method = "gam", formula = y ~ s(x, k = 4), show.legend=FALSE, se = FALSE) +
               # glm: poly 2
               method = "glm", formula = y ~ poly(x, 2), show.legend=FALSE, lwd=1.3, se = FALSE) +
-  stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator), formula = y ~ poly(x, 2)) +
+  #stat_poly_eq(aes(y=delta_p50, x=biovalue, color=bioindicator), formula = y ~ poly(x, 2)) +
   geom_hline(yintercept = 0, color="gray30", lwd=.5, lty=2, alpha=0.3) +
   theme_classic(base_family = "Roboto Condensed") +
   scale_shape_manual("Index", values=c(23,21)) +
@@ -539,6 +543,30 @@ bio_ffm_thresh <- bio_ffm %>%
     bioindicator == "CSCI" & biovalue > 0.92  ~ "Likely intact"
   ),
   biothresh = factor(biothresh, levels=c("Very likely altered", "Likely altered", "Possibly altered", "Likely intact")))
+
+## Boxplot: All CA ----------------------------------------------------------------
+
+bio_ffm_thresh %>% 
+  filter(metric %in% c("DS_Mag_50", "FA_Tim", "FA_Mag")) %>% 
+  filter(delta_p50 < 3.5) %>% 
+  # join names
+  left_join(., ri_strmclass_table[,c("var", "Flow.Metric.Name")], by=c("metric"="var")) %>% 
+  ggplot() + 
+  geom_boxplot(aes(x=biothresh, y=delta_p50, group=biothresh, fill=bioindicator), 
+               alpha=0.7, show.legend = FALSE) +
+  geom_hline(yintercept = 0, color="maroon", lwd=1, lty=1, alpha=0.8) +
+  # theme_classic(base_family = "Roboto Condensed") +
+  cowplot::theme_half_open() +
+  cowplot::background_grid(major="y") +
+  theme(plot.background = element_rect(fill = "white"),
+        axis.text.x = element_text(angle = 70, vjust = .5)) +
+  # scale_shape_manual("Index", values=c(23,21)) +
+  ggthemes::scale_color_colorblind("Index") +
+  ggthemes::scale_fill_colorblind("Index") +
+  labs(y="Dry Season Baseflow", x="") + 
+  facet_grid(bioindicator~Flow.Metric.Name, scales = "free_y")
+
+ggsave(filename = "figs/top3_ffm_vs_csci_asci_all_ca_box.png", width = 11, height = 8, dpi = 300, units = "in")
 
 
 
@@ -658,3 +686,8 @@ bio_ffm_thresh %>%
   facet_grid(bioindicator~class3_name, scales = "free_y")
 
 ggsave(filename = "figs/spring_timing_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
+
+
+## LOOK AT DIFF METRICS FOR DELTA H ONLY AS X FACET AND CSCI/ASCI as Y FACET ----
+# california wide, see what these look like.
+# bin and plot seasonality by the altered classes, try trend plots then?
