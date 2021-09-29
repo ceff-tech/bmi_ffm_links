@@ -55,6 +55,41 @@ forder <- ri_table %>%
   ungroup() %>% arrange(id) %>% 
   select(Flow.Metric.Name, Ymetric, id) # get the just the names for ordering things
 
+
+# FFM Table ---------------------------------------------------------------
+
+library(readxl)
+ff_defs <- readxl::read_xlsx("docs/Functional_Flow_Metrics_List_and_Definitions_final.xlsx", range = "A1:F25", .name_repair = "universal", trim_ws = TRUE) 
+
+ # make subset
+ri_table %>% 
+  select(flow_component, Flow.Characteristic:Flow.Metric.Description) %>% 
+  distinct(.keep_all = TRUE) -> ri_table_distinct
+
+ffm_table <- full_join(ff_defs, ri_table_distinct) %>% 
+  mutate(flow_component=Flow.Component,
+         Flow.Metric.Name = as.factor(Flow.Metric.Name),
+         flow_component = case_when(
+           Flow.Metric.Name == "Colwell's M/P" ~ "Seasonality",
+           TRUE ~ flow_component),
+         Flow.Metric.Name = forcats::fct_reorder(Flow.Metric.Name, Flow.Component))
+
+ffm_table %>% 
+  select(-Flow.Metric.Code, -Flow.Component) %>% 
+  select(flow_component, Flow.Characteristic:Flow.Metric.Description) %>% 
+  arrange(flow_component, Flow.Metric.Name) %>% 
+  janitor::clean_names() %>% 
+  write_csv(file = "data_output/ffm_table_metric_names.csv")
+  gt() %>%
+  tab_header(
+    title = "Functional Flow Metrics") %>%
+  gt::cols_label(flow_component="Flow Component", 
+                 Flow.Metric.Name = "Metric Name",
+                 Flow.Characteristic = "Flow Characteristic",
+                 Flow.Metric.Description = "Description") #%>% 
+    #gt::gtsave(filename = "data_output/ffm_table_metric_names.rtf")
+
+
 # Summary Table ALL CA -----------------------------------------------------------
 
 library(glue)
