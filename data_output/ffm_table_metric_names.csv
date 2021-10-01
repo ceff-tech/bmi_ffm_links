@@ -1,0 +1,26 @@
+flow_component,flow_characteristic,flow_metric_name,unit,flow_metric_description
+Dry-season baseflow,Magnitude,Dry-season baseflow,cfs,50th percentile of daily flow within dry season
+Dry-season baseflow,Duration,Dry-season duration,days,Dry-season baseflow duration (# of days from start of dry season to start of wet season)
+Dry-season baseflow,Magnitude,Dry-season high baseflow,cfs,90th percentile of daily flow within dry season
+Dry-season baseflow,Timing,Dry-season timing,water year day,Dry-season baseflow start timing (water year day of dry season)
+Fall pulse flow,Duration,Fall pulse duration,days,Duration of fall pulse event
+Fall pulse flow,Magnitude,Fall pulse magnitude,cfs,Peak magnitude of fall pulse event (maximum daily peak flow during event)
+Fall pulse flow,Timing,Fall pulse timing,water year day,Water year day of fall pulse event peak
+Peak flow,Duration,10-year flood duration,days,Seasonal duration of 10-year recurrence interval peak flow (cumulative number of days in which this peak flow magnitude is exceeded)
+Peak flow,Frequency,10-year flood frequency,occurrences,Frequency of 10-year recurrence interval peak flow within a season
+Peak flow,Magnitude,10-year flood magnitude,cfs,10-year recurrence interval peak flow
+Peak flow,Duration,2-year flood duration,days,Seasonal duration of 2-year recurrence interval peak flow (cumulative number of days in which this peak flow magnitude is exceeded)
+Peak flow,Frequency,2-year flood frequency,occurrences,Frequency of 2-year recurrence interval peak flow within a season
+Peak flow,Magnitude,2-year flood magnitude,cfs,2-year recurrence interval peak flow
+Peak flow,Duration,5-year flood duration,days,Seasonal duration of 5-year recurrence interval peak flow (cumulative number of days in which this peak flow magnitude is exceeded)
+Peak flow,Frequency,5-year flood frequency,occurrences,Frequency of 5-year recurrence interval peak flow within a season
+Peak flow,Magnitude,5-year flood magnitude,cfs,5-year recurrence interval peak flow
+Seasonality,NA,Colwell's M/P,NA,Seasonality calculated by Colwell's measure of contingency standardized by within-season predictability
+Spring recession flow,Duration,Spring duration,days,Spring flow recession duration (# of days from start of spring to start of dry-season baseflow period)
+Spring recession flow,Rate of change,Spring rate of change,percent,Spring flow recession rate (median daily rate of change over decreasing periods during the recession)
+Spring recession flow,Magnitude,Spring recession magnitude,cfs,"Spring recession magnitude (daily flow on start date of spring-flow period, 4 days after last wet-season peak)"
+Spring recession flow,Timing,Spring timing,water year day,Start date of spring in water year days
+Wet-season baseflow,Magnitude,Wet-season baseflow,cfs,"Magnitude of wet-season baseflows (10th percentile of daily flows within that season, including peak flow events)"
+Wet-season baseflow,Duration,Wet-season duration,days,Wet-season baseflow duration (# of days from start of wet-season to start of spring season)
+Wet-season baseflow,Magnitude,Wet-season median flow,cfs,"Magnitude of wet-season baseflows (50th percentile of daily flows within that season, including peak flow events)"
+Wet-season baseflow,Timing,Wet-season timing,water year day,Start date of wet-season in water year days

@@ -78,8 +78,8 @@ ffm_table %>%
   select(-Flow.Metric.Code, -Flow.Component) %>% 
   select(flow_component, Flow.Characteristic:Flow.Metric.Description) %>% 
   arrange(flow_component, Flow.Metric.Name) %>% 
-  janitor::clean_names() %>% 
-  write_csv(file = "data_output/ffm_table_metric_names.csv")
+  #janitor::clean_names() %>% 
+  #write_csv(file = "data_output/ffm_table_metric_names.csv")
   gt() %>%
   tab_header(
     title = "Functional Flow Metrics") %>%
@@ -614,6 +614,8 @@ bio_ffm_thresh %>%
   ggthemes::scale_color_colorblind("Index") +
   ggthemes::scale_fill_colorblind("Index") +
   labs(y="Delta Hydrology", x="") + 
+  theme(plot.background = element_rect(fill="white"),
+        panel.border = element_rect(color="gray30")) +
   facet_grid(bioindicator~Flow.Metric.Name, scales = "free_y")
 
 ggsave(filename = "figs/top3_ffm_vs_csci_asci_all_ca_box_notched.png", width = 11, height = 8, dpi = 300, units = "in")
@@ -634,14 +636,16 @@ bio_ffm_thresh %>%
   ggthemes::scale_color_colorblind("Index") +
   ggthemes::scale_fill_colorblind("Index") +
   labs(y="Colwell's Seasonality (M/P)", x="") + 
-  #facet_grid(bioindicator~., scales = "free_y")
-  facet_grid(bioindicator~class3_name, scales = "free_y") # by stream class
+  #facet_grid(bioindicator~., scales = "free_y") +
+  facet_grid(bioindicator~class3_name, scales = "free_y")+ # by stream class
+  theme(plot.background = element_rect(fill="white"),
+        panel.border = element_rect(color="gray30"))
 
 ggsave(filename = "figs/seasonality_vs_csci_asci_boxplots.png", width = 11, height = 8, dpi = 300, units = "in")
 ggsave(filename = "figs/seasonality_vs_csci_asci_boxplots_by_streamclass.png", width = 11, height = 8, dpi = 300, units = "in")
 
 
-## Boxplot: Dry Season Baseflow ----------------------------------------------------------------
+## Boxplot: 9B: Dry Season Baseflow ----------------------------------------------------------------
 
 bio_ffm_thresh %>% 
   filter(metric == "DS_Mag_50") %>% 
@@ -659,7 +663,9 @@ bio_ffm_thresh %>%
   ggthemes::scale_color_colorblind("Index") +
   ggthemes::scale_fill_colorblind("Index") +
   labs(y="Dry Season Baseflow", x="") + 
-  facet_grid(bioindicator~class3_name, scales = "free_y")
+  facet_grid(bioindicator~class3_name, scales = "free_y")+
+  theme(plot.background = element_rect(fill="white"),
+        panel.border = element_rect(color="gray30"))
 
 #ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_all_gages_trend_gam.png", width = 11, height = 8, dpi = 300, units = "in")
 ggsave(filename = "figs/dry_season_baseflow_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
@@ -667,7 +673,7 @@ ggsave(filename = "figs/dry_season_baseflow_vs_csci_asci_boxplots_w_zeroline.png
 
 
 
-## Boxplot: 7A: Fall Pulse Timing ----------------------------------------------------------------
+## Boxplot: 9A: Fall Pulse Timing ----------------------------------------------------------------
 
 
 bio_ffm_thresh %>% 
@@ -686,7 +692,9 @@ bio_ffm_thresh %>%
   ggthemes::scale_color_colorblind("Index") +
   ggthemes::scale_fill_colorblind("Index") +
   labs(y="Fall Pulse Timing", x="") + 
-  facet_grid(bioindicator~class3_name, scales = "free_y")
+  facet_grid(bioindicator~class3_name, scales = "free_y") +
+  theme(plot.background = element_rect(fill="white"),
+        panel.border = element_rect(color="gray30"))
 
 ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
 

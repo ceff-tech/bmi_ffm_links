@@ -99,20 +99,20 @@ bio_ffm_ord %>%
   # some extreme values so filter to everything below 98 quantile
   #filter(delta_p50 < quantile(bio_ffm$delta_p50, na.rm=TRUE, 0.98)) %>% 
   ggplot() +
-  geom_jitter(aes(x=metric, y=delta_p50), col="gray",
+  geom_jitter(aes(x=Flow.Metric.Name, y=delta_p50), col="gray",
               alpha=0.4, show.legend = FALSE) +
   geom_hline(yintercept = 0, color="deeppink3", alpha=1, lwd=1.3, lty=1) +
-  geom_boxplot(aes(x=metric, y=delta_p50, fill=flow_component), 
+  geom_boxplot(aes(x=Flow.Metric.Name, y=delta_p50, fill=flow_component), 
                alpha=0.8, show.legend = TRUE, outlier.shape = NA) +
   cowplot::theme_cowplot(font_family = "Roboto Condensed") +
-  labs(x="FF Metric", y="Delta Hydrology ([p50 obs - p50 pred]/p50 pred)") +
+  labs(x="", y="Delta Hydrology ([p50 obs - p50 pred]/p50 pred)") +
   ylim(c(-1,2.5)) +
   scale_color_manual("Flow Component", values=flowcomponent_colors, guide="none") +
   scale_fill_manual("Flow Component", values=flowcomponent_colors) + 
   coord_flip() +
   #labs(subtitle = "ASCI") +
   theme(plot.background = element_rect(fill="white"),
-        panel.border = element_rect(color="gray")) +
+        panel.border = element_rect(color="gray30")) +
   facet_wrap(.~bioindicator)
 
 ggsave(filename = "figs/boxplot_of_asci_csci_ffm_by_deltaH.png", 
