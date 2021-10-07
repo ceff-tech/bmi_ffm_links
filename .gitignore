@@ -13,7 +13,9 @@ data_output/selected_nhd/*
 phab-rafi-15apr19.csv.7z
 data/geomorph/*
 code/sandbox/*
+models/*tiff
 figs/*.pptx
+figs/*.tiff
 docs/*.zip
 docs/*.pptx
 docs/*.pdf
