@@ -115,9 +115,9 @@ bio_ffm_ord %>%
         panel.border = element_rect(color="gray30")) +
   facet_wrap(.~bioindicator)
 
-ggsave(filename = "figs/boxplot_of_asci_csci_ffm_by_deltaH.png", 
-        width = 11, height = 8, 
-        dpi=300, units="in")
+ggsave(filename = "figs/fig4_boxplot_of_asci_csci_ffm_by_deltaH.tiff", 
+        width = 20, height = 15.545, 
+        dpi=300, units="cm")
 
 
 # Point Plot Outliers -------------------------------------------------------

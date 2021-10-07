@@ -179,10 +179,8 @@ load("data_output/01_bmi_stations_distinct.rda")
       inner.margins = 0.01, outer.margins = (0.01),
       fontfamily = "Roboto Condensed", title.position = c(0.65, 0.7)))
 
-
-# FIRST TRYPTYCH
-tmap::tmap_save(tm = map_bmi, 
-                filename = "figs/03_tmap_csci_sites_all.png", width = 8, height = 11, units = "in", dpi = 300)  
+# tmap::tmap_save(tm = map_bmi, 
+#                 filename = "figs/03_tmap_csci_sites_all.png", width = 8, height = 11, units = "in", dpi = 300)  
 
 # TMAP ASCI stations ---------------------------------------------------------
 
@@ -216,9 +214,9 @@ algae_distinct <- algae_stations_distinct %>%
       fontfamily = "Roboto Condensed", title.position = c(0.65, 0.7)))
 
 
-# FIRST TRYPTYCH
-tmap::tmap_save(tm = map_asci, 
-                filename = "figs/03_tmap_asci_sites_all.png", width = 8, height = 11, units = "in", dpi = 300)  
+# asci only
+# tmap::tmap_save(tm = map_asci, 
+#                 filename = "figs/03_tmap_asci_sites_all.png", width = 8, height = 11, units = "in", dpi = 300)  
 
 # TMAP ASCI and CSCI distinct stations ---------------------------------------
 
@@ -257,8 +255,9 @@ tmap::tmap_save(tm = map_asci,
 
 # FIRST TRYPTYCH
 tmap::tmap_save(tm = map_bioall, 
-                filename = "figs/03_tmap_all_bio_sites.png", width = 8, height = 11, units = "in", dpi = 300)  
-
+                filename = "figs/fig2_tmap_all_bio_sites.png", width = 8, height = 11, units = "in", dpi = 300)  
+tmap::tmap_save(tm = map_bioall, 
+                filename = "figs/fig2_tmap_all_bio_sites.jpg", width = 8, height = 11, units = "in", dpi = 300)  
 
 # TMAP Selected ASCI-CSCI stations w gages --------------------------------------------------------
 
@@ -305,11 +304,11 @@ gages_sites <- bio_ffm %>%
                   col = c("chocolate3", "cornsilk", "cyan3"),
                   shape=c(21,23,22), size = 1.1) +
     
-    tm_compass(type = "arrow", size = 2,
-               position = c(0.1,0.18)) +
-    tm_scale_bar(breaks = c(0, 100, 200), 
-                 text.size = 0.6,
-                 position = c(0.12, 0.1)) +
+    # tm_compass(type = "arrow", size = 2,
+    #            position = c(0.1,0.18)) +
+    # tm_scale_bar(breaks = c(0, 100, 200), 
+    #              text.size = 0.6,
+    #              position = c(0.12, 0.1)) +
     tm_layout(frame = FALSE, 
               legend.title.size = 1.3,
               legend.text.size = 1,
@@ -323,8 +322,8 @@ gages_sites <- bio_ffm %>%
 # tmap::tmap_save(tm = map_bioselect, 
 #                 filename = "figs/03_tmap_selected_bio_sites_combined.png", width = 8, height = 11, units = "in", dpi = 300)  
 
-tmap::tmap_save(tm = map_bioselect, 
-                filename = "figs/03_tmap_selected_bio_sites_combined_wgages.png", width = 8, height = 11, units = "in", dpi = 300)  
+# tmap::tmap_save(tm = map_bioselect, 
+#                 filename = "figs/03_tmap_selected_bio_sites_combined_wgages.png", width = 8, height = 11, units = "in", dpi = 300)  
 
 
 # BIO + STREAM CLASS MAP --------------------------------------------------
@@ -368,10 +367,13 @@ tmap::tmap_save(tm = map_bioselect,
              fontfamily = "Roboto Condensed")) #title.position = c(0.65, 0.9)))
 
 
-# Selected
+# STREAM CLASS + SITES
 tmap::tmap_save(tm = map_strmclass_bio, 
-                filename = "figs/03_tmap_selected_bio_sites_strmclass.png", width = 8, height = 11, units = "in", dpi = 300)  
+                filename = "figs/fig3_tmap_selected_bio_sites_strmclass.jpg", width = 8, height = 11, units = "in", dpi = 300)  
 
+# tiff
+tmap::tmap_save(tm = map_strmclass_bio, 
+                filename = "figs/fig3_tmap_selected_bio_sites_strmclass.tiff", width = 8, height = 11, units = "in", dpi = 300)  
 
 
 # GAGES MAP ---------------------------------------------------------------
@@ -406,8 +408,8 @@ usgs_gages <- bind_rows(ref_gages, alt_gages) %>%
       legend.position = c(0.65, 0.7)))
 
 
-tmap::tmap_save(tm = map_usgs, 
-                filename = "figs/03_tmap_usgs_sites_all.png", width = 8, height = 11, units = "in", dpi = 300)  
+# tmap::tmap_save(tm = map_usgs, 
+#                 filename = "figs/03_tmap_usgs_sites_all.png", width = 8, height = 11, units = "in", dpi = 300)  
 
 # Put them all together ---------------------------------------------------
 
@@ -416,8 +418,10 @@ final_triptych<-tmap::tmap_arrange(
 print(final_triptych)
 
 tmap::tmap_save(tm = final_triptych, 
-                filename = "figs/03_tmap_triptych_biosel_usgs.png", width = 11, height = 8, units = "in", dpi = 300)  
-
+                filename = "figs/fig2_tmap_triptych_biosel_usgs.jpg", width = 20,
+                height=14.5, units = "cm", dpi = 600)  
+ tmap::tmap_save(tm = final_triptych, 
+                filename = "figs/fig2_tmap_triptych_biosel_usgs.tiff", width = 11, height = 8, units = "in", dpi = 300)  
 
 # TMAP PALETTE EXPLORER ---------------------------------------------------
 

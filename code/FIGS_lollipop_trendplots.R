@@ -232,14 +232,16 @@ modname <- "all_ca_seasonality"
                                 order = 2),
            size= "none") +
     theme_minimal_grid(font_family = "Roboto Condensed") +
-    theme(legend.position = c(0.7, 0.25),
+    theme(legend.position = c(0.68, 0.33),
           plot.background = element_rect(fill="white"),
           panel.border = element_rect(color = "white"),
           legend.box.background = element_rect(fill="white", color = "white")) -> gg1)
 
 
 # save out
-ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 10, height = 7, units = "in", dpi = 300)
+ggsave(filename=tolower(glue("figs/fig5_{plot_savename}_all_ri_sized_points_w_lines_ranked.tiff")), width = 20, height = 14, units = "cm", dpi = 300)
+#ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.jpg")), width = 10, height = 7, units = "in", dpi = 300)
+
 
 
 # Lollipop Plot: MIXED with seasonality -----------------------------------------------
@@ -283,13 +285,13 @@ modname <- "mixed_seasonality"
                                 order = 2),
            size= "none") +
     theme_minimal_grid(font_family = "Roboto Condensed") +
-    theme(legend.position = c(0.6, 0.25),
+    theme(legend.position = c(0.45, 0.2),
           plot.background = element_rect(fill="white"),
           panel.border = element_rect(color = "white"),
           legend.box.background = element_rect(fill="white", color = "white")) -> gg2)
 
 # save out
-ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 10, height = 7, units = "in", dpi = 300)
+#ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 10, height = 7, units = "in", dpi = 300)
 
 
 # Lollipop Plot: RAIN with seasonality -----------------------------------------------
@@ -339,7 +341,7 @@ modname <- "rain_seasonality"
           legend.box.background = element_rect(fill="white", color = "white")) -> gg3)
 
 # save out
-ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 10, height = 7, units = "in", dpi = 300)
+#ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 10, height = 7, units = "in", dpi = 300)
 
 # Lollipop Plot: SNOW with seasonality -----------------------------------------------
 
@@ -382,14 +384,14 @@ modname <- "snow_seasonality"
            size= "none") +
     theme_minimal_grid(font_family = "Roboto Condensed") +
     theme(#legend.position = c(0.6, 0.25),
-          legend.position = c(0.45, 0.2), # for combined plot
+          legend.position = c(0.45, 0.3), # for combined plot
           #legend.text = element_text(size=10),
           plot.background = element_rect(fill="white"),
           panel.border = element_rect(color = "white"),
           legend.box.background = element_rect(fill="white", color = "white")) -> gg4)
 
 # save out
-ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 10, height = 7, units = "in", dpi = 300)
+#ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines_ranked.png")), width = 10, height = 7, units = "in", dpi = 300)
 
 
 # COMBINE REGIONS ---------------------------------------------------------
@@ -400,17 +402,22 @@ ggsave(filename=tolower(glue("models/{plot_savename}_all_ri_sized_points_w_lines
 # as_ggplot(my_legend)
 
 library(patchwork)
-# remove legend from gg2 and gg3
-gg2_noleg <- gg2 + theme(legend.position = "none")
+# remove legend from gg4 and gg3
 gg3_noleg <- gg3 + theme(legend.position = "none")
-#gg4_noleg <- gg4 + theme(legend.position="none")
+gg4_noleg <- gg4 + theme(legend.position = "none")
 
-gg2_noleg + gg3_noleg + gg4 +
+gg2 + gg3_noleg + gg4_noleg +
   #plot_layout(guides = 'collect') +
-  plot_annotation(tag_levels = 'A')
+  plot_annotation(tag_levels = 'A', tag_prefix = "(", tag_suffix = ")")
 
-ggsave(filename = glue("models/09_gbm_combined_snow_rain_mixed_seasonality_all_ri_sized_points_w_lines_horiz.png"),
-       width = 16, height = 8, scale = 1, units="in", dpi=300)
+ggsave(filename = glue("figs/fig8_gbm_combined_snow_rain_mixed_seasonality_all_ri_sized_points_w_lines_horiz.tiff"),
+       width = 16, height = 9, scale = 1, units="in", dpi=300)
+
+ggsave(filename = glue("figs/fig8_gbm_combined_snow_rain_mixed_seasonality_all_ri_sized_points_w_lines_horiz.jpg"),
+       width = 16, height = 9, scale = 1, units="in", dpi=500)
+
+# ggsave(filename = glue("models/09_gbm_combined_snow_rain_mixed_seasonality_all_ri_sized_points_w_lines_horiz.png"),
+#        width = 16, height = 8, scale = 1, units="in", dpi=300)
 
 
 # TREND PLOTS -----------------------------------------
@@ -486,8 +493,8 @@ bio_ffm %>%
 
 #ggsave(filename = "figs/colwells_vs_csci_asci_all_ca_gages_trend_gam.png", width = 11, height = 8, dpi = 300, units = "in")
 
-ggsave(filename = "figs/colwells_vs_csci_asci_all_gages_trend_gam.png", width = 11, height = 8, dpi = 300, units = "in")
-ggsave(filename = "figs/colwells_vs_csci_asci_all_gages_trend_glm_poly.png", width = 11, height = 8, dpi = 300, units = "in")
+#ggsave(filename = "figs/colwells_vs_csci_asci_all_gages_trend_gam.png", width = 11, height = 8, dpi = 300, units = "in")
+#ggsave(filename = "figs/colwells_vs_csci_asci_all_gages_trend_glm_poly.png", width = 11, height = 8, dpi = 300, units = "in")
 
 # split into negative and positive delta hydrology -----------------------
 
@@ -618,10 +625,12 @@ bio_ffm_thresh %>%
         panel.border = element_rect(color="gray30")) +
   facet_grid(bioindicator~Flow.Metric.Name, scales = "free_y")
 
-ggsave(filename = "figs/top3_ffm_vs_csci_asci_all_ca_box_notched.png", width = 11, height = 8, dpi = 300, units = "in")
+#ggsave(filename = "figs/top3_ffm_vs_csci_asci_all_ca_box_notched.png", width = 11, height = 8, dpi = 300, units = "in")
+
+ggsave(filename = "figs/fig6_ffm_vs_csci_asci_all_ca_box_notched.tiff", width = 20, height = 16, dpi = 300, units = "cm")
 
 
-## Boxplot: Seasonality ----------------------------------------------------------------
+## Boxplot: 7 & 9A Seasonality ----------------------------------------------------------------
 
 bio_ffm_thresh %>% 
   filter(delta_p50 < 3.5) %>%
@@ -636,44 +645,19 @@ bio_ffm_thresh %>%
   ggthemes::scale_color_colorblind("Index") +
   ggthemes::scale_fill_colorblind("Index") +
   labs(y="Colwell's Seasonality (M/P)", x="") + 
-  #facet_grid(bioindicator~., scales = "free_y") +
-  facet_grid(bioindicator~class3_name, scales = "free_y")+ # by stream class
+  facet_grid(bioindicator~., scales = "free_y") +
+  #facet_grid(bioindicator~class3_name, scales = "free_y")+ # by stream class
   theme(plot.background = element_rect(fill="white"),
         panel.border = element_rect(color="gray30"))
 
-ggsave(filename = "figs/seasonality_vs_csci_asci_boxplots.png", width = 11, height = 8, dpi = 300, units = "in")
-ggsave(filename = "figs/seasonality_vs_csci_asci_boxplots_by_streamclass.png", width = 11, height = 8, dpi = 300, units = "in")
+ggsave(filename = "figs/fig7_seasonality_vs_csci_asci_boxplots.tiff", width = 20, height = 16, dpi = 300, units = "cm")
+ggsave(filename = "figs/fig9a_seasonality_vs_csci_asci_boxplots_by_streamclass.tiff", width = 20, height = 16, dpi = 300, units = "cm")
 
 
-## Boxplot: 9B: Dry Season Baseflow ----------------------------------------------------------------
+# ggsave(filename = "figs/seasonality_vs_csci_asci_boxplots.png", width = 11, height = 8, dpi = 300, units = "in")
+# ggsave(filename = "figs/seasonality_vs_csci_asci_boxplots_by_streamclass.png", width = 11, height = 8, dpi = 300, units = "in")
 
-bio_ffm_thresh %>% 
-  filter(metric == "DS_Mag_50") %>% 
-  filter(delta_p50 < 3.5) %>% 
-  ggplot() + 
-  geom_boxplot(aes(x=biothresh, y=delta_p50, group=biothresh, fill=bioindicator), 
-             alpha=0.7, show.legend = FALSE) +
-  geom_hline(yintercept = 0, color="maroon", lwd=0.7, lty=1, alpha=0.8) +
-  # theme_classic(base_family = "Roboto Condensed") +
-  cowplot::theme_half_open() +
-  cowplot::background_grid(major="y") +
-  theme(plot.background = element_rect(fill = "white"),
-        axis.text.x = element_text(angle = 70, vjust = .5)) +
-  # scale_shape_manual("Index", values=c(23,21)) +
-  ggthemes::scale_color_colorblind("Index") +
-  ggthemes::scale_fill_colorblind("Index") +
-  labs(y="Dry Season Baseflow", x="") + 
-  facet_grid(bioindicator~class3_name, scales = "free_y")+
-  theme(plot.background = element_rect(fill="white"),
-        panel.border = element_rect(color="gray30"))
-
-#ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_all_gages_trend_gam.png", width = 11, height = 8, dpi = 300, units = "in")
-ggsave(filename = "figs/dry_season_baseflow_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
-
-
-
-
-## Boxplot: 9A: Fall Pulse Timing ----------------------------------------------------------------
+## Boxplot: 9B Fall Pulse Timing ----------------------------------------------------------------
 
 
 bio_ffm_thresh %>% 
@@ -696,30 +680,33 @@ bio_ffm_thresh %>%
   theme(plot.background = element_rect(fill="white"),
         panel.border = element_rect(color="gray30"))
 
+ggsave(filename = "figs/fig9b_fall_pulse_timing_csci_asci_boxplots_w_zeroline.tiff", width = 20, height = 16, dpi = 300, units = "cm")
+
+
 ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
 
 ## Boxplot: Fall Pulse Magnitude ----------------------------------------------------------------
 
-
-bio_ffm_thresh %>% 
-  filter(metric == "FA_Mag") %>% 
-  filter(delta_p50 < 3) %>% 
-  ggplot() + 
-  geom_boxplot(aes(x=biothresh, y=delta_p50, group=biothresh, fill=bioindicator), 
-               alpha=0.7, show.legend = FALSE) +
-  geom_hline(yintercept = 0, color="maroon", lwd=0.7, lty=1, alpha=0.8) +
-  # theme_classic(base_family = "Roboto Condensed") +
-  cowplot::theme_half_open() +
-  cowplot::background_grid(major="y") +
-  theme(plot.background = element_rect(fill = "white"),
-        axis.text.x = element_text(angle = 70, vjust = .5)) +
-  # scale_shape_manual("Index", values=c(23,21)) +
-  ggthemes::scale_color_colorblind("Index") +
-  ggthemes::scale_fill_colorblind("Index") +
-  labs(y="Fall Pulse Magnitude", x="") + 
-  facet_grid(bioindicator~class3_name, scales = "free_y")
-
-ggsave(filename = "figs/fall_pulse_magnitude_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
+# 
+# bio_ffm_thresh %>% 
+#   filter(metric == "FA_Mag") %>% 
+#   filter(delta_p50 < 3) %>% 
+#   ggplot() + 
+#   geom_boxplot(aes(x=biothresh, y=delta_p50, group=biothresh, fill=bioindicator), 
+#                alpha=0.7, show.legend = FALSE) +
+#   geom_hline(yintercept = 0, color="maroon", lwd=0.7, lty=1, alpha=0.8) +
+#   # theme_classic(base_family = "Roboto Condensed") +
+#   cowplot::theme_half_open() +
+#   cowplot::background_grid(major="y") +
+#   theme(plot.background = element_rect(fill = "white"),
+#         axis.text.x = element_text(angle = 70, vjust = .5)) +
+#   # scale_shape_manual("Index", values=c(23,21)) +
+#   ggthemes::scale_color_colorblind("Index") +
+#   ggthemes::scale_fill_colorblind("Index") +
+#   labs(y="Fall Pulse Magnitude", x="") + 
+#   facet_grid(bioindicator~class3_name, scales = "free_y")
+# 
+# ggsave(filename = "figs/fall_pulse_magnitude_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
 
 
 ## Boxplot: Wet Season Timing ----------------------------------------------------------------
