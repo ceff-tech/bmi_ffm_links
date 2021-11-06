@@ -402,18 +402,21 @@ modname <- "snow_seasonality"
 # as_ggplot(my_legend)
 
 library(patchwork)
+# plot snow (gg4), mixed (gg2) and rain (gg3)
 # remove legend from gg4 and gg3
+gg2_noleg <- gg2 + theme(legend.position = "none")
 gg3_noleg <- gg3 + theme(legend.position = "none")
-gg4_noleg <- gg4 + theme(legend.position = "none")
 
-gg2 + gg3_noleg + gg4_noleg +
+gg4 + gg2_noleg + gg3_noleg +
   #plot_layout(guides = 'collect') +
   plot_annotation(tag_levels = 'A', tag_prefix = "(", tag_suffix = ")")
 
-ggsave(filename = glue("figs/fig8_gbm_combined_snow_rain_mixed_seasonality_all_ri_sized_points_w_lines_horiz.tiff"),
+
+# save out
+ggsave(filename = glue("figs/fig8_gbm_combined_snow_rain_mixed_seasonality_all_ri_sized_points_w_lines_horiz_v2.tiff"),
        width = 16, height = 9, scale = 1, units="in", dpi=300)
 
-ggsave(filename = glue("figs/fig8_gbm_combined_snow_rain_mixed_seasonality_all_ri_sized_points_w_lines_horiz.jpg"),
+ggsave(filename = glue("figs/fig8_gbm_combined_snow_rain_mixed_seasonality_all_ri_sized_points_w_lines_horiz_v2.jpg"),
        width = 16, height = 9, scale = 1, units="in", dpi=500)
 
 # ggsave(filename = glue("models/09_gbm_combined_snow_rain_mixed_seasonality_all_ri_sized_points_w_lines_horiz.png"),
@@ -632,6 +635,9 @@ ggsave(filename = "figs/fig6_ffm_vs_csci_asci_all_ca_box_notched.tiff", width = 
 
 ## Boxplot: 7 & 9A Seasonality ----------------------------------------------------------------
 
+levels(bio_ffm_thresh$class3_name)
+bio_ffm_thresh$class3_name <- forcats::fct_relevel(bio_ffm_thresh$class3_name, "SNOWMELT", "MIXED", "RAIN")
+
 bio_ffm_thresh %>% 
   filter(delta_p50 < 3.5) %>%
   ggplot() + 
@@ -645,20 +651,19 @@ bio_ffm_thresh %>%
   ggthemes::scale_color_colorblind("Index") +
   ggthemes::scale_fill_colorblind("Index") +
   labs(y="Colwell's Seasonality (M/P)", x="") + 
-  facet_grid(bioindicator~., scales = "free_y") +
-  #facet_grid(bioindicator~class3_name, scales = "free_y")+ # by stream class
+  #facet_grid(bioindicator~., scales = "free_y") +
+  facet_grid(bioindicator~class3_name, scales = "free_y")+ # by stream class
   theme(plot.background = element_rect(fill="white"),
         panel.border = element_rect(color="gray30"))
 
-ggsave(filename = "figs/fig7_seasonality_vs_csci_asci_boxplots.tiff", width = 20, height = 16, dpi = 300, units = "cm")
-ggsave(filename = "figs/fig9a_seasonality_vs_csci_asci_boxplots_by_streamclass.tiff", width = 20, height = 16, dpi = 300, units = "cm")
+#ggsave(filename = "figs/fig7_seasonality_vs_csci_asci_boxplots.tiff", width = 20, height = 16, dpi = 300, units = "cm")
+ggsave(filename = "figs/fig9a_seasonality_vs_csci_asci_boxplots_by_streamclass_v2.tiff", width = 20, height = 16, dpi = 300, units = "cm")
 
 
 # ggsave(filename = "figs/seasonality_vs_csci_asci_boxplots.png", width = 11, height = 8, dpi = 300, units = "in")
 # ggsave(filename = "figs/seasonality_vs_csci_asci_boxplots_by_streamclass.png", width = 11, height = 8, dpi = 300, units = "in")
 
 ## Boxplot: 9B Fall Pulse Timing ----------------------------------------------------------------
-
 
 bio_ffm_thresh %>% 
   filter(metric == "FA_Tim") %>% 
@@ -680,10 +685,10 @@ bio_ffm_thresh %>%
   theme(plot.background = element_rect(fill="white"),
         panel.border = element_rect(color="gray30"))
 
-ggsave(filename = "figs/fig9b_fall_pulse_timing_csci_asci_boxplots_w_zeroline.tiff", width = 20, height = 16, dpi = 300, units = "cm")
+ggsave(filename = "figs/fig9b_fall_pulse_timing_csci_asci_boxplots_w_zeroline_v2.tiff", width = 20, height = 16, dpi = 300, units = "cm")
 
 
-ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
+ggsave(filename = "figs/fall_pulse_timing_vs_csci_asci_boxplots_w_zeroline_v2.png", width = 11, height = 8, dpi = 300, units = "in")
 
 ## Boxplot: Fall Pulse Magnitude ----------------------------------------------------------------
 
@@ -730,7 +735,7 @@ bio_ffm_thresh %>%
   labs(y="Wet-Season Timing", x="") + 
   facet_grid(bioindicator~class3_name, scales = "free_y")
 
-ggsave(filename = "figs/wet-season_timing_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
+ggsave(filename = "figs/wet-season_timing_vs_csci_asci_boxplots_w_zeroline_v2.png", width = 11, height = 8, dpi = 300, units = "in")
 
 ## Boxplot: Spring Timing ----------------------------------------------------------------
 
@@ -753,7 +758,7 @@ bio_ffm_thresh %>%
   labs(y="Spring Timing", x="") + 
   facet_grid(bioindicator~class3_name, scales = "free_y")
 
-ggsave(filename = "figs/spring_timing_vs_csci_asci_boxplots_w_zeroline.png", width = 11, height = 8, dpi = 300, units = "in")
+ggsave(filename = "figs/spring_timing_vs_csci_asci_boxplots_w_zeroline_v2.png", width = 11, height = 8, dpi = 300, units = "in")
 
 
 ## LOOK AT DIFF METRICS FOR DELTA H ONLY AS X FACET AND CSCI/ASCI as Y FACET ----
