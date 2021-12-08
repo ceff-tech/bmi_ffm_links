@@ -416,6 +416,10 @@ gg4 + gg2_noleg + gg3_noleg #+
 ggsave(filename = glue("figs/fig8_gbm_combined_snow_rain_mixed_seasonality_all_ri_sized_points_w_lines_horiz_v3.tiff"),
        width = 16, height = 9, scale = 1, units="in", dpi=300)
 
+# save out
+ggsave(filename = glue("figs/fig8_gbm_combined_snow_rain_mixed_seasonality_all_ri_sized_points_w_lines_horiz_v3.jpg"),
+       width = 16, height = 9, scale = 1, units="in", dpi=600)
+
 ggsave(filename = glue("figs/fig8_gbm_combined_snow_rain_mixed_seasonality_all_ri_sized_points_w_lines_horiz_v2.jpg"),
        width = 16, height = 9, scale = 1, units="in", dpi=500)
 

@@ -147,8 +147,8 @@ rivs_ca <- st_intersection(rivs, ca) %>%
                  position = c(0.12, 0.1))
 )
 
-tmap::tmap_save(tm = map_ecoca, 
-                filename = "figs/03_tmap_streamclass3.png", width = 8, height = 11, units = "in", dpi = 300)
+#tmap::tmap_save(tm = map_ecoca, 
+#                filename = "figs/03_tmap_streamclass3.png", width = 8, height = 11, units = "in", dpi = 300)
 
 # TMAP CSCI stations ---------------------------------------------------------
 
@@ -254,10 +254,10 @@ algae_distinct <- algae_stations_distinct %>%
 
 
 # FIRST TRYPTYCH
-tmap::tmap_save(tm = map_bioall, 
-                filename = "figs/fig2_tmap_all_bio_sites.png", width = 8, height = 11, units = "in", dpi = 300)  
-tmap::tmap_save(tm = map_bioall, 
-                filename = "figs/fig2_tmap_all_bio_sites.jpg", width = 8, height = 11, units = "in", dpi = 300)  
+# tmap::tmap_save(tm = map_bioall, 
+#                 filename = "figs/fig2_tmap_all_bio_sites.png", width = 8, height = 11, units = "in", dpi = 300)  
+# tmap::tmap_save(tm = map_bioall, 
+#                 filename = "figs/fig2_tmap_all_bio_sites.jpg", width = 8, height = 11, units = "in", dpi = 300)  
 
 # TMAP Selected ASCI-CSCI stations w gages --------------------------------------------------------
 
@@ -368,12 +368,12 @@ gages_sites <- bio_ffm %>%
 
 
 # STREAM CLASS + SITES
-tmap::tmap_save(tm = map_strmclass_bio, 
-                filename = "figs/fig3_tmap_selected_bio_sites_strmclass.jpg", width = 8, height = 11, units = "in", dpi = 300)  
+# tmap::tmap_save(tm = map_strmclass_bio, 
+#                 filename = "figs/fig3_tmap_selected_bio_sites_strmclass.jpg", width = 8, height = 11, units = "in", dpi = 300)  
 
 # tiff
-tmap::tmap_save(tm = map_strmclass_bio, 
-                filename = "figs/fig3_tmap_selected_bio_sites_strmclass.tiff", width = 8, height = 11, units = "in", dpi = 300)  
+# tmap::tmap_save(tm = map_strmclass_bio, 
+#                 filename = "figs/fig3_tmap_selected_bio_sites_strmclass.tiff", width = 8, height = 11, units = "in", dpi = 300)  
 
 
 # GAGES MAP ---------------------------------------------------------------
@@ -414,14 +414,22 @@ usgs_gages <- bind_rows(ref_gages, alt_gages) %>%
 # Put them all together ---------------------------------------------------
 
 final_triptych<-tmap::tmap_arrange(
-  map_bioall, map_usgs, map_bioselect, ncol = 3, outer.margins = 0.001)
+  map_bioall, map_usgs, map_bioselect, ncol = 3, outer.margins = 0.01)
 print(final_triptych)
 
+# # with cowplot
+# t1 <- tmap_grob(map_bioall)
+# t2 <- tmap_grob(map_usgs)
+# t3 <- tmap_grob(map_bioselect)
+# library(cowplot)
+# cowplot::plot_grid(t1, t2, t3, nrow = 1, labels = "AUTO")
+
 tmap::tmap_save(tm = final_triptych, 
-                filename = "figs/fig2_tmap_triptych_biosel_usgs.jpg", width = 20,
+                filename = "figs/fig2_tmap_triptych_biosel_usgs_v2.jpg", width = 20,
                 height=14.5, units = "cm", dpi = 600)  
- tmap::tmap_save(tm = final_triptych, 
-                filename = "figs/fig2_tmap_triptych_biosel_usgs.tiff", width = 11, height = 8, units = "in", dpi = 300)  
+ 
+#tmap::tmap_save(tm = final_triptych, 
+#                filename = "figs/fig2_tmap_triptych_biosel_usgs.tiff", width = 11, height = 8, units = "in", dpi = 300)  
 
 # TMAP PALETTE EXPLORER ---------------------------------------------------
 
