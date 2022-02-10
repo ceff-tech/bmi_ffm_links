@@ -7,6 +7,12 @@
   margin-top: 0px;
 }
 
+.inverse-black {
+  background-color: #000000;
+  color: #ffc43d;
+  text-shadow: 0 0 20px #333;
+}
+
 div.my-footer {
     background-color: #E7EEF0;
     position: absolute;
@@ -24,7 +30,7 @@ div.my-footer span {
 }
 
 .title-slide h3:nth-of-type(1) {
-    color: #FFF8DC;
+    color: #ffc43d;
 }
 .title-slide h3:nth-of-type(2) {
     color: #FFF8DC;
@@ -98,3 +104,35 @@ img, video, iframe {
 .font150 {
   font-size: 150%;
 }
+
+
+.w00 {width: 00%;}
+.w01 {width: 01%;}
+.w02 {width: 02%;}
+.w03 {width: 03%;}
+.w04 {width: 04%;}
+.w05 {width: 05%;}
+.w06 {width: 06%;}
+.w07 {width: 07%;}
+.w08 {width: 08%;}
+.w09 {width: 09%;}
+.w10 {width: 10%;}
+.w15 {width: 15%;}
+.w20 {width: 20%;}
+.w25 {width: 25%;}
+.w30 {width: 30%;}
+.w35 {width: 35%;}
+.w40 {width: 40%;}
+.w45 {width: 45%;}
+.w50 {width: 50%;}
+.w55 {width: 55%;}
+.w60 {width: 60%;}
+.w65 {width: 65%;}
+.w70 {width: 70%;}
+.w75 {width: 75%;}
+.w80 {width: 80%;}
+.w85 {width: 85%;}
+.w90 {width: 90%;}
+.w95 {width: 95%;}
+.w99 {width: 99%;}
+
