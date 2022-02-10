@@ -12,7 +12,7 @@
   color: #ffc43d;
   text-shadow: 0 0 20px #333;
 }
-
+/* Comment 
 div.my-footer {
     background-color: #E7EEF0;
     position: absolute;
@@ -21,6 +21,8 @@ div.my-footer {
     height: 30px;
     width: 100%;
 }
+*/
+
 div.my-footer span {
     font-size: 12pt;
     color: #125972;

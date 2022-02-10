@@ -20,7 +20,7 @@ library(tmaptools)
 bio_ffm<- read_rds("https://github.com/ryanpeek/flow_seasonality/blob/main/output/10_ffc_filtered_final_combined_rev.rds?raw=true")
 
 # Selected Sites: with BMI data, this may all be dated
-# load("data_output/02c_selected_final_bmi_dat_all.rda")
+load("data_output/02c_selected_final_bmi_dat_all.rda")
 # bmi_final_dat (all data) (distinct 877 usgs_bmi sites)
 # bmi_not_selected: all sites not selected from BMI dataset
 # gage_selected_v2 and not selected
@@ -89,26 +89,31 @@ mapviewOptions(basemaps=basemapsList)
 # this map of all sites selected U/S and D/S
 mapviewOptions(fgb = FALSE)
 
-# m3 <- mapview(bmi_final_dat, cex=6, col.regions="orange", 
-#               layer.name="Selected BMI CSCI") +  
-#   mapview(mainstems_all %>% filter(from_gage=="UM"), color="forestgreen", cex=3, 
-#           layer.name="NHD Flowlines US") +
-#   mapview(mainstems_distinct, color="steelblue", cex=3, 
-#           layer.name="NHD Flowlines DS") +
-#   mapview(gages_selected_v2, col.regions="skyblue", cex=7, color="blue2",
-#           layer.name="Selected USGS Gages") + 
-#   # these are all bmi or gages in same H12 but not selected
-#   mapview(gages_not_selected_v2, col.regions="slateblue", color="gray20",
-#           cex=3.2, layer.name="Other USGS Gages") + 
-#   mapview(bmi_not_selected_v2, col.regions="gold", color="gray20", cex=3.2, 
-#           layer.name="Other BMI Sites in H12") + 
-#   mapview(hucs_selected_v2, col.regions="orange3", alpha.region=0.1, 
-#           color="orange", legend=F, layer.name="Selected HUC12") +
-#   mapview(hucs_not_selected_v2, col.regions="dodgerblue", alpha.region=0.1, 
-#           color="darkblue", legend=F, layer.name="Other HUC12")
-# 
-# 
-# m3@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
+m3 <- mapview(bmi_final_dat, cex=6, col.regions="orange",
+              layer.name="Selected BMI CSCI") +
+  mapview(mainstems_all %>% filter(from_gage=="UM"), color="forestgreen", cex=3,
+          layer.name="NHD Flowlines US") +
+  mapview(mainstems_distinct, color="steelblue", cex=3,
+          layer.name="NHD Flowlines DS") +
+  mapview(gages_selected_v2, col.regions="skyblue", cex=7, color="blue2",
+          layer.name="Selected USGS Gages") +
+  # these are all bmi or gages in same H12 but not selected
+  mapview(gages_not_selected_v2, col.regions="slateblue", color="gray20",
+          cex=3.2, layer.name="Other USGS Gages") +
+  mapview(bmi_not_selected_v2, col.regions="gold", color="gray20", cex=3.2,
+          layer.name="Other BMI Sites in H12") +
+  mapview(hucs_selected_v2, col.regions="orange3", alpha.region=0.1,
+          color="orange", legend=F, layer.name="Selected HUC12") +
+  mapview(hucs_not_selected_v2, col.regions="dodgerblue", alpha.region=0.1,
+          color="darkblue", legend=F, layer.name="Other HUC12")
+
+
+m3@map %>% leaflet::addMeasure(primaryLengthUnit = "meters")
+
+# write data pieces for slides:
+save(bmi_final_dat, mainstems_all, mainstems_distinct, gages_selected_v2, 
+     gages_not_selected_v2, bmi_not_selected_v2, hucs_selected_v2,
+     hucs_not_selected_v2, file="slides/mapview_data_for_bmi.rda")
 
 # save out
 #mapshot(m3, url = paste0(here::here(),"/figs/03_map_of_final_bmi_csci_sites.html"))
