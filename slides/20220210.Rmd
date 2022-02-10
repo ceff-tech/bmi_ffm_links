@@ -1,0 +1,200 @@
+---
+title: "<br>Wrangling Ridiculous River Data:"
+subtitle: "Linking Biological Stream Condition with Flow Alteration"
+author: "Ryan Peek, PhD<br><span style = 'font-size: 70%;'> UC Davis<br>Center for Watershed Sciences<br></span>"
+date: '<span style = "font-size: 60%;">2022-Feb-10<br>`r icons::fontawesome("twitter")` [riverpeek](https://twitter.com/riverpeek)</span>'
+output:
+  xaringan::moon_reader:
+    seal: false
+    css: ["xaringan-themer.css", "peek_custom.css"]
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      beforeInit: "macros.js"
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+library(flair)
+library(icons)
+library(here)
+library(tidyverse)
+library(xaringanthemer)
+
+xaringanExtra::use_xaringan_extra(include = c("tile_view", "share_again", "editable"))
+xaringanExtra::use_extra_styles(hover_code_line = TRUE, mute_unhighlighted_code = TRUE)
+
+style_duo_accent(
+  primary_color = "#1b9aaa",
+  secondary_color = "#ffc43d",
+  #title_slide_background_image = "flare_helix.png", 
+  #title_slide_background_position = "bottom 490px left 250px",
+  #title_slide_background_size = "40%",
+  text_font_google = google_font("Roboto"),  #<< Playfair Display, Bebas Neue
+  header_font_google = google_font("Sansita"), 
+  link_color = "#C71585",
+  #<< crazy: Trade Winds, Bangers, Julius Sans One, IBM Plex Sans Condensed
+  text_font_size = "1.4rem"
+  #title_slide_background_color = "steelblue"
+)
+
+knitr::opts_chunk$set(
+  fig.showtext = TRUE,
+  fig.retina = 3, warning = FALSE, 
+  message = FALSE,
+  fig.width = 16,
+  fig.height = 8,
+  dpi = 300
+)
+
+```
+
+class: center, top, inverse
+background-image: url(041912_Panorama_NYUBA.jpg)
+background-size: contain
+
+# Wrangling Ridiculous River Data
+
+### Linking Biological Stream Condition with Flow Alteration
+
+<br><br><br><br><br><br>
+.large[Ryan Peek | 2022 Feb 10 ]
+
+<span style = "font-size: 100%;">`r icons::fontawesome("twitter")` [riverpeek](https://twitter.com/riverpeek)</span>
+
+---
+
+layout: true
+  
+<div class="my-footer"><span>2022 • @riverpeek</span></div> 
+
+
+---
+class: inverse, right
+background-image: url("colfax_1891.png")
+background-size: cover
+
+## A winding path
+
+---
+class: center, middle
+
+# Data in California
+
+## an ever-present wave
+
+![:scale 70%](email20monster.png)
+
+---
+class: center, middle, inverse
+
+# So how can we use it for good? 
+
+![](data_provenance_workflow_words.png)
+
+
+---
+class: top
+
+## People think Data Science is...
+
+```{r, echo=FALSE, out.width='85%', fig.align='center'}
+
+knitr::include_graphics("https://media.wired.com/photos/5ca648a330f00e47fd82ae77/master/w_2560%2Cc_limit/Culture_Matrix_Code_corridor.jpg")
+
+```
+ 
+---
+class: inverse, top
+
+## Actual Data Science is this...
+
+```{r echo=F, eval=TRUE, out.width='70%'}
+
+# these are all from Allison Horst: https://github.com/allisonhorst/stats-illustrations
+
+# CITE AS: "Artwork by @allison_horst"
+
+knitr::include_graphics(path="https://raw.githubusercontent.com/allisonhorst/stats-illustrations/master/rstats-artwork/data_cowboy.png")
+
+```
+
+.font60[
+*Illustration by @allison_horst, from Hadley Wickham's talk 'The Joy of Functional Programming (for Data Science)'"*
+]
+
+
+ - [*see great visualization of same data 25 ways!*](https://flowingdata.com/2017/01/24/one-dataset-visualized-25-ways/)
+
+---
+class: inverse, center, top
+name: rivers-intro
+background-image: url('slate_ck_aerial_v2.png')
+background-size: 70%
+background-position: 50% 50%
+
+<br>
+
+# Rivers
+
+--
+
+<br><br>
+
+## Dams
+
+
+
+---
+name: plot
+
+# make a themed plot 
+
+
+```{r echo=TRUE, eval=FALSE}
+
+ggplot(mpg) +
+    aes(cty, hwy) +
+    geom_point() +
+    ggtitle("Fuel efficiency!") +
+    theme_xaringan_inverse() #<<
+```
+
+
+
+```{r echo=FALSE}
+
+ggplot(mpg) +
+    aes(cty, hwy) +
+    geom_point() +
+    ggtitle("Fuel efficiency!") +
+    theme_xaringan_inverse()
+```
+
+
+---
+
+# List of stuff
+
+Some differences between using remark.js (left) and using **xaringan** (right):
+
+
+1. Start with an R Markdown document;
+
+--
+
+1. R Markdown (can embed R/other code chunks);
+
+--
+
+1. Provide an option `autoplay`;
+
+--
+
+1. MathJax just works;
+
+--
+
+1. Highlight code with `{{}}`;
